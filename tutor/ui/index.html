@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atenea — Tutor</title>
+<style>
+  :root {
+    --bg: #10141a; --panel: #1a2029; --border: #2b3442;
+    --text: #e8edf4; --muted: #8b98a9; --accent: #5aa9e6; --accent2: #7fc8a9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+  header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  header h1 { margin: 0; font-size: 18px; }
+  header .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge {
+    font-size: 12px; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 999px; padding: 2px 10px;
+  }
+  main { flex: 1; max-width: 780px; width: 100%; margin: 0 auto; padding: 20px; }
+  .hidden { display: none !important; }
+
+  #setup { display: flex; gap: 10px; margin-top: 10vh; }
+  #setup input {
+    flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); font-size: 16px;
+  }
+  button {
+    padding: 12px 18px; border-radius: 10px; border: none; cursor: pointer;
+    background: var(--accent); color: #0b1015; font-weight: 600; font-size: 15px;
+  }
+  button.secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  button:disabled { opacity: .5; cursor: wait; }
+
+  #messages { display: flex; flex-direction: column; gap: 12px; padding-bottom: 140px; }
+  .msg { padding: 12px 16px; border-radius: 14px; max-width: 85%; white-space: pre-wrap; }
+  .tutor { background: var(--panel); border: 1px solid var(--border); align-self: flex-start; }
+  .learner { background: #23415a; align-self: flex-end; }
+  .status { color: var(--muted); font-size: 13px; text-align: center; }
+  .error { color: #e6a15a; font-size: 14px; text-align: center; }
+
+  #composer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, var(--bg) 30%);
+    padding: 20px;
+  }
+  #composer .inner { max-width: 780px; margin: 0 auto; display: flex; gap: 10px; }
+  #composer textarea {
+    flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); font-size: 16px; resize: none; height: 52px;
+  }
+  #record { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-top: 16px; }
+  #record h2 { margin: 0 0 10px; font-size: 16px; color: var(--accent2); }
+  #record dt { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  #record dd { margin: 2px 0 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Atenea</h1>
+  <div class="badges" id="badges"></div>
+</header>
+<main>
+  <div id="setup">
+    <input id="topic" placeholder="What do you want to work on today? / ¿Qué quieres trabajar hoy?" autofocus>
+    <button id="start">Start</button>
+  </div>
+  <div id="chat" class="hidden">
+    <div id="messages"></div>
+    <div id="record" class="hidden"></div>
+  </div>
+  <p id="error" class="error hidden"></p>
+</main>
+<div id="composer" class="hidden">
+  <div class="inner">
+    <textarea id="input" placeholder="Your answer…"></textarea>
+    <button id="send">Send</button>
+    <button id="close" class="secondary" title="End session and store the record">End</button>
+  </div>
+</div>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+let sessionId = null;
+
+function show(el, on = true) { el.classList.toggle("hidden", !on); }
+
+function addMsg(role, text) {
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  div.textContent = text;
+  $("messages").appendChild(div);
+  div.scrollIntoView({ behavior: "smooth", block: "end" });
+}
+
+function addStatus(text) {
+  const p = document.createElement("p");
+  p.className = "status";
+  p.textContent = text;
+  $("messages").appendChild(p);
+}
+
+function setError(text) {
+  $("error").textContent = text || "";
+  show($("error"), Boolean(text));
+}
+
+async function api(path, options) {
+  const response = await fetch(path, options);
+  if (!response.ok) {
+    let detail = response.statusText;
+    try { detail = (await response.json()).detail || detail; } catch (e) { /* keep statusText */ }
+    throw new Error(detail);
+  }
+  return response.json();
+}
+
+async function startSession() {
+  const topic = $("topic").value.trim();
+  if (!topic) return;
+  setError("");
+  $("start").disabled = true;
+  try {
+    const data = await api("/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic }),
+    });
+    sessionId = data.session_id;
+    const t = data.traits, plan = data.technique;
+    $("badges").innerHTML = "";
+    [t.production, t.verifiability, t.structure, plan.primary].forEach((label) => {
+      const span = document.createElement("span");
+      span.className = "badge";
+      span.textContent = label;
+      $("badges").appendChild(span);
+    });
+    show($("setup"), false);
+    show($("chat"));
+    show($("composer"));
+    addMsg("tutor", data.opening_message);
+    $("input").focus();
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    $("start").disabled = false;
+  }
+}
+
+async function sendMessage() {
+  const text = $("input").value.trim();
+  if (!text || !sessionId) return;
+  setError("");
+  addMsg("learner", text);
+  $("input").value = "";
+  $("send").disabled = true;
+  try {
+    const data = await api(`/session/${encodeURIComponent(sessionId)}/message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    addMsg("tutor", data.reply);
+    addStatus(`attempts: ${data.attempts} · help level: ${data.help_level}/4`);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    $("send").disabled = false;
+    $("input").focus();
+  }
+}
+
+async function closeSession() {
+  if (!sessionId) return;
+  setError("");
+  $("close").disabled = true;
+  try {
+    const record = await api(`/session/${encodeURIComponent(sessionId)}/close`, { method: "POST" });
+    const el = $("record");
+    el.innerHTML = "<h2>Session record</h2><dl>" +
+      field("Summary", record.summary) +
+      field("Assessment", record.assessment) +
+      field("Next step", record.next_step) +
+      field("Review on", (record.review_date || "").slice(0, 10)) +
+      "</dl>";
+    show(el);
+    show($("composer"), false);
+    addStatus("Session closed and stored.");
+    el.scrollIntoView({ behavior: "smooth" });
+  } catch (err) {
+    setError(err.message);
+    $("close").disabled = false;
+  }
+}
+
+function field(label, value) {
+  const safe = (value || "—").toString()
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  return `<dt>${label}</dt><dd>${safe}</dd>`;
+}
+
+$("start").addEventListener("click", startSession);
+$("topic").addEventListener("keydown", (e) => { if (e.key === "Enter") startSession(); });
+$("send").addEventListener("click", sendMessage);
+$("input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+$("close").addEventListener("click", closeSession);
+</script>
+</body>
+</html>

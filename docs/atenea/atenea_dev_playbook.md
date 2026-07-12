@@ -194,9 +194,14 @@ tutor/prompts/   # session_system.md, classify_traits.md, close_summary.md (Engl
 
 **Usable when:** with the stack up, profile created and material indexed — `curl POST /session {"topic": ...}` opens (returns traits + technique + opening message), a few `POST /session/{id}/message` exchanges hold a real (short) tutoring dialogue over the learner's own document, `POST /session/{id}/close` stores and returns a readable record (`GET /session/{id}`) with summary, assessment, next step, review date. **Merging PR-E1 closes V1.**
 
-### Then: PR-F1 (chat page), per `atenea_pr_plan.md`
+### PR-F1 — Minimal chat page *(Feature F; contract fixed 2026-07-12)*
 
-Immediately after E1: minimal chat page served by the tutor service (single static HTML+JS view over the session endpoints). Contract to be written when E1 merges.
+- `tutor/ui/index.html`: one static file — vanilla HTML+CSS+JS, no framework, no build step. Served by the tutor service itself at `GET /` (root). Consumes only the public session endpoints; OpenNotebook's Next.js frontend untouched.
+- Flow: enter topic → open session (traits + technique shown as badges) → chat turns (attempts / help level visible) → close (renders the stored record: summary, assessment, next step, review date).
+- Friendly error states: 409 (no profile yet → points to the questionnaire), 503 (TUTOR_LLM_* unconfigured), network failures.
+- Tests: `GET /` serves the page (200, HTML, contains app markup). The JS itself is intentionally untested in V1 — single file, validated by dogfood; a JS test harness is not worth its weight yet.
+
+**Usable when:** a full E1 session (open → dialogue → close) happens in the browser at `http://localhost:5056/` without curl.
 
 ## 2. CI Policy
 
