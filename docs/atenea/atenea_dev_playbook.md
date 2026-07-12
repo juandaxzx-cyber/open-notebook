@@ -203,6 +203,17 @@ tutor/prompts/   # session_system.md, classify_traits.md, close_summary.md (Engl
 
 **Usable when:** a full E1 session (open → dialogue → close) happens in the browser at `http://localhost:5056/` without curl.
 
+## 1.5 First Live Dogfood — Findings (2026-07-12, session on "aprender a aprender")
+
+V1 works end-to-end (profile → open → dialogue → close). Quality failures observed and their disposition:
+
+- **Interrogation without instruction** — the tutor chained questions for 6 turns without ever teaching or proposing a plan. Cause: prompt over-weighted "make the learner generate". *Fixed in prompt*: mandatory session plan in the opening, teach-then-check structure every turn, gap-closing before advancing.
+- **Per-turn flattery** ("Excelente", "muy agudo"). *Fixed in prompt*: praise banned except once per session for substance.
+- **`attempts` counts messages, not attempts on a task** — misleading. *Mitigated*: UI no longer shows it (help level only, when > 0). *Real fix is backlog*: per-exercise state machine (tutor signals task boundaries; attempts/help reset per task). Candidate PR-E2.
+- **Backlog reinforced**: the pedagogical-prompt layer needs its own iteration loop (the LLM-judge eval harness already deferred in `atenea_context.md` §2); a prompts-quality PR should not wait for the learned-selection version.
+
+Lesson for future implementers: prompt constraints are followed literally — always pair a "do X" with its failure-mode counterweight ("but never Y").
+
 ## 2. CI Policy
 
 - Upstream `test.yml` covers OpenNotebook. PR-A1 must extend CI so every PR also runs `make check-tutor` (same workflow file, extra job — document it in `CORE_CHANGES.md` only if upstream's workflow file is modified rather than a new workflow added; prefer a new `tutor-ci.yml`).

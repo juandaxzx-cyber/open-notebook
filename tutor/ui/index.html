@@ -169,7 +169,7 @@ async function sendMessage() {
       body: JSON.stringify({ text }),
     });
     addMsg("tutor", data.reply);
-    addStatus(`attempts: ${data.attempts} · help level: ${data.help_level}/4`);
+    if (data.help_level > 0) addStatus(`nivel de ayuda: ${data.help_level}/4`);
   } catch (err) {
     setError(err.message);
   } finally {
