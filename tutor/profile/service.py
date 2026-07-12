@@ -5,7 +5,7 @@ The DB dependency is injectable so tests never need a live SurrealDB.
 
 from typing import Any
 
-from tutor.db import atenea_db
+from tutor.db import atenea_db, ensure_ok
 from tutor.profile.models import Profile, ProfileIn
 
 
@@ -25,9 +25,11 @@ def _first_row(result: Any) -> dict[str, Any] | None:
 class ProfileService:
     async def get_profile(self, user_id: str) -> Profile | None:
         async with atenea_db() as db:
-            result = await db.query(
-                "SELECT * FROM profile WHERE user_id = $user_id LIMIT 1",
-                {"user_id": user_id},
+            result = ensure_ok(
+                await db.query(
+                    "SELECT * FROM profile WHERE user_id = $user_id LIMIT 1",
+                    {"user_id": user_id},
+                )
             )
         row = _first_row(result)
         if row is None:
@@ -39,26 +41,22 @@ class ProfileService:
         data = payload.model_dump()
         data["user_id"] = user_id
         async with atenea_db() as db:
-            await db.query(
-                """
-                IF (SELECT * FROM profile WHERE user_id = $user_id) THEN
-                    (UPDATE profile SET learning_goal = $learning_goal,
+            # UPSERT (SurrealDB 2.x): updates the matching record or creates
+            # it when none exists. The unique index on user_id guards races.
+            ensure_ok(
+                await db.query(
+                    """
+                    UPSERT profile SET
+                        user_id = $user_id,
+                        learning_goal = $learning_goal,
                         self_assessed_level = $self_assessed_level,
                         weekly_availability_hours = $weekly_availability_hours,
                         format_preferences = $format_preferences,
                         updated = time::now()
-                     WHERE user_id = $user_id)
-                ELSE
-                    (CREATE profile CONTENT {
-                        user_id: $user_id,
-                        learning_goal: $learning_goal,
-                        self_assessed_level: $self_assessed_level,
-                        weekly_availability_hours: $weekly_availability_hours,
-                        format_preferences: $format_preferences
-                    })
-                END
-                """,
-                data,
+                    WHERE user_id = $user_id
+                    """,
+                    data,
+                )
             )
         stored = await self.get_profile(user_id)
         assert stored is not None  # just written
