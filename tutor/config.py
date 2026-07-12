@@ -16,6 +16,8 @@ class TutorSettings(BaseModel):
     port: int = 5056
     open_notebook_api_url: str = "http://localhost:5055"
     open_notebook_password: str | None = None
+    llm_provider: str | None = None
+    llm_model: str | None = None
 
     @classmethod
     def from_env(cls) -> "TutorSettings":
@@ -23,7 +25,8 @@ class TutorSettings(BaseModel):
 
         Variables: TUTOR_HOST, TUTOR_PORT, OPEN_NOTEBOOK_API_URL,
         OPEN_NOTEBOOK_PASSWORD (same variable OpenNotebook's API uses for
-        its Bearer auth; leave unset if OpenNotebook runs without a password).
+        its Bearer auth; leave unset if OpenNotebook runs without a password),
+        TUTOR_LLM_PROVIDER, TUTOR_LLM_MODEL.
         """
         values: dict[str, str] = {}
         env_map = {
@@ -31,6 +34,8 @@ class TutorSettings(BaseModel):
             "port": "TUTOR_PORT",
             "open_notebook_api_url": "OPEN_NOTEBOOK_API_URL",
             "open_notebook_password": "OPEN_NOTEBOOK_PASSWORD",
+            "llm_provider": "TUTOR_LLM_PROVIDER",
+            "llm_model": "TUTOR_LLM_MODEL",
         }
         for field, var in env_map.items():
             value = os.environ.get(var)
