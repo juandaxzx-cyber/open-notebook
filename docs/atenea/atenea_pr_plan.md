@@ -25,7 +25,7 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
   - Usable when: a test call invokes both tools correctly.
 
 ### Feature E — Tutoring Sessions *(V1 milestone)*
-- **PR-E1:** first end-to-end session — tutor combines profile + retrieved content + technique choice (fixed mapping from the three content traits); never gives the answer before 2 student attempts; logs summary, assessment, next step with review date on close.
+- **PR-E1:** first end-to-end session — tutor combines profile + retrieved content + technique choice (fixed mapping from the three content traits); applies a graduated-help policy (generation first, hint ladder: conceptual → procedural → partial → full solution; replaces the earlier fixed "2 attempts" rule — decision 2026-07-12, see playbook); logs summary, assessment, next step with review date on close.
   - Usable when: the developer holds a real tutoring session over their own document and a readable session record remains.
   - **Merging PR-E1 closes "V1" as a narrative label.**
 

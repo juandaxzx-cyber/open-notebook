@@ -164,9 +164,39 @@ class ToolRegistry:
 
 **Merging PR-D1 enables parallel implementers** (stable interfaces exist: data layer, LLM layer, tool registry).
 
-### Then: PR-E1 (V1), per `atenea_pr_plan.md`
+### PR-E1 — First tutoring session *(Feature E; contract fixed, signed off 2026-07-12; closes V1)*
 
-Contract **not yet written**. Architect step required: write it into §1 (session flow, technique mapping, prompts location, session-record schema already in schema.surrealql), developer sign-off, then implement.
+**Decisions (developer, 2026-07-12):** the fixed "2 attempts before answer" rule is **replaced by a graduated-help policy** (see below) — the fixed threshold lacked research support (worked-example effect, assistance dilemma) while generation-first + graduated hints is well grounded (generation effect, pretesting, faded worked examples). Traits are **classified by the tutor LLM** at session open (logged, conversationally correctable). Tutor **replies in the learner's language** (prompts in English). **No CLI chat**: E1 ships endpoints verified via curl; **PR-F1 follows immediately** with a minimal chat page served by the tutor service itself (plain HTML+JS consuming the API; OpenNotebook's Next.js frontend untouched).
+
+**Layout:**
+
+```
+tutor/session/
+  __init__.py
+  models.py      # ContentTraits, TechniquePlan, HelpState, SessionState, API models
+  techniques.py  # select_technique(traits, level) -> TechniquePlan  (pure, unit-tested)
+  policy.py      # graduated-help ladder (pure)
+  engine.py      # TutorEngine: open/message/close; LLM + registry injected
+  router.py      # POST /session, POST /session/{id}/message, POST /session/{id}/close, GET /session/{id}
+  store.py       # session persistence over tutor/db.py
+tutor/prompts/   # session_system.md, classify_traits.md, close_summary.md (English)
+```
+
+**Technique mapping (fixed, composable):** production type picks the primary technique — `recall` → retrieval practice; `apply` → faded worked examples (novice) / problem-solving with feedback (intermediate+); `explain/transfer` → Socratic self-explanation. Verifiability modulates feedback (verifiable → immediate corrective; interpretive → criteria-based discussion). Structure modulates sequencing (hierarchical → prerequisites first; distributed → interleaving/connections).
+
+**Graduated-help policy (fixed):** per-exercise state tracks `attempts` and `help_level` (0 none → 1 conceptual hint → 2 procedural hint → 3 partial solution → 4 full solution). Full solution only after the ladder is climbed or the learner explicitly gives up after ≥1 attempt; novice+apply sessions may start from worked examples. The engine injects attempts/help_level into the system prompt every turn — auditable in the session log, never dependent on LLM memory alone.
+
+**Engine-orchestrated tools (V1):** the engine calls registry entries deterministically (open → `profile.read` + `content.search` on the topic; close → session write) and feeds results into prompts. LLM-driven function calling over `list_specs()` is a later enhancement, not V1.
+
+**Session record:** extends `schema.surrealql` `session` table (append-only, idempotent) with `topic`, `traits` (flexible object), `technique`, `transcript` (flexible array). Transcript persisted after every turn. On close, the LLM produces summary, assessment, next step + review date.
+
+- No new env vars. Tests: mapping and policy as pure functions; engine and router with fake LLM/registry/store. No network/DB/LLM in tests.
+
+**Usable when:** with the stack up, profile created and material indexed — `curl POST /session {"topic": ...}` opens (returns traits + technique + opening message), a few `POST /session/{id}/message` exchanges hold a real (short) tutoring dialogue over the learner's own document, `POST /session/{id}/close` stores and returns a readable record (`GET /session/{id}`) with summary, assessment, next step, review date. **Merging PR-E1 closes V1.**
+
+### Then: PR-F1 (chat page), per `atenea_pr_plan.md`
+
+Immediately after E1: minimal chat page served by the tutor service (single static HTML+JS view over the session endpoints). Contract to be written when E1 merges.
 
 ## 2. CI Policy
 

@@ -70,7 +70,7 @@ Explicit distinction between paving that's cheap-now-expensive-later (do it now)
 
 - Values: truth, love of humanity, justice. Goal: democratize genuine **understanding**, not just access to information.
 - Evidence-based: science and data analysis as primary sources; user feedback and subjective experience count as signal, weighted by relevance and reliability.
-- **Pending:** formalize verifiable *operational* standards (e.g., "every technique used must have grounding in learning-science literature," "the tutor never gives the answer before N attempts from the student"). To be revisited after the initial PR backlog stabilizes.
+- **Pending:** formalize verifiable *operational* standards (e.g., "every technique used must have grounding in learning-science literature," "the tutor follows the graduated-help ladder — never the full solution while the learner is mid-attempt"). First instance decided 2026-07-12: the fixed "N attempts before answer" rule was replaced by a graduated-help policy grounded in the generation effect, faded worked examples, and the assistance dilemma (see playbook, PR-E1). To be revisited after the initial PR backlog stabilizes.
 
 ## 9. Developer Working Profile (for collaborators/AI)
 
