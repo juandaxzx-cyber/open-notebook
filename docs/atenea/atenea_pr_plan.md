@@ -43,6 +43,9 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
   - Note: prefer a standalone interface consuming the service API; modifying OpenNotebook's frontend is allowed under the extension-before-modification rule (see AGENTS.md) if it's genuinely the cheaper path.
 - *Parallelism across implementers enabled from here.*
 
+### Feature F2 — Unified Experience *(registered 2026-07-12; after DX1/E2, position vs. G = developer's call)*
+- Tutor and OpenNotebook currently feel like two separate apps (UIs, UX, ports). F2 = single entry point + visual pass on the tutor UI. Sharpens the already-deferred "deep visual frontend rework".
+
 ### Feature G — Spaced Repetition
 - **PR-G1:** basic SM-2 over items flagged "to review" in sessions.
 

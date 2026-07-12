@@ -225,6 +225,8 @@ Rationale: the felt value of Atenea lives in session quality, and the dogfooding
 3. **PR-E2 — session quality.** Two halves: (a) per-task state — the tutor marks task boundaries (structured marker in its replies, parsed by the engine); attempts/help_level reset per task and the UI shows them per task honestly; (b) first prompt-evaluation loop — a small set of scripted learner personas + an LLM-judge rubric (teaches-before-asking, no flattery, plan adherence, help-ladder compliance) run against prompt changes, so pedagogy iterates on measurement. This pulls forward part of the deferred "learned selection" work without the fine-tuning half.
 4. Then resume the ordered backlog (Feature G onward) in `atenea_pr_plan.md`.
 
+Additional deferred observation (developer, 2026-07-12): **the tutor and OpenNotebook feel like two separate apps** — different UIs, different UX, different ports; today's integration is content-only (search over indexed sources). A unified experience (single entry point; either the tutor embedded in OpenNotebook's UI or OpenNotebook's library views embedded in the tutor's) plus a real visual pass on the tutor UI is **Feature F2** territory: registered in the backlog, deliberately after DX1/E2 — it's part of the "deep visual frontend rework" the context doc already defers, now with a sharper definition of what hurts.
+
 ## 2. CI Policy
 
 - Upstream `test.yml` covers OpenNotebook. PR-A1 must extend CI so every PR also runs `make check-tutor` (same workflow file, extra job — document it in `CORE_CHANGES.md` only if upstream's workflow file is modified rather than a new workflow added; prefer a new `tutor-ci.yml`).
