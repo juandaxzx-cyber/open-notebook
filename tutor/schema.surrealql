@@ -1,0 +1,23 @@
+-- Atenea schema, applied idempotently at service startup (tutor/db.py).
+-- Lives in the separate `atenea` database (shared SurrealDB instance).
+-- Every table carries user_id from the first definition (AGENTS.md rule #3).
+
+DEFINE TABLE IF NOT EXISTS profile SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS user_id ON profile TYPE string;
+DEFINE FIELD IF NOT EXISTS learning_goal ON profile TYPE string;
+DEFINE FIELD IF NOT EXISTS self_assessed_level ON profile TYPE string;
+DEFINE FIELD IF NOT EXISTS weekly_availability_hours ON profile TYPE float;
+DEFINE FIELD IF NOT EXISTS format_preferences ON profile TYPE array<string>;
+DEFINE FIELD IF NOT EXISTS created ON profile TYPE datetime DEFAULT time::now();
+DEFINE FIELD IF NOT EXISTS updated ON profile TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS profile_user ON profile FIELDS user_id UNIQUE;
+
+DEFINE TABLE IF NOT EXISTS session SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS user_id ON session TYPE string;
+DEFINE FIELD IF NOT EXISTS started_at ON session TYPE datetime DEFAULT time::now();
+DEFINE FIELD IF NOT EXISTS ended_at ON session TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS summary ON session TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS assessment ON session TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS next_step ON session TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS review_date ON session TYPE option<datetime>;
+DEFINE INDEX IF NOT EXISTS session_user ON session FIELDS user_id;
