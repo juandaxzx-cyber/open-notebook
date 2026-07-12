@@ -208,3 +208,13 @@ clean-cache:
 	@find . -name "*.pyo" -type f -delete 2>/dev/null || true
 	@find . -name "*.pyd" -type f -delete 2>/dev/null || true
 	@echo "✅ Cache directories cleaned!"
+# === Atenea Tutoring Service ===
+
+tutor:
+	uv run python -m tutor
+
+check-tutor:
+	uv run ruff format --check tutor tests_tutor
+	uv run ruff check tutor tests_tutor
+	uv run python -m mypy tutor tests_tutor
+	uv run pytest tests_tutor -v
