@@ -77,4 +77,4 @@ No single "done" — progress reads as merged, dogfooded PRs against this ordere
 
 ## Status (2026-07-12)
 
-**V1 complete and dogfooded end-to-end (2026-07-12)**: PR-0 and Features A–F delivered as stacked branches (`fix/vertex-credentials-env` → `feature/a/skeleton` → `feature/b/llm-layer` → `feature/c/profile` → `feature/d/tool-registry` → `feature/e/session` → `feature/f/chat-ui`), pending merge in order. First live sessions surfaced real fixes (SurrealDB v2 syntax, error surfacing, session pedagogy — see playbook §1.5). Next, in order (playbook §1.6): merge the chain → **PR-DX1** → **PR-E2** → resume Feature G. Per-PR contracts live in the playbook; this file stays the backlog-level view.
+**V1 MERGED to `main` (2026-07-12)**: PR-0 and Features A–F dogfooded end-to-end and merged in order (one merge commit per PR, `5e06eff`…`5869034`). First live sessions surfaced real fixes (SurrealDB v2 syntax, error surfacing, session pedagogy — see playbook §1.5). Next, in order (playbook §1.6): **PR-DX1** (one-command startup) → **PR-E2** (session quality) → F2/G onward. Per-PR contracts live in the playbook; this file stays the backlog-level view.
