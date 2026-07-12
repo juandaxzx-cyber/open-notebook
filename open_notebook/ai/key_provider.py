@@ -142,18 +142,22 @@ async def _provision_simple_provider(provider: str) -> bool:
     return True
 
 
-async def _provision_vertex() -> bool:
+def apply_vertex_env(cred: Credential) -> bool:
     """
-    Set environment variables for Google Vertex AI from DB config.
+    Mirror a Vertex credential's fields into the environment variables that
+    Esperanto's Vertex providers actually read.
+
+    Esperanto's Vertex language/embedding/tts providers only pick up the project,
+    location and credentials from the environment (VERTEX_PROJECT / VERTEX_LOCATION
+    / GOOGLE_APPLICATION_CREDENTIALS) or gcloud — values passed through the
+    Esperanto `config` dict are ignored for this provider. So credentials entered
+    in the UI must be copied into env vars before a Vertex model is built or
+    tested, otherwise the model raises "Google Cloud project ID not found".
 
     Returns:
-        True if any keys were set from database
+        True if any value was set from the credential.
     """
     any_set = False
-
-    cred = await _get_default_credential("vertex")
-    if not cred:
-        return False
 
     if cred.project:
         os.environ["VERTEX_PROJECT"] = cred.project
@@ -169,6 +173,20 @@ async def _provision_vertex() -> bool:
         any_set = True
 
     return any_set
+
+
+async def _provision_vertex() -> bool:
+    """
+    Set environment variables for Google Vertex AI from DB config.
+
+    Returns:
+        True if any keys were set from database
+    """
+    cred = await _get_default_credential("vertex")
+    if not cred:
+        return False
+
+    return apply_vertex_env(cred)
 
 
 async def _provision_azure() -> bool:
