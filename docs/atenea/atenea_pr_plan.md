@@ -29,11 +29,22 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
   - Usable when: the developer holds a real tutoring session over their own document and a readable session record remains.
   - **Merging PR-E1 closes "V1" as a narrative label.**
 
+### Feature DX — One-Command Startup *(inserted 2026-07-12; before G)*
+- **PR-DX1:** tutor as a docker-compose service; `docker compose up -d` brings up the full stack.
+  - Usable when: cold machine → one command → working session in the browser.
+
+### Feature E2 — Session Quality *(inserted 2026-07-12; before G)*
+- **PR-E2:** per-task attempt/help state (tutor marks task boundaries) + first prompt-evaluation loop (scripted personas + LLM-judge rubric). See playbook §1.6.
+  - Usable when: attempts/help shown per task are honest, and a prompt change can be compared against the rubric before shipping.
+
 ### Feature F — Tutor-First UI
 - **PR-F1:** minimal dedicated interface with the tutoring chat as primary view.
   - Usable when: the PR-E1 session works without curl/CLI.
   - Note: prefer a standalone interface consuming the service API; modifying OpenNotebook's frontend is allowed under the extension-before-modification rule (see AGENTS.md) if it's genuinely the cheaper path.
 - *Parallelism across implementers enabled from here.*
+
+### Feature F2 — Unified Experience *(registered 2026-07-12; after DX1/E2, position vs. G = developer's call)*
+- Tutor and OpenNotebook currently feel like two separate apps (UIs, UX, ports). F2 = single entry point + visual pass on the tutor UI. Sharpens the already-deferred "deep visual frontend rework".
 
 ### Feature G — Spaced Repetition
 - **PR-G1:** basic SM-2 over items flagged "to review" in sessions.
@@ -66,4 +77,4 @@ No single "done" — progress reads as merged, dogfooded PRs against this ordere
 
 ## Status (2026-07-12)
 
-PR-0 (Vertex fix) and Features A–D delivered as stacked branches, pending developer dogfood + merge in order: `fix/vertex-credentials-env` → `feature/a/skeleton` → `feature/b/llm-layer` → `feature/c/profile` → `feature/d/tool-registry`. Next: **PR-E1 contract** (see `atenea_dev_playbook.md` §1), which closes V1. Per-PR contracts and operational checklists live in the playbook; this file stays the backlog-level view.
+**V1 complete and dogfooded end-to-end (2026-07-12)**: PR-0 and Features A–F delivered as stacked branches (`fix/vertex-credentials-env` → `feature/a/skeleton` → `feature/b/llm-layer` → `feature/c/profile` → `feature/d/tool-registry` → `feature/e/session` → `feature/f/chat-ui`), pending merge in order. First live sessions surfaced real fixes (SurrealDB v2 syntax, error surfacing, session pedagogy — see playbook §1.5). Next, in order (playbook §1.6): merge the chain → **PR-DX1** → **PR-E2** → resume Feature G. Per-PR contracts live in the playbook; this file stays the backlog-level view.

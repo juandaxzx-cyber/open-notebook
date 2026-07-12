@@ -1,6 +1,9 @@
 """FastAPI app factory for the tutoring service (API-first, AGENTS.md rule #2)."""
 
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from tutor import __version__
@@ -14,6 +17,8 @@ from tutor.session.engine import TutorEngine
 from tutor.session.router import build_session_router
 from tutor.session.store import SessionStore
 from tutor.tools.defaults import build_default_registry
+
+UI_PATH = Path(__file__).parent / "ui" / "index.html"
 
 
 class OpenNotebookStatus(BaseModel):
@@ -59,6 +64,11 @@ def create_app(
     app = FastAPI(title="Atenea Tutoring Service", version=__version__)
     app.include_router(build_profile_router(profile_service))
     app.include_router(build_session_router(engine or _build_engine(resolved)))
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    async def ui() -> HTMLResponse:
+        """Minimal chat page (PR-F1): single static file, no build step."""
+        return HTMLResponse(UI_PATH.read_text(encoding="utf-8"))
 
     @app.get("/health", response_model=HealthResponse)
     async def health() -> HealthResponse:

@@ -5,6 +5,7 @@ Asks the four PR-C1 questions and PUTs them to the running tutor service
 """
 
 import httpx
+from dotenv import load_dotenv
 
 from tutor.config import TutorSettings
 from tutor.profile.models import ProfileIn
@@ -28,6 +29,7 @@ def ask_questions() -> ProfileIn:
 
 
 def main() -> None:
+    load_dotenv()
     settings = TutorSettings.from_env()
     payload = ask_questions()
     base = f"http://localhost:{settings.port}"

@@ -194,9 +194,38 @@ tutor/prompts/   # session_system.md, classify_traits.md, close_summary.md (Engl
 
 **Usable when:** with the stack up, profile created and material indexed — `curl POST /session {"topic": ...}` opens (returns traits + technique + opening message), a few `POST /session/{id}/message` exchanges hold a real (short) tutoring dialogue over the learner's own document, `POST /session/{id}/close` stores and returns a readable record (`GET /session/{id}`) with summary, assessment, next step, review date. **Merging PR-E1 closes V1.**
 
-### Then: PR-F1 (chat page), per `atenea_pr_plan.md`
+### PR-F1 — Minimal chat page *(Feature F; contract fixed 2026-07-12)*
 
-Immediately after E1: minimal chat page served by the tutor service (single static HTML+JS view over the session endpoints). Contract to be written when E1 merges.
+- `tutor/ui/index.html`: one static file — vanilla HTML+CSS+JS, no framework, no build step. Served by the tutor service itself at `GET /` (root). Consumes only the public session endpoints; OpenNotebook's Next.js frontend untouched.
+- Flow: enter topic → open session (traits + technique shown as badges) → chat turns (attempts / help level visible) → close (renders the stored record: summary, assessment, next step, review date).
+- Friendly error states: 409 (no profile yet → points to the questionnaire), 503 (TUTOR_LLM_* unconfigured), network failures.
+- Tests: `GET /` serves the page (200, HTML, contains app markup). The JS itself is intentionally untested in V1 — single file, validated by dogfood; a JS test harness is not worth its weight yet.
+
+**Usable when:** a full E1 session (open → dialogue → close) happens in the browser at `http://localhost:5056/` without curl.
+
+## 1.5 First Live Dogfood — Findings (2026-07-12, session on "aprender a aprender")
+
+V1 works end-to-end (profile → open → dialogue → close). Quality failures observed and their disposition:
+
+- **Interrogation without instruction** — the tutor chained questions for 6 turns without ever teaching or proposing a plan. Cause: prompt over-weighted "make the learner generate". *Fixed in prompt*: mandatory session plan in the opening, teach-then-check structure every turn, gap-closing before advancing.
+- **Per-turn flattery** ("Excelente", "muy agudo"). *Fixed in prompt*: praise banned except once per session for substance.
+- **`attempts` counts messages, not attempts on a task** — misleading. *Mitigated*: UI no longer shows it (help level only, when > 0). *Real fix is backlog*: per-exercise state machine (tutor signals task boundaries; attempts/help reset per task). Candidate PR-E2.
+- **Backlog reinforced**: the pedagogical-prompt layer needs its own iteration loop (the LLM-judge eval harness already deferred in `atenea_context.md` §2); a prompts-quality PR should not wait for the learned-selection version.
+
+Lesson for future implementers: prompt constraints are followed literally — always pair a "do X" with its failure-mode counterweight ("but never Y").
+
+A second session after the prompt rewrite showed **substantial improvement, still short of target** (developer's judgment, 2026-07-12). Session quality is now the top deferred work item — see the post-V1 queue below.
+
+## 1.6 Post-V1 Queue (decided 2026-07-12, supersedes backlog order until done)
+
+Rationale: the felt value of Atenea lives in session quality, and the dogfooding loop dies if startup friction stays high (developer's working profile: high activation cost). Features G/H/I wait.
+
+1. **Merge the delivered chain** (PR-0 → A1 → B1 → C1 → D1 → E1 → F1), in order. Closes V1, enables parallel implementers. Then revoke the GitHub PAT and rotate the DeepSeek key used during the 2026-07-12 session.
+2. **PR-DX1 — one-command startup.** Add the tutor as a service in `docker-compose.yml` (image built from the repo; env passed like the open_notebook service) so `docker compose up -d` brings up SurrealDB + OpenNotebook API + tutor together; keep `make tutor` for dev. Usable when: from a cold machine, `docker compose up -d` + browser = working session. Contract to be written by the architect at implementation time.
+3. **PR-E2 — session quality.** Two halves: (a) per-task state — the tutor marks task boundaries (structured marker in its replies, parsed by the engine); attempts/help_level reset per task and the UI shows them per task honestly; (b) first prompt-evaluation loop — a small set of scripted learner personas + an LLM-judge rubric (teaches-before-asking, no flattery, plan adherence, help-ladder compliance) run against prompt changes, so pedagogy iterates on measurement. This pulls forward part of the deferred "learned selection" work without the fine-tuning half.
+4. Then resume the ordered backlog (Feature G onward) in `atenea_pr_plan.md`.
+
+Additional deferred observation (developer, 2026-07-12): **the tutor and OpenNotebook feel like two separate apps** — different UIs, different UX, different ports; today's integration is content-only (search over indexed sources). A unified experience (single entry point; either the tutor embedded in OpenNotebook's UI or OpenNotebook's library views embedded in the tutor's) plus a real visual pass on the tutor UI is **Feature F2** territory: registered in the backlog, deliberately after DX1/E2 — it's part of the "deep visual frontend rework" the context doc already defers, now with a sharper definition of what hurts.
 
 ## 2. CI Policy
 
