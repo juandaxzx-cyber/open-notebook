@@ -214,6 +214,17 @@ V1 works end-to-end (profile → open → dialogue → close). Quality failures 
 
 Lesson for future implementers: prompt constraints are followed literally — always pair a "do X" with its failure-mode counterweight ("but never Y").
 
+A second session after the prompt rewrite showed **substantial improvement, still short of target** (developer's judgment, 2026-07-12). Session quality is now the top deferred work item — see the post-V1 queue below.
+
+## 1.6 Post-V1 Queue (decided 2026-07-12, supersedes backlog order until done)
+
+Rationale: the felt value of Atenea lives in session quality, and the dogfooding loop dies if startup friction stays high (developer's working profile: high activation cost). Features G/H/I wait.
+
+1. **Merge the delivered chain** (PR-0 → A1 → B1 → C1 → D1 → E1 → F1), in order. Closes V1, enables parallel implementers. Then revoke the GitHub PAT and rotate the DeepSeek key used during the 2026-07-12 session.
+2. **PR-DX1 — one-command startup.** Add the tutor as a service in `docker-compose.yml` (image built from the repo; env passed like the open_notebook service) so `docker compose up -d` brings up SurrealDB + OpenNotebook API + tutor together; keep `make tutor` for dev. Usable when: from a cold machine, `docker compose up -d` + browser = working session. Contract to be written by the architect at implementation time.
+3. **PR-E2 — session quality.** Two halves: (a) per-task state — the tutor marks task boundaries (structured marker in its replies, parsed by the engine); attempts/help_level reset per task and the UI shows them per task honestly; (b) first prompt-evaluation loop — a small set of scripted learner personas + an LLM-judge rubric (teaches-before-asking, no flattery, plan adherence, help-ladder compliance) run against prompt changes, so pedagogy iterates on measurement. This pulls forward part of the deferred "learned selection" work without the fine-tuning half.
+4. Then resume the ordered backlog (Feature G onward) in `atenea_pr_plan.md`.
+
 ## 2. CI Policy
 
 - Upstream `test.yml` covers OpenNotebook. PR-A1 must extend CI so every PR also runs `make check-tutor` (same workflow file, extra job — document it in `CORE_CHANGES.md` only if upstream's workflow file is modified rather than a new workflow added; prefer a new `tutor-ci.yml`).
