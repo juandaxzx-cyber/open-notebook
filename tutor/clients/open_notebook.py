@@ -5,6 +5,8 @@ every /api/* request requires `Authorization: Bearer <password>`; when unset,
 the API is open. Endpoint paths verified in api/main.py and api/routers/.
 """
 
+from typing import Any, Literal
+
 import httpx
 
 
@@ -45,3 +47,26 @@ class OpenNotebookClient:
             response.raise_for_status()
             sources = response.json()
             return len(sources)
+
+    async def search(
+        self,
+        query: str,
+        limit: int = 10,
+        search_type: Literal["text", "vector"] = "text",
+    ) -> dict[str, Any]:
+        """Search sources and notes via POST /api/search.
+
+        Request/response shapes verified in api/models.py (SearchRequest /
+        SearchResponse: results, total_count, search_type).
+        """
+        async with httpx.AsyncClient(
+            timeout=self._timeout, transport=self._transport
+        ) as client:
+            response = await client.post(
+                f"{self._base_url}/api/search",
+                json={"query": query, "type": search_type, "limit": limit},
+                headers=self._headers(),
+            )
+            response.raise_for_status()
+            result: dict[str, Any] = response.json()
+            return result
