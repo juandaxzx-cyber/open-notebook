@@ -8,19 +8,19 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
 
 ## Feature Backlog (prioritized)
 
-### Feature A — Foundation *(serial)*
+### Feature A — Foundation *(serial)* ✅ delivered (`feature/a/skeleton`, pending merge)
 - **PR-A1:** bring up the OpenNotebook fork via Docker Compose; FastAPI tutoring-service skeleton with a healthcheck endpoint that queries OpenNotebook's REST API and confirms connectivity.
   - Usable when: `curl` to the healthcheck confirms OpenNotebook responds with at least one indexed document.
 
-### Feature B — Multi-Model Layer *(serial)*
+### Feature B — Multi-Model Layer *(serial)* ✅ delivered (`feature/b/llm-layer`, pending merge)
 - **PR-B1:** common LLM provider interface, env-based configuration, implementations for at least two providers.
   - Usable when: the same test call works while switching providers purely via configuration.
 
-### Feature C — Learner Profile *(serial)*
+### Feature C — Learner Profile *(serial)* ✅ delivered (`feature/c/profile`, pending merge)
 - **PR-C1:** data schema with `user_id` from the first migration; profile and session tables in SurrealDB (shared instance); minimal initial questionnaire (learning goal, self-assessed level, weekly availability, format preferences) persisting the profile.
   - Usable when: the developer completes the questionnaire and can verify the stored profile.
 
-### Feature D — Tool Registry *(serial)*
+### Feature D — Tool Registry *(serial)* ✅ delivered (`feature/d/tool-registry`, pending merge)
 - **PR-D1:** uniform interface for the tutor to discover/call tools; two initial entries: content search/retrieval (OpenNotebook), profile read/write.
   - Usable when: a test call invokes both tools correctly.
 
@@ -63,3 +63,7 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
 ## Progress Criterion
 
 No single "done" — progress reads as merged, dogfooded PRs against this ordered backlog. The next step is always the first incomplete PR of the highest-priority feature.
+
+## Status (2026-07-12)
+
+PR-0 (Vertex fix) and Features A–D delivered as stacked branches, pending developer dogfood + merge in order: `fix/vertex-credentials-env` → `feature/a/skeleton` → `feature/b/llm-layer` → `feature/c/profile` → `feature/d/tool-registry`. Next: **PR-E1 contract** (see `atenea_dev_playbook.md` §1), which closes V1. Per-PR contracts and operational checklists live in the playbook; this file stays the backlog-level view.

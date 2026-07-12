@@ -2,17 +2,23 @@
 
 > Operational plan for agents continuing development. Read *after* `atenea_context.md`, `atenea_pr_plan.md`, and `AGENTS.md`. This document contains: the current state, the next PR contracts, and the recurring checklists (review, CI, upstream sync). Architects update it when contracts change; implementers never edit contracts here.
 
-## 0. Current State (2026-07-12)
+## 0. Current State (updated 2026-07-12, end of day)
 
-- Fork of OpenNotebook at `open-notebook/`, on `main`, up to date with origin. No Atenea code exists yet.
-- Repo hygiene done: `core.autocrlf=input` set locally; working tree clean except the **uncommitted Vertex credentials fix** (see PR-0 below).
-- `CORE_CHANGES.md` created at the repo root, with the Vertex fix as its first entry.
-- Decisions fixed: tutor service lives in **`tutor/`**; Python **3.12** via `uv`; repo name stays `open-notebook` for now (rename = open decision).
+- Fork of OpenNotebook at `open-notebook/`. **Five branches delivered and pushed, stacked in this order** (each depends on the previous; dogfood + merge in order):
+  1. `fix/vertex-credentials-env` (PR-0) — Vertex credentials fix + `CORE_CHANGES.md`
+  2. `feature/a/skeleton` (PR-A1) — `tutor/` FastAPI service, `GET /health`, port 5056, CI (`tutor-ci.yml`), `make check-tutor`, `docs/atenea/`
+  3. `feature/b/llm-layer` (PR-B1) — LLM interface wrapping Esperanto, `python -m tutor.llm` CLI
+  4. `feature/c/profile` (PR-C1) — learner profile in separate `atenea` SurrealDB database, `GET/PUT /profile`, questionnaire wizard `python -m tutor.profile`
+  5. `feature/d/tool-registry` (PR-D1) — ToolSpec/ToolRegistry, entries `content.search`, `profile.read`, `profile.write`, CLI `python -m tutor.tools`
+- **Nothing merged to `main` yet** — pending developer dogfood + review. Contracts for each delivered PR are preserved in §1 below as review reference.
+- Decisions fixed: tutor service in **`tutor/`**; Python **3.12** via `uv`; tutor data in separate **`atenea`** database (shared SurrealDB instance); current user `TUTOR_USER_ID` (default `juanda`); LLM access only via the tutor's interface wrapping **Esperanto**; repo name stays `open-notebook` for now (rename = open decision).
+- Repo hygiene: `core.autocrlf=input`, LF everywhere; `CORE_CHANGES.md` tracks core divergence (2 entries).
 - No `upstream` remote configured yet (see §4).
+- **Next step: PR-E1 contract** (first tutoring session; closes V1). Not yet written — architect + developer sign-off required. After D1 merges, parallel implementers are enabled.
 
-## 1. Immediate Queue (ordered)
+## 1. PR Contracts (delivered ones kept as review reference)
 
-### PR-0 — Commit the pending Vertex fix *(before anything else)*
+### PR-0 — Vertex fix *(DELIVERED: `fix/vertex-credentials-env`, pending merge)*
 
 The working tree contains a real, tested fix (`api/credentials_service.py`, `open_notebook/ai/key_provider.py`, `open_notebook/ai/models.py`) that makes UI-entered Vertex AI credentials work. It must not stay uncommitted.
 
@@ -22,7 +28,7 @@ The working tree contains a real, tested fix (`api/credentials_service.py`, `ope
 - Optional follow-up (developer's call): open the same fix as a PR to upstream OpenNotebook; if merged there, the core divergence disappears.
 - Dogfood: enter a Vertex credential in the UI, test it, run a chat completion against a Vertex model.
 
-### PR-A1 — Tutoring service skeleton *(Feature A; the contract below is fixed)*
+### PR-A1 — Tutoring service skeleton *(Feature A; DELIVERED: `feature/a/skeleton`, pending merge)*
 
 **Scope.** Bring up the stack via `docker compose up`; create the tutoring service skeleton with a healthcheck that proves connectivity to OpenNotebook's REST API.
 
@@ -53,7 +59,7 @@ docs/atenea/           # copy AGENTS.md + this playbook into the repo here, so t
 
 **Usable when:** with the stack up and ≥1 document indexed in OpenNotebook, `curl localhost:5056/health` returns `status: ok` with `indexed_sources ≥ 1`.
 
-### PR-B1 — Multi-model layer *(Feature B; contract fixed, signed off 2026-07-12)*
+### PR-B1 — Multi-model layer *(Feature B; DELIVERED: `feature/b/llm-layer`, pending merge)*
 
 **Decision:** the tutor gets its own small, typed LLM interface; the only implementation wraps **Esperanto** (already a repo dependency, same library OpenNotebook uses). Tutor code never imports `esperanto` outside the adapter file — if Esperanto is ever replaced, only the adapter is rewritten.
 
@@ -90,7 +96,7 @@ class LLMProvider(Protocol):
 
 **Usable when:** `uv run python -m tutor.llm "Say hi"` prints a model answer, and switching `TUTOR_LLM_PROVIDER`/`TUTOR_LLM_MODEL` alone (no code change) switches the provider.
 
-### PR-C1 — Learner profile *(Feature C; contract fixed, signed off 2026-07-12)*
+### PR-C1 — Learner profile *(Feature C; DELIVERED: `feature/c/profile`, pending merge)*
 
 **Decisions:** tutor data lives in a **separate SurrealDB database `atenea`** in the shared instance (same `SURREAL_URL`/credentials/namespace as OpenNotebook, different database) — zero collision with upstream's migration chain. Schema is applied **idempotently at service startup** (`DEFINE ... IF NOT EXISTS`); no migration framework until schema churn justifies one. Questionnaire is a **CLI wizard consuming the service API** (API-first preserved). Default user: `TUTOR_USER_ID`, default `juanda`.
 
@@ -117,7 +123,7 @@ tutor/
 
 **Usable when:** with the stack up, `uv run python -m tutor.profile` completes the questionnaire, and `curl localhost:5056/profile` returns the stored profile (visible again after restarting the service).
 
-### PR-D1 — Tool registry *(Feature D; contract fixed 2026-07-12, sign-off = PR review)*
+### PR-D1 — Tool registry *(Feature D; DELIVERED: `feature/d/tool-registry`, pending merge)*
 
 **Purpose:** uniform discover/call interface so new tutor capabilities are new registry entries, never surgery on the tutor (AGENTS.md rule #5). Descriptions are written for LLM consumption — PR-E1 will feed `list_specs()` into function calling.
 
