@@ -7,11 +7,14 @@ TUTOR_LLM_MODEL alone switches the provider for the same call.
 import asyncio
 import sys
 
+from dotenv import load_dotenv
+
 from tutor.llm.factory import provider_from_env
 from tutor.llm.interface import ChatMessage
 
 
 def main() -> None:
+    load_dotenv()
     prompt = " ".join(sys.argv[1:]) or "Say hello in one short sentence."
     provider = provider_from_env()
     response = asyncio.run(
