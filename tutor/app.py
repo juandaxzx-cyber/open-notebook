@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from tutor import __version__
 from tutor.clients.open_notebook import OpenNotebookClient
 from tutor.config import TutorSettings
+from tutor.profile.router import build_router as build_profile_router
+from tutor.profile.service import ProfileService
 
 
 class OpenNotebookStatus(BaseModel):
@@ -23,8 +25,9 @@ class HealthResponse(BaseModel):
 def create_app(
     settings: TutorSettings | None = None,
     client: OpenNotebookClient | None = None,
+    profile_service: ProfileService | None = None,
 ) -> FastAPI:
-    """Build the app. `settings`/`client` are injectable for tests."""
+    """Build the app. `settings`/`client`/`profile_service` are injectable for tests."""
     resolved = settings or TutorSettings.from_env()
     on_client = client or OpenNotebookClient(
         base_url=resolved.open_notebook_api_url,
@@ -32,6 +35,7 @@ def create_app(
     )
 
     app = FastAPI(title="Atenea Tutoring Service", version=__version__)
+    app.include_router(build_profile_router(profile_service))
 
     @app.get("/health", response_model=HealthResponse)
     async def health() -> HealthResponse:

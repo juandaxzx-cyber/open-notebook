@@ -90,10 +90,6 @@ class LLMProvider(Protocol):
 
 **Usable when:** `uv run python -m tutor.llm "Say hi"` prints a model answer, and switching `TUTOR_LLM_PROVIDER`/`TUTOR_LLM_MODEL` alone (no code change) switches the provider.
 
-### Then: PR-C1 → PR-D1 → PR-E1 (V1), per `atenea_pr_plan.md`
+### PR-C1 — Learner profile *(Feature C; contract fixed, signed off 2026-07-12)*
 
-Contracts for C1 onward are **not yet written**. Architect step required before each: write the contract into §1 of this playbook (interface signatures, env vars, schemas), get developer sign-off, then hand to an implementer. Serial until Feature D is merged.
-
-## 2. CI Policy
-
-- Upstream `test.yml` covers OpenNotebook. PR-A1 must extend CI so every PR also runs `make check-tutor` (same workflow file, extra job — document it in `CORE_CHANGES.md` only if upstream's wor
+**Decisions:** tutor data lives in a **separate SurrealDB database `atenea`** in the shared instance (same `SURREAL_URL`/credentials/namespace as OpenNotebook, different database) — zero collision with upstream's migration chain. Schema is applied **idempotently at service startup** (`DEFINE ... IF NOT EXISTS`); no migration framework until schema churn justifies one. Questionnaire is a **CLI wizard consuming the service API** (API-first preserved). D
