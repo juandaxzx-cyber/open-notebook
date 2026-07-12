@@ -123,6 +123,13 @@ class ModelManager:
             credential = await model.get_credential_obj()
             if credential:
                 config = credential.to_esperanto_config()
+                # Esperanto's Vertex providers only read project/location/creds
+                # from env vars, not from the config dict — mirror them so a
+                # UI-entered Vertex credential is actually applied.
+                if model.provider.lower() == "vertex":
+                    from open_notebook.ai.key_provider import apply_vertex_env
+
+                    apply_vertex_env(credential)
                 logger.debug(
                     f"Using credential '{credential.name}' for model {model.name}"
                 )

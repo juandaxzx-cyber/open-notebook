@@ -381,6 +381,15 @@ async def test_credential(credential_id: str) -> dict:
 
         provider = cred.provider.lower()
 
+        # Esperanto's Vertex providers only read project/location/creds from env
+        # vars, not from the config dict — mirror them so the test uses the
+        # credential the user just entered instead of failing with
+        # "Google Cloud project ID not found".
+        if provider == "vertex":
+            from open_notebook.ai.key_provider import apply_vertex_env
+
+            apply_vertex_env(cred)
+
         # Handle special providers
         if provider == "ollama":
             base_url = config.get("base_url", "http://localhost:11434")
