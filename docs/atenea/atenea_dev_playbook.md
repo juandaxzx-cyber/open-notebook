@@ -203,6 +203,16 @@ tutor/prompts/   # session_system.md, classify_traits.md, close_summary.md (Engl
 
 **Usable when:** a full E1 session (open → dialogue → close) happens in the browser at `http://localhost:5056/` without curl.
 
+### PR-DX1 — One-command startup *(contract fixed 2026-07-12, signed off by the developer)*
+
+- `Dockerfile.tutor` (new, repo root): slim two-stage image — `python:3.12-slim-trixie` + uv, `uv sync --frozen --no-dev` against the repo's shared lockfile (no dependency drift vs. OpenNotebook), copies only `tutor/`, `CMD python -m tutor`, `EXPOSE 5056`, container healthcheck via `GET /health`. No Node, no frontend build (unlike the upstream `Dockerfile`).
+- `docker-compose.yml`: new `tutor` service appended — built from `Dockerfile.tutor`, port `5056:5056`, `depends_on: [surrealdb, open_notebook]`, `restart: always`. Compose pins service-to-service URLs (`SURREAL_URL=ws://surrealdb:8000/rpc`, `OPEN_NOTEBOOK_API_URL=http://open_notebook:5055`) in the `environment` section, which takes precedence over `env_file`. LLM provider keys and `TUTOR_*` settings arrive via `env_file: .env` with `required: false` — the same file `make tutor` loads in dev (decision: zero duplication over a minimal explicit variable list). Existing services untouched.
+- Tests (`tests_tutor/test_compose.py`): parse `docker-compose.yml` and assert the tutor service exists, builds from `Dockerfile.tutor`, exposes 5056, pins the two service URLs, reads the optional env_file, and depends on both services. Guards drift without requiring Docker in CI.
+- `CORE_CHANGES.md`: one entry (`docker-compose.yml` edited, `Dockerfile.tutor` added — both outside `tutor/`).
+- `.env.example`: note that compose passes `.env` to the tutor container. Zero Python code changes.
+
+**Usable when:** cold machine → `cp .env.example .env` (set `TUTOR_LLM_*` + provider key) → `docker compose up -d` → full session in the browser at `http://localhost:5056/`. `make tutor` keeps working for dev.
+
 ## 1.5 First Live Dogfood — Findings (2026-07-12, session on "aprender a aprender")
 
 V1 works end-to-end (profile → open → dialogue → close). Quality failures observed and their disposition:
@@ -221,7 +231,7 @@ A second session after the prompt rewrite showed **substantial improvement, stil
 Rationale: the felt value of Atenea lives in session quality, and the dogfooding loop dies if startup friction stays high (developer's working profile: high activation cost). Features G/H/I wait.
 
 1. **Merge the delivered chain** (PR-0 → A1 → B1 → C1 → D1 → E1 → F1), in order. Closes V1, enables parallel implementers. Then revoke the GitHub PAT and rotate the DeepSeek key used during the 2026-07-12 session.
-2. **PR-DX1 — one-command startup.** Add the tutor as a service in `docker-compose.yml` (image built from the repo; env passed like the open_notebook service) so `docker compose up -d` brings up SurrealDB + OpenNotebook API + tutor together; keep `make tutor` for dev. Usable when: from a cold machine, `docker compose up -d` + browser = working session. Contract to be written by the architect at implementation time.
+2. **PR-DX1 — one-command startup.** Add the tutor as a service in `docker-compose.yml` (image built from the repo; env passed like the open_notebook service) so `docker compose up -d` brings up SurrealDB + OpenNotebook API + tutor together; keep `make tutor` for dev. Usable when: from a cold machine, `docker compose up -d` + browser = working session. Contract fixed in §1 above (2026-07-12).
 3. **PR-E2 — session quality.** Two halves: (a) per-task state — the tutor marks task boundaries (structured marker in its replies, parsed by the engine); attempts/help_level reset per task and the UI shows them per task honestly; (b) first prompt-evaluation loop — a small set of scripted learner personas + an LLM-judge rubric (teaches-before-asking, no flattery, plan adherence, help-ladder compliance) run against prompt changes, so pedagogy iterates on measurement. This pulls forward part of the deferred "learned selection" work without the fine-tuning half.
 4. Then resume the ordered backlog (Feature G onward) in `atenea_pr_plan.md`.
 
