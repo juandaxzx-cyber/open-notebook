@@ -145,3 +145,12 @@ specs/
 
 # Atenea eval harness output (PR-E2)
 eval_runs/
+
+# Local Docker Compose override (auto-merged by `docker compose up`).
+# Use it for host-specific tweaks like re-exposing the SurrealDB port;
+# see docker-compose.override.yml.example.
+docker-compose.override.yml
+
+# Local QA/debug artifacts
+screenshot-*.png
+history.txt
