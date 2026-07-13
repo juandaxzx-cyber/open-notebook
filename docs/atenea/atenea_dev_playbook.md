@@ -213,6 +213,20 @@ tutor/prompts/   # session_system.md, classify_traits.md, close_summary.md (Engl
 
 **Usable when:** cold machine → `cp .env.example .env` (set `TUTOR_LLM_*` + provider key) → `docker compose up -d` → full session in the browser at `http://localhost:5056/`. `make tutor` keeps working for dev.
 
+### PR-E2 — Session quality *(contract fixed 2026-07-12, signed off; evidence base: `docs/atenea/tutor_pedagogy_evidence.md`)*
+
+Two halves.
+
+**(a) Per-task state.** The session prompt makes the tutor open each NEW task with a line `[[TASK: short label]]`. `tutor/session/markers.py` parses it (`parse_task_marker`), strips it from the learner-facing text, and keeps the raw reply (marker included) in the transcript so the model sees its own boundaries. `SessionState.task: TaskState{index, label}` persists in the store; on a new marker the engine bumps `index` and resets `HelpState` (attempts + help_level reset per task). `MessageResponse`/`SessionOpenResponse` expose `task_index` + `task_label`; the UI shows `tarea N · "label" · intento K · ayuda L/4`. No marker ever ⇒ implicit task 0, pre-E2 behavior (nothing breaks).
+
+**(b) Evidence-based prompt-evaluation loop.** `tutor/eval/`: 4 scripted (deterministic, no LLM-learner) personas in `tutor/eval/personas/*.json` — novice-stuck, advanced-correct, stable-misconception, adversarial-pushback — each carrying ground-truth error annotations. The runner replays each persona through the REAL `TutorEngine` + real tutor LLM with in-memory fakes for registry/store (no SurrealDB, no OpenNotebook). A judge (`tutor/prompts/judge_rubric.md`) scores 10 evidence-derived criteria (learner-does-work, error-flagging, contingent-help both directions, uptake, praise-discipline, actionability, calibration, real-checks, non-sycophancy, session-close), ONE criterion per call, reference-anchored to the annotations. Programmatic no-LLM metrics (word ratios, turn length, praise/pseudo-check counts) run alongside as bias-immune signals. `TUTOR_JUDGE_PROVIDER/MODEL` selects the judge (default = tutor's; runner warns on same-family). `make eval-tutor` writes `eval_runs/<ts>.json` (gitignored) + a console table.
+
+**(c) Master prompt v2.** `session_system.md` rewritten from the same evidence (contingency both ways, mandatory uptake, attempt-before-explanation on tractable tasks, no pre-emptive error warnings, banned "¿tiene sentido?", learner-produced close with if-then next step).
+
+Tests: marker parsing, per-task reset in the engine, persona loading, judge-prompt render, judge-JSON parse, metrics, full runner end-to-end (all offline with injected fakes). `CORE_CHANGES.md` entry for `Makefile` + `.gitignore` (outside `tutor/`).
+
+**Usable when:** (a) in a real browser session the UI shows task/attempt/help that reset when the tutor moves to the next task; (b) `make eval-tutor` produces a report scoring the 10 criteria across the 4 personas; (c) editing `session_system.md` and re-running measurably moves the scores (v1 vs v2 comparison is part of dogfood).
+
 ## 1.5 First Live Dogfood — Findings (2026-07-12, session on "aprender a aprender")
 
 V1 works end-to-end (profile → open → dialogue → close). Quality failures observed and their disposition:

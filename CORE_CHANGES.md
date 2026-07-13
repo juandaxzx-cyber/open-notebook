@@ -25,3 +25,9 @@ Format:
 - Files: `docker-compose.yml` (new `tutor` service appended; existing services untouched), `Dockerfile.tutor` (new file at repo root)
 - Reason: one-command startup requires wiring the tutor into the shared compose file, which is upstream's. `Dockerfile.tutor` is a new file (pure extension) but lives outside `tutor/`, so it is logged here per the review checklist.
 - Upstream-merge risk: **low** — the service is appended at the end of `docker-compose.yml`; upstream edits to its own services merge cleanly. `Dockerfile.tutor` cannot conflict (upstream has no such file).
+
+## Eval harness Make target + gitignore (2026-07-12, feature/e2/session-quality / PR-E2)
+
+- Files: `Makefile` (new `eval-tutor` target appended, alongside `tutor`/`check-tutor`), `.gitignore` (ignore `eval_runs/`)
+- Reason: the prompt-evaluation harness lives in `tutor/eval/` (pure extension) but its runner entrypoint and output dir must be wired into the repo's `Makefile` and `.gitignore`, which are core. All pedagogy logic, personas, rubric and judge are inside `tutor/`; only these two one-line hooks are outside it.
+- Upstream-merge risk: **low** — both are appends at end-of-file; upstream edits elsewhere merge cleanly.

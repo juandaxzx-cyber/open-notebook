@@ -48,6 +48,8 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
             opening_message=opening,
             traits=state.traits,
             technique=state.technique,
+            task_index=state.task.index,
+            task_label=state.task.label,
         )
 
     @router.post("/session/{session_id}/message", response_model=MessageResponse)
@@ -61,7 +63,11 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
         except Exception as exc:  # noqa: BLE001
             raise _bad_gateway(exc) from exc
         return MessageResponse(
-            reply=reply, attempts=state.help.attempts, help_level=state.help.help_level
+            reply=reply,
+            attempts=state.help.attempts,
+            help_level=state.help.help_level,
+            task_index=state.task.index,
+            task_label=state.task.label,
         )
 
     @router.post("/session/{session_id}/close")

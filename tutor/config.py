@@ -18,6 +18,8 @@ class TutorSettings(BaseModel):
     open_notebook_password: str | None = None
     llm_provider: str | None = None
     llm_model: str | None = None
+    judge_provider: str | None = None
+    judge_model: str | None = None
 
     @classmethod
     def from_env(cls) -> "TutorSettings":
@@ -26,7 +28,10 @@ class TutorSettings(BaseModel):
         Variables: TUTOR_HOST, TUTOR_PORT, OPEN_NOTEBOOK_API_URL,
         OPEN_NOTEBOOK_PASSWORD (same variable OpenNotebook's API uses for
         its Bearer auth; leave unset if OpenNotebook runs without a password),
-        TUTOR_LLM_PROVIDER, TUTOR_LLM_MODEL.
+        TUTOR_LLM_PROVIDER, TUTOR_LLM_MODEL, and for the eval harness
+        TUTOR_JUDGE_PROVIDER, TUTOR_JUDGE_MODEL (default: the tutor's own
+        provider/model — the runner warns, since same-family judging is
+        biased).
         """
         values: dict[str, str] = {}
         env_map = {
@@ -36,6 +41,8 @@ class TutorSettings(BaseModel):
             "open_notebook_password": "OPEN_NOTEBOOK_PASSWORD",
             "llm_provider": "TUTOR_LLM_PROVIDER",
             "llm_model": "TUTOR_LLM_MODEL",
+            "judge_provider": "TUTOR_JUDGE_PROVIDER",
+            "judge_model": "TUTOR_JUDGE_MODEL",
         }
         for field, var in env_map.items():
             value = os.environ.get(var)

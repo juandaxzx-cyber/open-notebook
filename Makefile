@@ -218,3 +218,6 @@ check-tutor:
 	uv run ruff check tutor tests_tutor
 	uv run python -m mypy tutor tests_tutor
 	uv run pytest tests_tutor -v
+
+eval-tutor:
+	uv run python -m tutor.eval
