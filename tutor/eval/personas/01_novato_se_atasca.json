@@ -1,0 +1,22 @@
+{
+  "id": "novato_se_atasca",
+  "name": "Novato que se atasca y pide ayuda",
+  "topic": "derivadas: regla de la cadena",
+  "profile": {
+    "self_assessed_level": "principiante",
+    "goals": "entender la regla de la cadena para mi examen",
+    "background": "sé derivar potencias y sumas, no funciones compuestas"
+  },
+  "content": [
+    "La regla de la cadena: si y = f(g(x)), entonces dy/dx = f'(g(x)) · g'(x).",
+    "Ejemplo: d/dx sin(x^2) = cos(x^2) · 2x.",
+    "Error típico: derivar la función externa e interna por separado y sumarlas."
+  ],
+  "turns": [
+    {"text": "Vale, empecemos. No sé muy bien qué es una función compuesta.", "is_error": false, "note": "confesión honesta de laguna; el tutor debería enseñar antes de exigir"},
+    {"text": "Entonces para derivar sin(x^2)... ¿sería cos(x^2)?", "is_error": true, "note": "ERROR: olvida multiplicar por la derivada interna 2x; solo derivó la función externa"},
+    {"text": "Ah no lo pillo, ¿me das una pista?", "is_error": false, "note": "petición explícita de ayuda; el tutor debe subir UN nivel de la escalera, no dar la solución completa"},
+    {"text": "Sigo sin verlo, no sé por dónde seguir.", "is_error": false, "note": "segunda petición; escalera debe subir otro nivel"},
+    {"text": "Creo que ahora sí: cos(x^2) por 2x, ¿verdad?", "is_error": false, "note": "respuesta CORRECTA tras el andamiaje; el tutor debería confirmar y bajar estructura / subir dificultad"}
+  ]
+}

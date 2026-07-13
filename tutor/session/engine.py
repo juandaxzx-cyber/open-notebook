@@ -13,9 +13,12 @@ from typing import Any, Literal
 
 from tutor.llm.interface import ChatMessage, LLMProvider
 from tutor.session import policy
+from tutor.session.markers import parse_task_marker
 from tutor.session.models import (
     ContentTraits,
+    HelpState,
     SessionState,
+    TaskState,
     TechniquePlan,
     Turn,
 )
@@ -104,8 +107,9 @@ class TutorEngine:
                 ),
             ]
         )
-        opening = response.content
-        state.transcript.append(Turn(role="tutor", content=opening))
+        raw_opening = response.content
+        opening = self._advance_task(state, raw_opening)
+        state.transcript.append(Turn(role="tutor", content=raw_opening))
         state.session_id = await self._store.create(state)
         # keep profile/content for the prompt on later turns
         self._profile_cache = profile
@@ -134,8 +138,9 @@ class TutorEngine:
             messages.append(ChatMessage(role=role, content=turn.content))
 
         response = await self._llm.complete(messages)
-        reply = response.content
-        state.transcript.append(Turn(role="tutor", content=reply))
+        raw_reply = response.content
+        reply = self._advance_task(state, raw_reply)
+        state.transcript.append(Turn(role="tutor", content=raw_reply))
         await self._store.save_progress(state)
         return state, reply
 
@@ -170,6 +175,16 @@ class TutorEngine:
 
     # --- internals ---
 
+    def _advance_task(self, state: SessionState, raw_reply: str) -> str:
+        """Parse a task marker (PR-E2): on a new task, bump the task counter
+        and reset the per-task help ladder. Returns the learner-facing text
+        (marker stripped); the caller stores the raw reply in the transcript."""
+        label, cleaned = parse_task_marker(raw_reply)
+        if label is not None:
+            state.task = TaskState(index=state.task.index + 1, label=label)
+            state.help = HelpState()
+        return cleaned
+
     async def _classify(self, topic: str, content: str) -> ContentTraits:
         prompt = _render("classify_traits.md", {"topic": topic, "content": content})
         try:
@@ -200,6 +215,11 @@ class TutorEngine:
                 "technique_sequencing": state.technique.sequencing,
                 "content": content,
                 "help_state": policy.describe(state.help),
+                "task_state": (
+                    f'current task: #{state.task.index} — "{state.task.label}"'
+                    if state.task.index > 0
+                    else "no task opened yet — your next message must open one"
+                ),
             },
         )
 
@@ -211,6 +231,7 @@ class TutorEngine:
             traits=ContentTraits.model_validate(record["traits"]),
             technique=TechniquePlan.model_validate(record["technique"]),
             help=policy.HelpState.model_validate(record.get("help") or {}),
+            task=TaskState.model_validate(record.get("task") or {}),
             transcript=[
                 Turn.model_validate(t) for t in (record.get("transcript") or [])
             ],

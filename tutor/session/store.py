@@ -32,6 +32,7 @@ class SessionStore:
                         traits: $traits,
                         technique: $technique,
                         help: $help,
+                        task: $task,
                         transcript: $transcript
                     }
                     """,
@@ -41,6 +42,7 @@ class SessionStore:
                         "traits": state.traits.model_dump(),
                         "technique": state.technique.model_dump(),
                         "help": state.help.model_dump(),
+                        "task": state.task.model_dump(),
                         "transcript": [t.model_dump() for t in state.transcript],
                     },
                 )
@@ -70,12 +72,14 @@ class SessionStore:
                     """
                     UPDATE session SET
                         help = $help,
+                        task = $task,
                         transcript = $transcript
                     WHERE id = <record>$id
                     """,
                     {
                         "id": state.session_id,
                         "help": state.help.model_dump(),
+                        "task": state.task.model_dump(),
                         "transcript": [t.model_dump() for t in state.transcript],
                     },
                 )

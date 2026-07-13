@@ -142,3 +142,6 @@ specs/
 .harness/
 
 .mcp.json
+
+# Atenea eval harness output (PR-E2)
+eval_runs/

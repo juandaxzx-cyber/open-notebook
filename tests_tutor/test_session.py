@@ -49,6 +49,7 @@ class FakeStore(SessionStore):
             "traits": state.traits.model_dump(),
             "technique": state.technique.model_dump(),
             "help": state.help.model_dump(),
+            "task": state.task.model_dump(),
             "transcript": [t.model_dump() for t in state.transcript],
         }
         return session_id
@@ -62,6 +63,7 @@ class FakeStore(SessionStore):
     async def save_progress(self, state: SessionState) -> None:
         record = self.records[state.session_id]
         record["help"] = state.help.model_dump()
+        record["task"] = state.task.model_dump()
         record["transcript"] = [t.model_dump() for t in state.transcript]
 
     async def close(
@@ -236,7 +238,13 @@ def test_session_endpoints_full_cycle() -> None:
 
     msg = client.post(f"/session/{session_id}/message", json={"text": "intento: 42"})
     assert msg.status_code == 200
-    assert msg.json() == {"reply": "reply", "attempts": 1, "help_level": 0}
+    assert msg.json() == {
+        "reply": "reply",
+        "attempts": 1,
+        "help_level": 0,
+        "task_index": 0,
+        "task_label": "",
+    }
 
     closed = client.post(f"/session/{session_id}/close")
     assert closed.status_code == 200

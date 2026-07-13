@@ -123,6 +123,15 @@ async function api(path, options) {
   return response.json();
 }
 
+function taskStatus(index, label, attempts, helpLevel) {
+  // Per-task progress (PR-E2): attempts and help reset on each new task.
+  const parts = [];
+  if (index > 0) parts.push(`tarea ${index}${label ? ` · “${label}”` : ""}`);
+  parts.push(`intento ${attempts}`);
+  if (helpLevel > 0) parts.push(`ayuda ${helpLevel}/4`);
+  return parts.join(" · ");
+}
+
 async function startSession() {
   const topic = $("topic").value.trim();
   if (!topic) return;
@@ -147,6 +156,7 @@ async function startSession() {
     show($("chat"));
     show($("composer"));
     addMsg("tutor", data.opening_message);
+    if (data.task_index > 0) addStatus(taskStatus(data.task_index, data.task_label, 0, 0));
     $("input").focus();
   } catch (err) {
     setError(err.message);
@@ -169,7 +179,9 @@ async function sendMessage() {
       body: JSON.stringify({ text }),
     });
     addMsg("tutor", data.reply);
-    if (data.help_level > 0) addStatus(`nivel de ayuda: ${data.help_level}/4`);
+    if (data.task_index > 0 || data.help_level > 0 || data.attempts > 0) {
+      addStatus(taskStatus(data.task_index, data.task_label, data.attempts, data.help_level));
+    }
   } catch (err) {
     setError(err.message);
   } finally {
