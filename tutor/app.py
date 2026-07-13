@@ -33,6 +33,12 @@ class HealthResponse(BaseModel):
     open_notebook: OpenNotebookStatus
 
 
+class UiConfigResponse(BaseModel):
+    """Client-side configuration for the chat page (PR-F2)."""
+
+    notebook_ui_url: str
+
+
 def _build_engine(settings: TutorSettings) -> TutorEngine | None:
     """Engine is optional: without TUTOR_LLM_* config the session endpoints
     return 503 while the rest of the service keeps working."""
@@ -69,6 +75,11 @@ def create_app(
     async def ui() -> HTMLResponse:
         """Minimal chat page (PR-F1): single static file, no build step."""
         return HTMLResponse(UI_PATH.read_text(encoding="utf-8"))
+
+    @app.get("/config", response_model=UiConfigResponse)
+    async def ui_config() -> UiConfigResponse:
+        """Where the chat page's "Notebooks" link points (PR-F2)."""
+        return UiConfigResponse(notebook_ui_url=resolved.notebook_ui_url)
 
     @app.get("/health", response_model=HealthResponse)
     async def health() -> HealthResponse:

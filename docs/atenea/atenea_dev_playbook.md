@@ -213,6 +213,17 @@ tutor/prompts/   # session_system.md, classify_traits.md, close_summary.md (Engl
 
 **Usable when:** cold machine → `cp .env.example .env` (set `TUTOR_LLM_*` + provider key) → `docker compose up -d` → full session in the browser at `http://localhost:5056/`. `make tutor` keeps working for dev.
 
+### PR-F2 — Unified experience *(contract fixed 2026-07-12, signed off by the developer)*
+
+Tutor-first unification: the tutor UI is the single entry point; OpenNotebook stays untouched (its deep frontend rework remains deferred — F2 paves the road for it and for daily dogfooding).
+
+- `GET /config` (new endpoint): minimal JSON with `notebook_ui_url` (env `TUTOR_NOTEBOOK_UI_URL`, default `http://localhost:8502`). The chat page's header gains a "Notebooks ↗" link pointing there — no port memorization; link hidden if /config fails.
+- Visual pass on `tutor/ui/index.html` (still one static file, vanilla, no build step, no CDN): Atenea identity v1 as documented CSS design tokens (night blue + gold-olive, "refined dark" — chosen for future lift into the rework); ~40-line escape-first markdown mini-renderer for tutor replies (headings, lists, bold/italic/code, fenced blocks, blockquotes); typing indicator; restyled task·attempt·help chips (E2) and closing record; friendly 409/503/network errors; responsive; Spanish-first copy.
+- Tests: `/config` default + settings override; `GET /` contains nav link, `/config` reference and the markdown renderer. Page JS itself stays untested (F1 criterion).
+- No `CORE_CHANGES.md` entry (nothing outside `tutor/` + docs except `.env.example`, names only).
+
+**Usable when:** a full session at `http://localhost:5056/` reads well (markdown, per-task chips, record) and you can jump to OpenNotebook from the header without remembering ports.
+
 ### PR-E2 — Session quality *(contract fixed 2026-07-12, signed off; evidence base: `docs/atenea/tutor_pedagogy_evidence.md`)*
 
 Two halves.
