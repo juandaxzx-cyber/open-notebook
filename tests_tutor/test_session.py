@@ -270,3 +270,33 @@ def test_session_returns_503_without_llm_config(
     app = create_app(settings=TutorSettings())
     response = TestClient(app).post("/session", json={"topic": "x"})
     assert response.status_code == 503
+
+
+# --- dogfood regressions (F2) ---
+
+
+def test_open_response_strips_marker_from_opening_message() -> None:
+    # BUG 1: a task marker in the LLM opening must not reach the client;
+    # the task state is derived from it instead of leaking as raw text.
+    llm = FakeLLM([CLASSIFY, "[[TASK: activa tu ignorancia]]\n¿Qué sabes ya?"])
+    app = create_app(settings=TutorSettings(), engine=_engine(llm))
+    body = TestClient(app).post("/session", json={"topic": "svd"}).json()
+    assert "[[TASK" not in body["opening_message"]
+    assert body["task_index"] == 1
+    assert body["task_label"] == "activa tu ignorancia"
+
+
+def test_close_prompt_is_grounded_in_transcript() -> None:
+    # BUG 2: the close prompt must forbid inventing learner behavior and demand
+    # honesty when the session was too short to assess. Schema stays unchanged.
+    from tutor.session.engine import _render
+
+    prompt = _render(
+        "close_summary.md",
+        {"topic": "t", "technique_primary": "x", "transcript": "tutor: hola"},
+    )
+    lowered = prompt.lower()
+    assert "do not invent" in lowered
+    assert "too short to assess" in lowered
+    assert "ground every statement" in lowered
+    assert '"summary"' in prompt and '"review_in_days"' in prompt

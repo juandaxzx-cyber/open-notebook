@@ -239,6 +239,13 @@ function escapeHtml(s) {
   return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
+// Belt-and-braces (BUG 1): a task marker must never reach the learner's
+// eyes even if one slips past the server-side strip in engine._advance_task.
+// Mirrors tutor/session/markers.py; also eats optional wrapping ** or *.
+function stripTaskMarkers(s) {
+  return s.replace(/\*{0,2}\[\[\s*TASK\s*:[\s\S]*?\]\]\*{0,2}/gi, "");
+}
+
 function inlineMd(s) {
   return s
     .replace(/`([^`]+)`/g, "<code>$1</code>")
@@ -247,10 +254,11 @@ function inlineMd(s) {
 }
 
 function renderMarkdown(src) {
+  src = stripTaskMarkers(src);
   const fenced = [];
   let text = escapeHtml(src).replace(/```[^\n]*\n([\s\S]*?)```/g, (m, code) => {
     fenced.push("<pre><code>" + code.replace(/\n$/, "") + "</code></pre>");
-    return "\u0000" + (fenced.length - 1) + "\u0000";
+    return "\n\u0000" + (fenced.length - 1) + "\u0000\n";
   });
   const out = [];
   let list = null; // "ul" | "ol" | null
@@ -435,6 +443,7 @@ async function loadUiConfig() {
     if (cfg.notebook_ui_url) {
       const link = $("notebooks-link");
       link.href = cfg.notebook_ui_url;
+      link.title = "Abrir OpenNotebook (" + cfg.notebook_ui_url + ")";
       show(link);
     }
   } catch (e) { /* nav link is optional — never block the session flow */ }

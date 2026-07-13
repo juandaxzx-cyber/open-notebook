@@ -31,3 +31,17 @@ def test_config_reflects_settings_override() -> None:
     settings = TutorSettings(notebook_ui_url="http://elsewhere:9000")
     response = TestClient(create_app(settings=settings)).get("/config")
     assert response.json()["notebook_ui_url"] == "http://elsewhere:9000"
+
+
+def test_chat_page_strips_task_markers_client_side() -> None:
+    # BUG 3 / belt-and-braces for BUG 1: the UI defensively removes any
+    # [[TASK: ...]] marker before rendering a tutor bubble.
+    body = TestClient(create_app(settings=TutorSettings())).get("/").text
+    assert "stripTaskMarkers" in body
+
+
+def test_notebooks_link_advertises_its_target() -> None:
+    # BUG 4: the header link exposes where it points via its title attribute,
+    # so an unreachable OpenNotebook reads as environmental, not a broken link.
+    body = TestClient(create_app(settings=TutorSettings())).get("/").text
+    assert "link.title" in body
