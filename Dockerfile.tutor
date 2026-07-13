@@ -1,0 +1,48 @@
+# Atenea tutor service image (PR-DX1).
+#
+# Deliberately separate from ./Dockerfile (the full OpenNotebook image): the
+# tutor needs no Node, no frontend build and no tiktoken cache — just the
+# Python dependency set from the shared lockfile plus tutor/.
+
+FROM python:3.12-slim-trixie AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Some dependencies may lack pre-built wheels on this platform.
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+WORKDIR /app
+
+# Dependency layer: same lockfile as the full app, so the tutor and
+# OpenNotebook can never drift apart on dependency versions. The bare
+# open_notebook/__init__.py satisfies the project build (same trick as
+# ./Dockerfile) without copying the whole tree into this layer.
+COPY pyproject.toml uv.lock ./
+COPY open_notebook/__init__.py ./open_notebook/__init__.py
+RUN uv sync --frozen --no-dev
+
+COPY tutor/ ./tutor/
+
+FROM python:3.12-slim-trixie
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /app
+COPY --from=builder /app /app
+
+EXPOSE 5056
+
+# Pinned to the in-container TUTOR_PORT default (5056); compose remaps the
+# host side, so there is no reason to change the port inside the container.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:5056/health", timeout=4)'
+
+CMD ["python", "-m", "tutor"]

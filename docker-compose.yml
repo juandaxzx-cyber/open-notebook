@@ -40,3 +40,28 @@ services:
       - surrealdb
     restart: always
     pull_policy: always
+
+  tutor:
+    build:
+      context: .
+      dockerfile: Dockerfile.tutor
+    ports:
+      - "5056:5056"  # Atenea tutor API + chat UI
+    environment:
+      # Service-to-service URLs are pinned to compose network names. These
+      # deliberately override any localhost values coming from .env (the
+      # `environment` section takes precedence over `env_file`).
+      - SURREAL_URL=ws://surrealdb:8000/rpc
+      - SURREAL_USER=${SURREAL_USER:-root}
+      - SURREAL_PASSWORD=${SURREAL_PASSWORD:-root}
+      - OPEN_NOTEBOOK_API_URL=http://open_notebook:5055
+    # LLM provider keys and TUTOR_* settings come from .env — the same file
+    # `make tutor` loads in dev. Optional so the stack still boots without
+    # one, but a tutoring session needs TUTOR_LLM_* plus a provider API key.
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      - surrealdb
+      - open_notebook
+    restart: always
