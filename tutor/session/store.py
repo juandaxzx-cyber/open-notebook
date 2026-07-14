@@ -73,7 +73,8 @@ class SessionStore:
                     UPDATE session SET
                         help = $help,
                         task = $task,
-                        transcript = $transcript
+                        transcript = $transcript,
+                        updated_at = time::now()
                     WHERE id = <record>$id
                     """,
                     {
@@ -99,6 +100,7 @@ class SessionStore:
                     """
                     UPDATE session SET
                         ended_at = time::now(),
+                        updated_at = time::now(),
                         summary = $summary,
                         assessment = $assessment,
                         next_step = $next_step,
@@ -114,3 +116,31 @@ class SessionStore:
                     },
                 )
             )
+
+    async def list(
+        self, user_id: str, status: str | None = None
+    ) -> list[dict[str, Any]]:
+        """List a user's sessions, newest-updated first (PR-R1).
+
+        `status` is `"open" | "closed" | None`; ORDER BY/field names here are
+        static (never bound params — SurrealDB can't parameterize them, see
+        docs/7-DEVELOPMENT/security.md), so this stays injection-safe.
+        """
+        if status == "open":
+            status_clause = "AND ended_at IS NONE"
+        elif status == "closed":
+            status_clause = "AND ended_at IS NOT NONE"
+        else:
+            status_clause = ""
+        async with atenea_db() as db:
+            result = ensure_ok(
+                await db.query(
+                    f"""
+                    SELECT * FROM session
+                    WHERE user_id = $user_id {status_clause}
+                    ORDER BY updated_at DESC
+                    """,
+                    {"user_id": user_id},
+                )
+            )
+        return _rows(result)

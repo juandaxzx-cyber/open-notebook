@@ -92,6 +92,32 @@
   }
   #setup input:focus { border-color: var(--gold-soft); }
 
+  /* ---- session resume (PR-R1) ------------------------------------ */
+  #resume { margin-top: 34px; text-align: left; }
+  #resume-card:empty { display: none; }
+  .resume-primary {
+    width: 100%; display: flex; align-items: baseline; gap: 10px;
+    padding: 16px 18px; border-radius: var(--radius); border: 1px solid var(--gold-soft);
+    background: var(--bg1); color: var(--text); cursor: pointer; text-align: left;
+    font-size: 15px; font-weight: 400; margin-bottom: 14px;
+  }
+  .resume-primary:hover { border-color: var(--gold); filter: none; }
+  .resume-primary .resume-label { font-weight: 600; color: var(--gold); flex-shrink: 0; }
+  .resume-primary .resume-topic { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .resume-primary .resume-time { color: var(--faint); font-size: 13px; flex-shrink: 0; }
+  #sessions-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  #sessions-list li {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg1); cursor: pointer; font-size: 13.5px;
+  }
+  #sessions-list li:hover { border-color: var(--border-strong); }
+  .session-badge { font-size: 11px; padding: 1px 8px; border-radius: 999px; flex-shrink: 0; border: 1px solid var(--border); }
+  .session-badge.open { color: var(--sage); border-color: var(--sage); }
+  .session-badge.closed { color: var(--faint); }
+  .session-item-topic { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  .session-item-time { color: var(--faint); font-size: 12px; flex-shrink: 0; }
+
   button {
     padding: 12px 20px; border-radius: var(--radius-sm); border: none; cursor: pointer;
     background: var(--gold); color: #14100a; font-weight: 600; font-size: 15px;
@@ -213,6 +239,10 @@
       <input id="topic" placeholder="Tema de la sesión…" autofocus>
       <button id="start">Empezar</button>
     </div>
+    <div id="resume" class="hidden">
+      <div id="resume-card"></div>
+      <ul id="sessions-list"></ul>
+    </div>
   </div>
   <div id="chat" class="hidden">
     <div id="messages"></div>
@@ -258,7 +288,7 @@ function renderMarkdown(src) {
   const fenced = [];
   let text = escapeHtml(src).replace(/```[^\n]*\n([\s\S]*?)```/g, (m, code) => {
     fenced.push("<pre><code>" + code.replace(/\n$/, "") + "</code></pre>");
-    return "\n\u0000" + (fenced.length - 1) + "\u0000\n";
+    return "\n " + (fenced.length - 1) + " \n";
   });
   const out = [];
   let list = null; // "ul" | "ol" | null
@@ -271,7 +301,7 @@ function renderMarkdown(src) {
     const ul = line.match(/^\s*[-*]\s+(.*)$/);
     const ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
     const bq = line.match(/^\s*&gt;\s?(.*)$/);
-    const block = line.match(/^\u0000(\d+)\u0000$/);
+    const block = line.match(/^ (\d+) $/);
     if (!line.trim()) { closePara(); closeList(); }
     else if (block) { closePara(); closeList(); out.push(fenced[Number(block[1])]); }
     else if (h) { closePara(); closeList(); out.push("<h3>" + inlineMd(h[2]) + "</h3>"); }
@@ -373,6 +403,7 @@ async function startSession() {
     show($("composer"));
     addMsg("tutor", data.opening_message);
     if (data.task_index > 0) addStatus(taskStatus(data.task_index, data.task_label, 0, 0));
+    setSessionHash(sessionId);
     $("input").focus();
   } catch (err) {
     setError(err.message);
@@ -436,6 +467,131 @@ function field(label, value) {
   return `<dt>${label}</dt><dd>${escapeHtml((value || "—").toString())}</dd>`;
 }
 
+/* ---- session resume (PR-R1) ---------------------------------------
+   State stays server-derived: no localStorage. The URL hash (#s=<id>)
+   is the only client-side memory, so a reload or a fresh service
+   restart both resolve the same way — ask the server what it has. */
+function setSessionHash(id) {
+  if (id) window.location.hash = "s=" + encodeURIComponent(id);
+}
+
+function sessionIdFromHash() {
+  const m = window.location.hash.match(/#s=(.+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+function relativeTime(iso) {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const minutes = Math.round((Date.now() - then) / 60000);
+  if (minutes < 1) return "justo ahora";
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  const days = Math.round(hours / 24);
+  return `hace ${days} d`;
+}
+
+function renderSessionsPanel(sessions) {
+  const resumeEl = $("resume");
+  const cardEl = $("resume-card");
+  const listEl = $("sessions-list");
+  cardEl.innerHTML = "";
+  listEl.innerHTML = "";
+  const openSessions = sessions.filter((s) => s.status === "open");
+  if (!openSessions.length) { show(resumeEl, false); return; }
+
+  const latest = openSessions[0];
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "resume-primary";
+  card.innerHTML =
+    '<span class="resume-label">Continuar</span>' +
+    '<span class="resume-topic">' + escapeHtml(latest.topic || "sesión sin título") + "</span>" +
+    '<span class="resume-time">' + escapeHtml(relativeTime(latest.updated_at)) + "</span>";
+  card.addEventListener("click", () => openSessionById(latest.session_id));
+  cardEl.appendChild(card);
+
+  sessions.slice(0, 5).forEach((s) => {
+    const li = document.createElement("li");
+    const badge = document.createElement("span");
+    badge.className = "session-badge " + s.status;
+    badge.textContent = s.status === "open" ? "abierta" : "cerrada";
+    const topic = document.createElement("span");
+    topic.className = "session-item-topic";
+    topic.textContent = s.topic || "sesión sin título";
+    const time = document.createElement("span");
+    time.className = "session-item-time";
+    time.textContent = relativeTime(s.updated_at);
+    li.appendChild(badge);
+    li.appendChild(topic);
+    li.appendChild(time);
+    li.addEventListener("click", () => openSessionById(s.session_id));
+    listEl.appendChild(li);
+  });
+  show(resumeEl, true);
+}
+
+async function loadSessionsPanel() {
+  try {
+    const sessions = await api("/sessions");
+    renderSessionsPanel(sessions);
+  } catch (e) { /* the resume affordance is optional — never block a fresh start */ }
+}
+
+function renderTranscript(record) {
+  $("messages").innerHTML = "";
+  for (const turn of record.transcript || []) {
+    addMsg(turn.role === "learner" ? "learner" : "tutor", turn.content);
+  }
+  if (record.traits && record.technique) {
+    $("badges").innerHTML = "";
+    const t = record.traits, plan = record.technique;
+    [t.production, t.verifiability, t.structure, plan.primary].forEach((label) => {
+      const span = document.createElement("span");
+      span.className = "badge";
+      span.textContent = label;
+      $("badges").appendChild(span);
+    });
+  }
+}
+
+async function openSessionById(id) {
+  setError("");
+  try {
+    const record = await api(`/session/${encodeURIComponent(id)}`);
+    const resolvedId = record.id || id;
+    renderTranscript(record);
+    show($("setup"), false);
+    show($("chat"), true);
+    if (record.status === "closed") {
+      sessionId = null;
+      show($("composer"), false);
+      const el = $("record");
+      el.innerHTML = "<h2>Registro de sesión</h2><dl>" +
+        field("Resumen", record.summary) +
+        field("Evaluación", record.assessment) +
+        field("Siguiente paso", record.next_step) +
+        field("Repasar el", (record.review_date || "").slice(0, 10)) +
+        "</dl>";
+      show(el, true);
+    } else {
+      sessionId = resolvedId;
+      show($("record"), false);
+      show($("composer"), true);
+      const task = record.task || {};
+      const help = record.help || {};
+      if (task.index > 0) addStatus(taskStatus(task.index, task.label, help.attempts || 0, help.help_level || 0));
+      $("input").focus();
+    }
+    setSessionHash(resolvedId);
+  } catch (err) {
+    setError(err.message);
+    show($("setup"), true);
+  }
+}
+
 /* ---- single entry point: link out to OpenNotebook (PR-F2) --------- */
 async function loadUiConfig() {
   try {
@@ -449,6 +605,13 @@ async function loadUiConfig() {
   } catch (e) { /* nav link is optional — never block the session flow */ }
 }
 loadUiConfig();
+
+/* ---- boot: resume from the URL hash, otherwise offer recent sessions */
+(function initResume() {
+  const hashId = sessionIdFromHash();
+  if (hashId) openSessionById(hashId);
+  else loadSessionsPanel();
+})();
 
 $("start").addEventListener("click", startSession);
 $("topic").addEventListener("keydown", (e) => { if (e.key === "Enter") startSession(); });

@@ -173,6 +173,11 @@ class TutorEngine:
     async def get(self, session_id: str) -> dict[str, Any]:
         return await self._store.load(session_id)
 
+    async def list_sessions(self, status: str | None = None) -> list[dict[str, Any]]:
+        """List this user's sessions (PR-R1); user scoping stays here, same
+        as every other engine entry point."""
+        return await self._store.list(self._user_id, status)
+
     # --- internals ---
 
     def _advance_task(self, state: SessionState, raw_reply: str) -> str:

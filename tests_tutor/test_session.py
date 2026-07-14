@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
@@ -38,6 +38,14 @@ class FakeStore(SessionStore):
     def __init__(self) -> None:
         self.records: dict[str, dict[str, Any]] = {}
         self._counter = 0
+        self._clock = datetime(2026, 1, 1)
+
+    def _tick(self) -> str:
+        # Monotonically increasing stand-in for `updated_at` (PR-R1): each
+        # write moves the fake clock forward so ordering tests are stable
+        # without depending on wall-clock resolution.
+        self._clock += timedelta(minutes=1)
+        return self._clock.isoformat()
 
     async def create(self, state: SessionState) -> str:
         self._counter += 1
@@ -51,6 +59,7 @@ class FakeStore(SessionStore):
             "help": state.help.model_dump(),
             "task": state.task.model_dump(),
             "transcript": [t.model_dump() for t in state.transcript],
+            "updated_at": self._tick(),
         }
         return session_id
 
@@ -65,6 +74,7 @@ class FakeStore(SessionStore):
         record["help"] = state.help.model_dump()
         record["task"] = state.task.model_dump()
         record["transcript"] = [t.model_dump() for t in state.transcript]
+        record["updated_at"] = self._tick()
 
     async def close(
         self,
@@ -80,7 +90,18 @@ class FakeStore(SessionStore):
             next_step=next_step,
             review_date=review_date.isoformat(),
             ended_at="now",
+            updated_at=self._tick(),
         )
+
+    async def list(
+        self, user_id: str, status: str | None = None
+    ) -> list[dict[str, Any]]:
+        rows = [r for r in self.records.values() if r["user_id"] == user_id]
+        if status == "open":
+            rows = [r for r in rows if not r.get("ended_at")]
+        elif status == "closed":
+            rows = [r for r in rows if r.get("ended_at")]
+        return sorted(rows, key=lambda r: str(r.get("updated_at") or ""), reverse=True)
 
 
 class Empty(BaseModel):
@@ -253,6 +274,7 @@ def test_session_endpoints_full_cycle() -> None:
     fetched = client.get(f"/session/{session_id}")
     assert fetched.status_code == 200
     assert fetched.json()["topic"] == "vectores"
+    assert fetched.json()["status"] == "closed"
 
 
 def test_session_unknown_id_is_404() -> None:
@@ -300,3 +322,118 @@ def test_close_prompt_is_grounded_in_transcript() -> None:
     assert "too short to assess" in lowered
     assert "ground every statement" in lowered
     assert '"summary"' in prompt and '"review_in_days"' in prompt
+
+
+# --- resume (PR-R1) ---
+
+
+def _summary_record(
+    session_id: str,
+    user_id: str,
+    topic: str,
+    *,
+    closed: bool,
+    updated_at: str,
+    task_index: int = 0,
+    task_label: str = "",
+    help_level: int = 0,
+) -> dict[str, Any]:
+    return {
+        "id": session_id,
+        "user_id": user_id,
+        "topic": topic,
+        "traits": {
+            "verifiability": "verifiable",
+            "structure": "hierarchical",
+            "production": "apply",
+            "source": "llm",
+        },
+        "technique": {"primary": "x", "feedback_style": "y", "sequencing": "z"},
+        "help": {"attempts": 0, "help_level": help_level},
+        "task": {"index": task_index, "label": task_label},
+        "transcript": [],
+        "updated_at": updated_at,
+        "ended_at": "2026-01-01T00:00:00" if closed else None,
+    }
+
+
+def test_sessions_list_scoped_ordered_and_filtered() -> None:
+    store = FakeStore()
+    store.records["session:a"] = _summary_record(
+        "session:a",
+        "juanda",
+        "topic a",
+        closed=False,
+        updated_at="2026-01-01T10:00:00",
+        task_index=1,
+        task_label="warm-up",
+        help_level=1,
+    )
+    store.records["session:b"] = _summary_record(
+        "session:b",
+        "juanda",
+        "topic b",
+        closed=True,
+        updated_at="2026-01-02T10:00:00",
+    )
+    store.records["session:c"] = _summary_record(
+        "session:c",
+        "otheruser",
+        "topic c",
+        closed=False,
+        updated_at="2026-01-03T10:00:00",
+    )
+    app = create_app(settings=TutorSettings(), engine=_engine(FakeLLM([]), store))
+    client = TestClient(app)
+
+    body = client.get("/sessions").json()
+    # newest-updated first, scoped to the engine's user_id ("juanda") — the
+    # other user's session (updated most recently of all three) is excluded.
+    assert [s["session_id"] for s in body] == ["session:b", "session:a"]
+    assert body[1] == {
+        "session_id": "session:a",
+        "topic": "topic a",
+        "status": "open",
+        "updated_at": "2026-01-01T10:00:00",
+        "task_index": 1,
+        "task_label": "warm-up",
+        "help_level": 1,
+    }
+
+    open_only = client.get("/sessions", params={"status": "open"}).json()
+    assert [s["session_id"] for s in open_only] == ["session:a"]
+
+    closed_only = client.get("/sessions", params={"status": "closed"}).json()
+    assert [s["session_id"] for s in closed_only] == ["session:b"]
+
+
+def test_get_session_exposes_status_and_transcript_while_open() -> None:
+    store = FakeStore()
+    llm = FakeLLM([CLASSIFY, "hola, empecemos"])
+    engine = _engine(llm, store)
+    state, _ = asyncio.run(engine.open("vectores"))
+
+    app = create_app(settings=TutorSettings(), engine=engine)
+    resp = TestClient(app).get(f"/session/{state.session_id}")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "open"
+    assert body["transcript"] == [{"role": "tutor", "content": "hola, empecemos"}]
+
+
+def test_session_resumes_after_service_restart() -> None:
+    """PR-R1 usable-when clause: state is fully server-derived, so a fresh
+    TutorEngine (standing in for a restarted tutor process) can continue a
+    session opened by a previous engine instance, as long as both share the
+    same store."""
+    store = FakeStore()
+    engine1 = _engine(FakeLLM([CLASSIFY, "opening"]), store)
+    state, _ = asyncio.run(engine1.open("vectores"))
+
+    engine2 = _engine(FakeLLM(["still here, keep going"]), store)
+    state2, reply = asyncio.run(engine2.message(state.session_id, "sigo aquí"))
+
+    assert reply == "still here, keep going"
+    assert state2.session_id == state.session_id
+    assert len(store.records[state.session_id]["transcript"]) == 3  # open+learner+tutor
