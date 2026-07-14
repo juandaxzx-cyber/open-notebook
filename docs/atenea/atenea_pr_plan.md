@@ -47,7 +47,7 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
 - Tutor and OpenNotebook currently feel like two separate apps (UIs, UX, ports). F2 = single entry point + visual pass on the tutor UI. Sharpens the already-deferred "deep visual frontend rework".
 
 ### Feature R — Session Resilience *(registered 2026-07-12 after live dogfood; NEXT after F2 merges)*
-- **PR-R1:** resume abandoned sessions. Server-side state is already persisted per turn (SurrealDB `session` table, `store.save_progress`); what's lost is the client's `session_id` and any way to find open sessions again. Fix: list-open-sessions endpoint + UI resume path (transcript replay, session id in the URL). Contract proposed in playbook §1 — pending developer sign-off.
+- **PR-R1:** resume abandoned sessions. Server-side state is already persisted per turn (SurrealDB `session` table, `store.save_progress`); what's lost is the client's `session_id` and any way to find open sessions again. Fix: list-open-sessions endpoint + UI resume path (transcript replay, session id in the URL). **Implemented + committed** on `feature/r/session-resume` @ `c8a0fa2` (66 tests green); pending developer dogfood + merge.
   - Usable when: close the tab mid-session, reopen `localhost:5056`, tap "Continuar" and the conversation is back exactly where it stopped — even after restarting the tutor service.
 
 ### Feature G — Spaced Repetition
@@ -70,7 +70,7 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
 
 Captured so conversation/agent handoffs never lose them; each needs an architect contract + developer sign-off before implementation.
 
-- **Feature M — Material-Grounded Sessions:** today the engine only sees a small search digest of indexed content. M = sessions anchored to explicitly chosen source(s): pick material at session open, tutor cites back into it, tracks coverage (what of the source has been worked), and generates tasks from the text rather than around it. Interacts with J (search) and K (tree).
+- **Feature M — Material-Grounded Sessions:** today the engine only sees a small search digest of indexed content. M = sessions anchored to explicitly chosen source(s): pick material at session open, tutor cites back into it, tracks coverage (what of the source has been worked), and generates tasks from the text rather than around it. Interacts with J (search) and K (tree). **Contract signed off 2026-07-14 (playbook §1):** sliced into PR-M1 (tutor-side source-scoped retrieval, zero core changes) → PR-M2 (source filter in core `fn::vector_search`, sequenced after the §4 upstream sync) → later M-coverage / M-tasks. Reuses OpenNotebook's existing RAG substrate (`fn::vector_search`, `ContextBuilder`) over REST rather than rebuilding it.
 - **Feature T — Runtime Tool Creation:** promoted from the deferred list ("automated tool creation"). Tutor-proposed tools enter through the registry (hard rule #5) behind developer approval — never self-installed silently.
 - **Feature V — Voice:** speech input/output for sessions; provider via env through the same multi-model philosophy as text (no direct SDK calls in business logic).
 

@@ -6,7 +6,7 @@
 
 - Fork of OpenNotebook at `open-notebook/`. **Merged to `main`, dogfooded, one merge commit per PR:** PR-0 + Features A–F (= V1, `5e06eff`…`5869034`), PR-DX1 (one-command startup, `da029cf`), PR-E2 (session quality: per-task state + eval harness, `cd14ef0`).
 - **Delivered, pending developer sign-off + merge:** PR-F2 (unified experience) on `feature/f2/unified-ux` @ `166199f` — tutor UI as single entry point (`GET /config` + "Notebooks ↗" link), Atenea visual identity v1 (CSS design tokens, built to be lifted into the future frontend rework), markdown rendering, Spanish-first copy.
-- **Next in queue:** PR-R1 (session resume — contract proposed in §1, pending sign-off), then Feature G onward; registered-unordered features M/T/V in `atenea_pr_plan.md`.
+- **Next in queue:** PR-R1 (session resume) — **implemented + committed** on `feature/r/session-resume` @ `c8a0fa2`, pending developer dogfood + merge. Then **Feature M** (material-grounded sessions) — PR-M1/M2 contract **signed off** in §1: M1 is tutor-side only, M2's core change is sequenced *after* the §4 upstream sync. Feature G onward + registered T/V in `atenea_pr_plan.md`.
 - What runs today: `docker compose up -d` = SurrealDB + OpenNotebook (8502/5055) + tutor (5056, chat UI at `GET /`). Dev mode: `docker compose up -d surrealdb` + `make api` + `uv run python -m tutor`. Eval loop: `make eval-tutor`. Done criterion: `make check-tutor` green.
 - Decisions fixed: tutor service in **`tutor/`**; Python **3.12** via `uv`; tutor data in separate **`atenea`** database (shared SurrealDB instance); current user `TUTOR_USER_ID` (default `juanda`); LLM access only via the tutor's interface wrapping **Esperanto**; judge LLM should differ in provider family from the tutor; repo name stays `open-notebook` for now (rename = open decision).
 - Credentials (developer decision 2026-07-12): current GitHub PAT + DeepSeek key stay in use; rotation waived. `main` is local-only, ~26 commits ahead of origin — **pushing is a pending chore.**
@@ -221,7 +221,7 @@ Tutor-first unification: the tutor UI is the single entry point; OpenNotebook st
 
 **Usable when:** a full session at `http://localhost:5056/` reads well (markdown, per-task chips, record) and you can jump to OpenNotebook from the header without remembering ports.
 
-### PR-R1 — Session resume *(contract proposed 2026-07-12 — PENDING developer sign-off; do not implement before it)*
+### PR-R1 — Session resume *(signed off; implemented + committed @ `c8a0fa2`, pending developer dogfood + merge)*
 
 Problem (live dogfood, 2026-07-12): abandoning the chat page orphans an open session. The state is NOT lost server-side — every turn is persisted (`session` table, `store.save_progress`, and `engine.message()` rehydrates from the store by id) — but nothing lists open sessions and the client forgets `session_id`, so the session is unreachable and dogfooding restarts from zero.
 
@@ -233,6 +233,22 @@ Problem (live dogfood, 2026-07-12): abandoning the chat page orphans an open ses
 - Tests: list endpoint scoping/shape/status filter, transcript replay on `GET /session/{id}` for an open session, resume-after-restart (fresh engine instance over the same store), UI markup markers for the resume affordance.
 
 **Usable when:** close the tab mid-session, reopen `localhost:5056`, tap "Continuar" and the conversation is back exactly where it stopped — even after restarting the tutor service.
+
+### PR-M — Material-grounded sessions *(contract proposed 2026-07-14 — signed off by Juan Da; higher-risk PR, change surface delimited below)*
+
+Problem: today `engine.open` grounds a session in a lossy search digest (`_content_digest`: top-5 hits, 300-char snippets) — the tutor teaches *around* the topic, not *from* a chosen text, cannot cite back, and cannot track how much of a source has been worked. OpenNotebook already ships the RAG substrate (embeddings, chunked `fn::vector_search`, `ContextBuilder`, token budgeting); Feature M is about *consuming* it from the tutor over REST, not rebuilding it.
+
+**Delimitation (applies to every M slice — higher-risk feature, so the change surface is fenced for review + revert):**
+- **One seam.** All grounding lives in a new module `tutor/session/grounding.py` exposing one function `retrieve_grounding(source_id, query) -> GroundingContext`. `engine.open`/`engine.message` call it in exactly one place each — the only edits to `engine.py`. Removing the call reverts the feature.
+- **Opt-in, additive.** No `source_id` ⇒ byte-for-byte the current digest path (backward-compat test locks it). Gated behind config `TUTOR_GROUNDING_ENABLED` (dogfood off-switch).
+- **Stable interface across M1→M2.** `retrieve_grounding`'s signature is fixed; the M1→M2 change swaps only its internals — engine + tests stay put.
+- **Persistence:** one new nullable field `source_id` on the tutor's `session` table (atenea DB), additive; it is what lets PR-R1 resume keep the anchor.
+
+**PR-M1 — Anchor retrieval to a chosen source (tutor-side, zero core changes).** New OpenNotebook REST client method + `content.search` gains an optional `source_id`; `retrieve_grounding` over-fetches the existing global vector search (`POST /api/search`, `type=vector`, generous `limit`) and filters rows to `parent_id == source:{id}` on the tutor side — every `fn::vector_search` row already carries `parent_id`. The engine feeds the retrieved, source-scoped chunks (with source refs) into the pedagogy prompt, which is told to cite back into the source. UI: pick a source at open (list via `GET /api/sources`, optionally scoped by notebook); no source = today's behavior. **Hard invariant: the M1 diff touches only `tutor/` — zero edits under `open_notebook/`, `api/`, `migrations/`** (a reviewer verifies M1 by confirming the diff is `tutor/`-only). Accepted limitation: approximate scoping — if the source's relevant chunks rank low globally, raise `limit`; the real fix is M2. Tests: client method shape; `retrieve_grounding` filters by source over a fake search; engine grounds the prompt in source chunks; `source_id` persists + rehydrates on resume; no-source path unchanged; UI selector markup. **Usable when:** you open a session on a chosen document and the tutor teaches from that document, quoting it — and it survives a resume.
+
+**PR-M2 — Source-scoped vector search in core (fenced core change; sequenced AFTER the §4 upstream sync).** Swap `retrieve_grounding`'s internals to a real DB-side source filter — engine and M1 tests unchanged. Core touch confined to four files, each logged in `CORE_CHANGES.md` with a revert note: (1) a NEW additive migration (next number) adding an optional source-filter param to `fn::vector_search` via the existing `REMOVE + DEFINE` pattern, with its `_down`; (2) `open_notebook/domain/notebook.py::vector_search` — new optional param, default preserves today's behavior; (3) `api/models.py::SearchRequest` — optional `source_id`/`notebook_id`; (4) `api/routers/search.py` — thread it through. This is the tutor's *first* modification to OpenNotebook's own migration chain (until now the tutor lives in a separate `atenea` DB precisely to avoid this), so it lands deliberately and only after §4's sync merge is in — never stacking conflict surface on that already-fragile merge. **Usable when:** grounding stays sharp on large sources because retrieval is ranked DB-side within the chosen source.
+
+**Registered, later M slices (no contract yet — after M1/M2 dogfood):** *M-coverage* — represent the source as sections/chunks, tutor marks worked ones (`[[COVERED: …]]`, same pattern as E2's `[[TASK:]]`), persist + show % covered. *M-tasks* — derive tasks from the source's sections (walk the material in order) instead of improvising around the topic. Both build on M1's anchor. Out of scope for M entirely: multi-source sessions (one source first), re-indexing/embedding, auto-selecting material (that is J/K).
 
 ### PR-E2 — Session quality *(contract fixed 2026-07-12, signed off; evidence base: `docs/atenea/tutor_pedagogy_evidence.md`)*
 
