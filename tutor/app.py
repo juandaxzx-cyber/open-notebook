@@ -34,9 +34,15 @@ class HealthResponse(BaseModel):
 
 
 class UiConfigResponse(BaseModel):
-    """Client-side configuration for the chat page (PR-F2)."""
+    """Client-side configuration for the chat page (PR-F2, extended PR-F3).
+
+    llm_provider/llm_model are surfaced for visibility only (never secrets —
+    no API keys ever cross this endpoint)."""
 
     notebook_ui_url: str
+    grounding_enabled: bool = False
+    llm_provider: str | None = None
+    llm_model: str | None = None
 
 
 def _build_engine(settings: TutorSettings) -> TutorEngine | None:
@@ -79,8 +85,14 @@ def create_app(
 
     @app.get("/config", response_model=UiConfigResponse)
     async def ui_config() -> UiConfigResponse:
-        """Where the chat page's "Notebooks" link points (PR-F2)."""
-        return UiConfigResponse(notebook_ui_url=resolved.notebook_ui_url)
+        """Chat page config: "Notebooks" link (PR-F2), grounding toggle and
+        provider/model visibility (PR-F3, no secrets — never the API key)."""
+        return UiConfigResponse(
+            notebook_ui_url=resolved.notebook_ui_url,
+            grounding_enabled=resolved.grounding_enabled,
+            llm_provider=resolved.llm_provider,
+            llm_model=resolved.llm_model,
+        )
 
     @app.get("/sources")
     async def sources() -> list[dict[str, str]]:
