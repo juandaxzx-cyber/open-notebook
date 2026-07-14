@@ -54,7 +54,7 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
 - **PR-G1:** basic SM-2 over items flagged "to review" in sessions.
 
 ### Feature H — Session & Task Tracking
-- **PR-H1:** dedicated view over already-stored session data (surface, not a new model).
+- **PR-H1:** dedicated view over already-stored session data (surface, not a new model). **Contract signed off + implemented @ `7f4c619` on `feature/h/tracking` (2026-07-14, autonomous, pending review):** `SessionSummary` gains `review_date`; UI 'Historial y progreso' groups sessions (Para repasar / Abiertas / Completadas), each opening via the existing `GET /session/{id}`. Read-only, no schema/core changes, 69 tests green.
 
 ### Feature I — Calendar Integration
 - **PR-I1:** calendar as a tool-registry entry, read-only (tutor checks availability).

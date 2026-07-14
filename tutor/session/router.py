@@ -63,6 +63,11 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
                     task_index=int(task_state.get("index") or 0),
                     task_label=str(task_state.get("label") or ""),
                     help_level=int(help_state.get("help_level") or 0),
+                    review_date=(
+                        str(record["review_date"])
+                        if record.get("review_date")
+                        else None
+                    ),
                 )
             )
         return summaries
