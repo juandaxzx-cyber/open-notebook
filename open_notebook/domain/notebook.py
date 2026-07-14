@@ -800,7 +800,15 @@ async def vector_search(
     source: bool = True,
     note: bool = True,
     minimum_score=0.2,
+    source_id: str | None = None,
 ):
+    """Vector search over sources and notes.
+
+    ``source_id`` (PR-M2) restricts results to a single source, matched
+    DB-side inside ``fn::vector_search`` (migration 23): when ``None`` the
+    function behaves exactly as before; when set, only rows whose
+    ``parent_id`` equals that source are returned and notes are excluded.
+    """
     if not keyword:
         raise InvalidInputError("Search keyword cannot be empty")
     try:
@@ -810,7 +818,7 @@ async def vector_search(
         embed = await generate_embedding(keyword)
         search_results = await repo_query(
             """
-            SELECT * FROM fn::vector_search($embed, $results, $source, $note, $minimum_score);
+            SELECT * FROM fn::vector_search($embed, $results, $source, $note, $minimum_score, $source_id);
             """,
             {
                 "embed": embed,
@@ -818,6 +826,7 @@ async def vector_search(
                 "source": source,
                 "note": note,
                 "minimum_score": minimum_score,
+                "source_id": source_id,
             },
         )
         return search_results

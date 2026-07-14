@@ -99,6 +99,62 @@ def test_content_search_tool_calls_open_notebook() -> None:
     assert result["total_count"] == 1
 
 
+def test_content_search_tool_forwards_source_id_to_client() -> None:
+    # PR-M2: source_id must reach the HTTP request body (server-side scoping
+    # inside fn::vector_search), not just the tutor-side parent_id filter.
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = request.content
+        return httpx.Response(
+            200,
+            json={
+                "results": [{"title": "t", "parent_id": "source:A"}],
+                "total_count": 1,
+                "search_type": "vector",
+            },
+        )
+
+    client = OpenNotebookClient(
+        base_url="http://on:5055", transport=httpx.MockTransport(handler)
+    )
+    spec = content_search_tool(client)
+    registry = ToolRegistry()
+    registry.register(spec)
+
+    asyncio.run(
+        registry.call(
+            "content.search",
+            {"query": "algebra", "type": "vector", "source_id": "source:A"},
+        )
+    )
+
+    assert b'"source_id": "source:A"' in seen["body"] or (
+        b'"source_id":"source:A"' in seen["body"]
+    )
+
+
+def test_content_search_tool_omits_source_id_from_client_when_unset() -> None:
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = request.content
+        return httpx.Response(
+            200, json={"results": [], "total_count": 0, "search_type": "text"}
+        )
+
+    client = OpenNotebookClient(
+        base_url="http://on:5055", transport=httpx.MockTransport(handler)
+    )
+    spec = content_search_tool(client)
+    registry = ToolRegistry()
+    registry.register(spec)
+
+    asyncio.run(registry.call("content.search", {"query": "algebra"}))
+
+    assert b"source_id" not in seen["body"]
+
+
 def test_profile_tools_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TUTOR_USER_ID", "juanda")
     service = FakeProfileService()

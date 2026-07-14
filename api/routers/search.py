@@ -36,6 +36,7 @@ async def search_knowledge_base(search_request: SearchRequest):
                 source=search_request.search_sources,
                 note=search_request.search_notes,
                 minimum_score=search_request.minimum_score,
+                source_id=search_request.source_id,
             )
         else:
             # Text search

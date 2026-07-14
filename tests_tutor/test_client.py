@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 import httpx
 
@@ -40,3 +41,46 @@ def test_no_auth_header_without_password() -> None:
 
     assert count == 0
     assert seen["auth"] == ""
+
+
+# --- source_id scoping (PR-M2) ---
+
+
+def test_search_includes_source_id_in_payload_when_set() -> None:
+    seen: dict[str, bytes] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = request.content
+        return httpx.Response(
+            200, json={"results": [], "total_count": 0, "search_type": "vector"}
+        )
+
+    client = OpenNotebookClient(
+        base_url="http://on:5055", transport=httpx.MockTransport(handler)
+    )
+    asyncio.run(
+        client.search(
+            "algebra", limit=5, search_type="vector", source_id="source:abc123"
+        )
+    )
+
+    body = json.loads(seen["body"])
+    assert body["source_id"] == "source:abc123"
+
+
+def test_search_omits_source_id_from_payload_when_none() -> None:
+    seen: dict[str, bytes] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = request.content
+        return httpx.Response(
+            200, json={"results": [], "total_count": 0, "search_type": "text"}
+        )
+
+    client = OpenNotebookClient(
+        base_url="http://on:5055", transport=httpx.MockTransport(handler)
+    )
+    asyncio.run(client.search("algebra"))
+
+    body = json.loads(seen["body"])
+    assert "source_id" not in body
