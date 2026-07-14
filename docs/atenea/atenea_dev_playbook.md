@@ -2,19 +2,16 @@
 
 > Operational plan for agents continuing development. Read *after* `atenea_context.md`, `atenea_pr_plan.md`, and `AGENTS.md`. This document contains: the current state, the next PR contracts, and the recurring checklists (review, CI, upstream sync). Architects update it when contracts change; implementers never edit contracts here.
 
-## 0. Current State (updated 2026-07-12, end of day)
+## 0. Current State (updated 2026-07-12, night — handoff-ready)
 
-- Fork of OpenNotebook at `open-notebook/`. **Five branches delivered and pushed, stacked in this order** (each depends on the previous; dogfood + merge in order):
-  1. `fix/vertex-credentials-env` (PR-0) — Vertex credentials fix + `CORE_CHANGES.md`
-  2. `feature/a/skeleton` (PR-A1) — `tutor/` FastAPI service, `GET /health`, port 5056, CI (`tutor-ci.yml`), `make check-tutor`, `docs/atenea/`
-  3. `feature/b/llm-layer` (PR-B1) — LLM interface wrapping Esperanto, `python -m tutor.llm` CLI
-  4. `feature/c/profile` (PR-C1) — learner profile in separate `atenea` SurrealDB database, `GET/PUT /profile`, questionnaire wizard `python -m tutor.profile`
-  5. `feature/d/tool-registry` (PR-D1) — ToolSpec/ToolRegistry, entries `content.search`, `profile.read`, `profile.write`, CLI `python -m tutor.tools`
-- **Nothing merged to `main` yet** — pending developer dogfood + review. Contracts for each delivered PR are preserved in §1 below as review reference.
-- Decisions fixed: tutor service in **`tutor/`**; Python **3.12** via `uv`; tutor data in separate **`atenea`** database (shared SurrealDB instance); current user `TUTOR_USER_ID` (default `juanda`); LLM access only via the tutor's interface wrapping **Esperanto**; repo name stays `open-notebook` for now (rename = open decision).
-- Repo hygiene: `core.autocrlf=input`, LF everywhere; `CORE_CHANGES.md` tracks core divergence (2 entries).
-- No `upstream` remote configured yet (see §4).
-- **Next step: PR-E1 contract** (first tutoring session; closes V1). Not yet written — architect + developer sign-off required. After D1 merges, parallel implementers are enabled.
+- Fork of OpenNotebook at `open-notebook/`. **Merged to `main`, dogfooded, one merge commit per PR:** PR-0 + Features A–F (= V1, `5e06eff`…`5869034`), PR-DX1 (one-command startup, `da029cf`), PR-E2 (session quality: per-task state + eval harness, `cd14ef0`).
+- **Delivered, pending developer sign-off + merge:** PR-F2 (unified experience) on `feature/f2/unified-ux` @ `166199f` — tutor UI as single entry point (`GET /config` + "Notebooks ↗" link), Atenea visual identity v1 (CSS design tokens, built to be lifted into the future frontend rework), markdown rendering, Spanish-first copy.
+- **Next in queue:** PR-R1 (session resume — contract proposed in §1, pending sign-off), then Feature G onward; registered-unordered features M/T/V in `atenea_pr_plan.md`.
+- What runs today: `docker compose up -d` = SurrealDB + OpenNotebook (8502/5055) + tutor (5056, chat UI at `GET /`). Dev mode: `docker compose up -d surrealdb` + `make api` + `uv run python -m tutor`. Eval loop: `make eval-tutor`. Done criterion: `make check-tutor` green.
+- Decisions fixed: tutor service in **`tutor/`**; Python **3.12** via `uv`; tutor data in separate **`atenea`** database (shared SurrealDB instance); current user `TUTOR_USER_ID` (default `juanda`); LLM access only via the tutor's interface wrapping **Esperanto**; judge LLM should differ in provider family from the tutor; repo name stays `open-notebook` for now (rename = open decision).
+- Credentials (developer decision 2026-07-12): current GitHub PAT + DeepSeek key stay in use; rotation waived. `main` is local-only, ~26 commits ahead of origin — **pushing is a pending chore.**
+- Repo hygiene: `core.autocrlf=input`, LF everywhere; `CORE_CHANGES.md` tracks core divergence. No `upstream` remote configured yet (see §4).
+- **New agent conversation? Start with §6 (Handoff Protocol).**
 
 ## 1. PR Contracts (delivered ones kept as review reference)
 
@@ -213,6 +210,30 @@ tutor/prompts/   # session_system.md, classify_traits.md, close_summary.md (Engl
 
 **Usable when:** cold machine → `cp .env.example .env` (set `TUTOR_LLM_*` + provider key) → `docker compose up -d` → full session in the browser at `http://localhost:5056/`. `make tutor` keeps working for dev.
 
+### PR-F2 — Unified experience *(contract fixed 2026-07-12, signed off by the developer)*
+
+Tutor-first unification: the tutor UI is the single entry point; OpenNotebook stays untouched (its deep frontend rework remains deferred — F2 paves the road for it and for daily dogfooding).
+
+- `GET /config` (new endpoint): minimal JSON with `notebook_ui_url` (env `TUTOR_NOTEBOOK_UI_URL`, default `http://localhost:8502`). The chat page's header gains a "Notebooks ↗" link pointing there — no port memorization; link hidden if /config fails.
+- Visual pass on `tutor/ui/index.html` (still one static file, vanilla, no build step, no CDN): Atenea identity v1 as documented CSS design tokens (night blue + gold-olive, "refined dark" — chosen for future lift into the rework); ~40-line escape-first markdown mini-renderer for tutor replies (headings, lists, bold/italic/code, fenced blocks, blockquotes); typing indicator; restyled task·attempt·help chips (E2) and closing record; friendly 409/503/network errors; responsive; Spanish-first copy.
+- Tests: `/config` default + settings override; `GET /` contains nav link, `/config` reference and the markdown renderer. Page JS itself stays untested (F1 criterion).
+- No `CORE_CHANGES.md` entry (nothing outside `tutor/` + docs except `.env.example`, names only).
+
+**Usable when:** a full session at `http://localhost:5056/` reads well (markdown, per-task chips, record) and you can jump to OpenNotebook from the header without remembering ports.
+
+### PR-R1 — Session resume *(contract proposed 2026-07-12 — PENDING developer sign-off; do not implement before it)*
+
+Problem (live dogfood, 2026-07-12): abandoning the chat page orphans an open session. The state is NOT lost server-side — every turn is persisted (`session` table, `store.save_progress`, and `engine.message()` rehydrates from the store by id) — but nothing lists open sessions and the client forgets `session_id`, so the session is unreachable and dogfooding restarts from zero.
+
+- `GET /sessions?status=open|closed` (new endpoint): the user's sessions — id, topic, status, last-update timestamp, task/help snapshot. Scoped by `user_id` like everything else.
+- `GET /session/{id}`: verify it returns open sessions with their transcript (not only close records); extend if needed so a client can re-render the whole conversation.
+- UI resume path: on page load, fetch open sessions; if any exist, offer "Continuar" (most recent, with topic + when) next to starting a new one; replay the transcript through the same markdown renderer; keep the session id in the URL hash (`#s=<id>`) so refresh/bookmark resumes. No localStorage — state stays server-derived.
+- Service-restart proof: resuming must work purely from the store (it already should — this is a test to write, not new code).
+- Out of scope: auto-closing stale sessions, multi-device sync UX (list + resume is the slice).
+- Tests: list endpoint scoping/shape/status filter, transcript replay on `GET /session/{id}` for an open session, resume-after-restart (fresh engine instance over the same store), UI markup markers for the resume affordance.
+
+**Usable when:** close the tab mid-session, reopen `localhost:5056`, tap "Continuar" and the conversation is back exactly where it stopped — even after restarting the tutor service.
+
 ### PR-E2 — Session quality *(contract fixed 2026-07-12, signed off; evidence base: `docs/atenea/tutor_pedagogy_evidence.md`)*
 
 Two halves.
@@ -244,12 +265,19 @@ A second session after the prompt rewrite showed **substantial improvement, stil
 
 Rationale: the felt value of Atenea lives in session quality, and the dogfooding loop dies if startup friction stays high (developer's working profile: high activation cost). Features G/H/I wait.
 
-1. **Merge the delivered chain** (PR-0 → A1 → B1 → C1 → D1 → E1 → F1), in order. Closes V1, enables parallel implementers. Then revoke the GitHub PAT and rotate the DeepSeek key used during the 2026-07-12 session.
+1. ✅ **Merge the delivered chain** (PR-0 → A1 → B1 → C1 → D1 → E1 → F1), in order. Closes V1, enables parallel implementers. *Credentials decision (developer, 2026-07-12): the GitHub PAT and DeepSeek key stay in use — rotation waived, risk accepted after review. Push to origin is therefore unblocked (`main` is ~26 commits ahead).*
 2. ✅ *(merged 2026-07-12)* **PR-DX1 — one-command startup.** Add the tutor as a service in `docker-compose.yml` (image built from the repo; env passed like the open_notebook service) so `docker compose up -d` brings up SurrealDB + OpenNotebook API + tutor together; keep `make tutor` for dev. Usable when: from a cold machine, `docker compose up -d` + browser = working session. Contract fixed in §1 above (2026-07-12).
 3. ✅ *(merged 2026-07-12)* **PR-E2 — session quality.** Two halves: (a) per-task state — the tutor marks task boundaries (structured marker in its replies, parsed by the engine); attempts/help_level reset per task and the UI shows them per task honestly; (b) first prompt-evaluation loop — a small set of scripted learner personas + an LLM-judge rubric (teaches-before-asking, no flattery, plan adherence, help-ladder compliance) run against prompt changes, so pedagogy iterates on measurement. This pulls forward part of the deferred "learned selection" work without the fine-tuning half.
-4. Then resume the ordered backlog (Feature G onward) in `atenea_pr_plan.md`.
+4. **PR-F2 — unified experience.** ✅ delivered (`feature/f2/unified-ux` @ `166199f`); pending developer dogfood sign-off + merge. Contract in §1.
+5. **PR-R1 — session resume.** Contract proposed in §1 (pending sign-off). Prioritized here because session loss kills the dogfooding loop (§1.7) — same rationale that pulled DX1 forward.
+6. Then resume the ordered backlog (Feature G onward, plus the registered-unordered features M/T/V) in `atenea_pr_plan.md`.
 
 Additional deferred observation (developer, 2026-07-12): **the tutor and OpenNotebook feel like two separate apps** — different UIs, different UX, different ports; today's integration is content-only (search over indexed sources). A unified experience (single entry point; either the tutor embedded in OpenNotebook's UI or OpenNotebook's library views embedded in the tutor's) plus a real visual pass on the tutor UI is **Feature F2** territory: registered in the backlog, deliberately after DX1/E2 — it's part of the "deep visual frontend rework" the context doc already defers, now with a sharper definition of what hurts.
+
+## 1.7 Third Dogfood Findings (2026-07-12, post-F2 delivery)
+
+- **Abandoned sessions are unreachable** — leaving the page mid-session loses the conversation from the user's point of view. Root cause is client-side only: state is fully persisted per turn, but there is no open-session listing and the UI forgets `session_id`. *Fix registered as PR-R1* (contract in §1, pending sign-off) and prioritized right after F2 merges: session loss kills the dogfooding loop, same rationale as DX1.
+- Not yet started (registered in `atenea_pr_plan.md` so handoffs never lose them): material-grounded sessions (M), knowledge tree (K, already in backlog), runtime tool creation (T), voice (V). Step by step — the developer prioritizes.
 
 ## 2. CI Policy
 
@@ -276,3 +304,15 @@ Additional deferred observation (developer, 2026-07-12): **the tutor and OpenNot
 ## 5. Standing Rules Recap (details in AGENTS.md)
 
 Extension before modification (log exceptions in `CORE_CHANGES.md`) · API-first · `user_id` everywhere · config via env only · tools only via the registry (from Feature D) · one PR = one dogfoodable slice · tests mandatory · LF line endings · English in repo · open product decisions belong to the developer.
+
+## 6. Conversation Handoff Protocol (new agent conversations)
+
+Agent conversations end (usage limits, context limits); the project must not lose the thread. A new architect/implementer conversation resumes like this:
+
+1. **Read, in order:** `AGENTS.md` → `atenea_context.md` → `atenea_pr_plan.md` (backlog + Status) → this playbook (§1.6 queue, the last contracts in §1, and the latest findings section). The `context_files/` copies are canonical; `docs/atenea/` is the in-repo mirror — keep both in sync when editing either.
+2. **Verify reality against the docs:** `git log --oneline -8` on `main` and open feature branches; `git status` must be clean before starting. Parallel conversations happen — trust git over your assumptions, and re-read Status if they disagree.
+3. **Baseline before touching anything:** run the check suite and confirm it's green. Canonical: `make check-tutor`. In the Cowork Linux sandbox (no Docker, no Python 3.12; GitHub releases blocked for uv): `pip install --break-system-packages ruff mypy pytest fastapi httpx pydantic uvicorn python-dotenv pyyaml`, then run `pytest tests_tutor` / `ruff format --check` / `ruff check` / `mypy` with system python3.10. Set git author per commit: `git -c user.name="Juan Da" -c user.email="dalralik@gmail.com" commit`.
+4. **Cowork sandbox quirks** (skip if not applicable): the mount can serve stale/truncated file views after Windows-side writes — parse-verify changed files before committing, prefer Linux-side heredoc rewrites for edits, rename-cycle (`mv x tmp && mv tmp x`) refreshes the cache; stale git lock/ref files may need the file-delete permission tool. Never embed raw NUL bytes in source (git flags the file binary) — use printable escapes (e.g. `\u0000` in JS).
+5. **Then work the queue (§1.6):** next item → architect writes/updates the contract in §1 → **developer signs off** → implement on a `feature/<x>/<slug>` branch → checks green → developer dogfoods → merge (one merge commit per PR) → update Status here and in `atenea_pr_plan.md`.
+6. **Contracts are law** (AGENTS.md): implementers never renegotiate scope mid-PR; open product decisions belong to the developer. When in doubt, ask the developer — a one-line question is cheaper than a wrong slice.
+
