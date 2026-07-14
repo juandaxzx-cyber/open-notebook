@@ -55,6 +55,7 @@ class FakeStore(SessionStore):
         self.records[session_id] = {
             "id": session_id,
             "user_id": state.user_id,
+            "source_id": state.source_id,
             "topic": state.topic,
             "traits": state.traits.model_dump(),
             "technique": state.technique.model_dump(),

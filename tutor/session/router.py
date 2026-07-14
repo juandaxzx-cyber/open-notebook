@@ -120,7 +120,7 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
     @router.post("/session", response_model=SessionOpenResponse)
     async def open_session(payload: SessionOpenRequest) -> SessionOpenResponse:
         try:
-            state, opening = await _engine().open(payload.topic)
+            state, opening = await _engine().open(payload.topic, payload.source_id)
         except NoProfileError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except HTTPException:
@@ -134,6 +134,7 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
             technique=state.technique,
             task_index=state.task.index,
             task_label=state.task.label,
+            source_id=state.source_id,
         )
 
     @router.post("/session/{session_id}/message", response_model=MessageResponse)

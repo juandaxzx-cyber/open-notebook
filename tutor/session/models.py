@@ -56,6 +56,7 @@ class SessionState(BaseModel):
     task: TaskState = Field(default_factory=TaskState)
     transcript: list[Turn] = Field(default_factory=list)
     reviewed_ids: list[str] = Field(default_factory=list)  # review sessions (PR-G1)
+    source_id: str | None = None  # chosen material anchor (PR-M1)
 
 
 # --- API models ---
@@ -63,6 +64,9 @@ class SessionState(BaseModel):
 
 class SessionOpenRequest(BaseModel):
     topic: str = Field(min_length=1)
+    source_id: str | None = Field(
+        None, description="Anchor the session to this source (PR-M1)."
+    )
 
 
 class SessionOpenResponse(BaseModel):
@@ -72,6 +76,7 @@ class SessionOpenResponse(BaseModel):
     technique: TechniquePlan
     task_index: int
     task_label: str
+    source_id: str | None = None
 
 
 class MessageRequest(BaseModel):

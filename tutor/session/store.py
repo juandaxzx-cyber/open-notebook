@@ -44,6 +44,7 @@ class SessionStore:
                     """
                     CREATE session CONTENT {
                         user_id: $user_id,
+                        source_id: $source_id,
                         topic: $topic,
                         traits: $traits,
                         technique: $technique,
@@ -55,6 +56,7 @@ class SessionStore:
                     """,
                     {
                         "user_id": state.user_id,
+                        "source_id": state.source_id,
                         "topic": state.topic,
                         "traits": state.traits.model_dump(),
                         "technique": state.technique.model_dump(),

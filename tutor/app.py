@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
@@ -51,6 +51,7 @@ def _build_engine(settings: TutorSettings) -> TutorEngine | None:
         registry=build_default_registry(settings),
         store=SessionStore(),
         user_id=default_user_id(),
+        grounding_enabled=settings.grounding_enabled,
     )
 
 
@@ -80,6 +81,16 @@ def create_app(
     async def ui_config() -> UiConfigResponse:
         """Where the chat page's "Notebooks" link points (PR-F2)."""
         return UiConfigResponse(notebook_ui_url=resolved.notebook_ui_url)
+
+    @app.get("/sources")
+    async def sources() -> list[dict[str, str]]:
+        """Material picker feed (PR-M1): id + title of indexed sources."""
+        try:
+            return await on_client.list_sources()
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=502, detail=f"{type(exc).__name__}: {exc}"
+            ) from exc
 
     @app.get("/health", response_model=HealthResponse)
     async def health() -> HealthResponse:

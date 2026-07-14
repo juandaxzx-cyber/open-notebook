@@ -235,7 +235,7 @@ Problem (live dogfood, 2026-07-12): abandoning the chat page orphans an open ses
 
 **Usable when:** close the tab mid-session, reopen `localhost:5056`, tap "Continuar" and the conversation is back exactly where it stopped — even after restarting the tutor service.
 
-### PR-M — Material-grounded sessions *(contract proposed 2026-07-14 — signed off by Juan Da; higher-risk PR, change surface delimited below)*
+### PR-M — Material-grounded sessions *(signed off 2026-07-14; PR-M1 implemented @ `681197a` on `feature/m/grounding` — autonomous, pending review; PR-M2 not started. Higher-risk PR, change surface delimited below)*
 
 Problem: today `engine.open` grounds a session in a lossy search digest (`_content_digest`: top-5 hits, 300-char snippets) — the tutor teaches *around* the topic, not *from* a chosen text, cannot cite back, and cannot track how much of a source has been worked. OpenNotebook already ships the RAG substrate (embeddings, chunked `fn::vector_search`, `ContextBuilder`, token budgeting); Feature M is about *consuming* it from the tutor over REST, not rebuilding it.
 

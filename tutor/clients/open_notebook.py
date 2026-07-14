@@ -70,3 +70,30 @@ class OpenNotebookClient:
             response.raise_for_status()
             result: dict[str, Any] = response.json()
             return result
+
+    async def list_sources(
+        self, limit: int = 100, notebook_id: str | None = None
+    ) -> list[dict[str, str]]:
+        """List indexed sources (id + title) for the material picker (PR-M1).
+
+        Uses GET /api/sources. Returns a compact shape the UI can render; the
+        full source body is never pulled here.
+        """
+        params: dict[str, Any] = {"limit": limit, "offset": 0}
+        if notebook_id:
+            params["notebook_id"] = notebook_id
+        async with httpx.AsyncClient(
+            timeout=self._timeout, transport=self._transport
+        ) as client:
+            response = await client.get(
+                f"{self._base_url}/api/sources",
+                params=params,
+                headers=self._headers(),
+            )
+            response.raise_for_status()
+            sources = response.json()
+        return [
+            {"id": str(item.get("id")), "title": str(item.get("title") or "")}
+            for item in sources
+            if isinstance(item, dict)
+        ]
