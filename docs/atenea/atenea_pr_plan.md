@@ -43,17 +43,17 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
   - Note: prefer a standalone interface consuming the service API; modifying OpenNotebook's frontend is allowed under the extension-before-modification rule (see AGENTS.md) if it's genuinely the cheaper path.
 - *Parallelism across implementers enabled from here.*
 
-### Feature F2 — Unified Experience ✅ delivered 2026-07-12 (`feature/f2/unified-ux`, 166199f — pending developer dogfood sign-off + merge)
+### Feature F2 — Unified Experience ✅ merged 2026-07-14
 - Tutor and OpenNotebook currently feel like two separate apps (UIs, UX, ports). F2 = single entry point + visual pass on the tutor UI. Sharpens the already-deferred "deep visual frontend rework".
 
-### Feature R — Session Resilience *(registered 2026-07-12 after live dogfood; NEXT after F2 merges)*
+### Feature R — Session Resilience ✅ merged 2026-07-14
 - **PR-R1:** resume abandoned sessions. Server-side state is already persisted per turn (SurrealDB `session` table, `store.save_progress`); what's lost is the client's `session_id` and any way to find open sessions again. Fix: list-open-sessions endpoint + UI resume path (transcript replay, session id in the URL). **Implemented + committed** on `feature/r/session-resume` @ `c8a0fa2` (66 tests green); pending developer dogfood + merge.
   - Usable when: close the tab mid-session, reopen `localhost:5056`, tap "Continuar" and the conversation is back exactly where it stopped — even after restarting the tutor service.
 
-### Feature G — Cross-Session Memory (spaced review is one part)
+### Feature G — Cross-Session Memory (spaced review is one part) — G1 ✅ merged 2026-07-14; G2+ next (design on `agent_memory_sota.md`)
 - **PR-G1:** cross-session review loop — resurface due prior sessions and revisit them, with an inject / update / evict memory lifecycle. **Implemented @ `ad899f0` on `feature/g/review` (2026-07-14, autonomous, pending review):** `GET /reviews/due` + `POST /review`, `review_system.md` (retrieval-first, interleaved), crude reschedule + graduation-evict, UI "Repasar lo pendiente". Additive, no core, 77 tests. SM-2 refinement + a consolidated learner-memory = PR-G2+ (pending an agent-memory SOTA review).
 
-### Feature H — Session & Task Tracking
+### Feature H — Session & Task Tracking — H1 ✅ merged 2026-07-14
 - **PR-H1:** dedicated view over already-stored session data (surface, not a new model). **Contract signed off + implemented @ `7f4c619` on `feature/h/tracking` (2026-07-14, autonomous, pending review):** `SessionSummary` gains `review_date`; UI 'Historial y progreso' groups sessions (Para repasar / Abiertas / Completadas), each opening via the existing `GET /session/{id}`. Read-only, no schema/core changes, 69 tests green.
 
 ### Feature I — Calendar Integration
@@ -66,10 +66,10 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
 ### Feature K — Knowledge Tree (personalized curriculum)
 - **PR-K1:** first version built on existing session history and profile.
 
-### Feature DX2 — Fast Test & Dev Loop *(registered 2026-07-14; contract in playbook §1)*
+### Feature DX2 — Fast Test & Dev Loop ✅ merged 2026-07-14
 - **PR-DX2:** fake LLM provider + `make smoke` full-journey test + `make dev`/`make restart`. Enables the V1 review policy (playbook §1.8).
 
-### Feature F3 — UI Completeness *(registered 2026-07-14; contract in playbook §1)*
+### Feature F3 — UI Completeness ✅ merged 2026-07-14
 - **PR-F3:** in-UI profile questionnaire, grounding source picker, provider/model visibility.
 
 ## Registered, Unordered (2026-07-12 — developer prioritizes; no contracts yet)
@@ -93,6 +93,6 @@ Captured so conversation/agent handoffs never lose them; each needs an architect
 
 No single "done" — progress reads as merged, dogfooded PRs against this ordered backlog. The next step is always the first incomplete PR of the highest-priority feature.
 
-## Status (2026-07-12, end of day)
+## Status (2026-07-14, end of day)
 
-**Merged to `main`**: V1 (PR-0 + Features A–F, `5e06eff`…`5869034`), then PR-DX1 (one-command startup, `da029cf`) and PR-E2 (session quality, `cd14ef0`) — all dogfooded. **Delivered, pending sign-off + merge**: PR-F2 (unified experience, `feature/f2/unified-ux` @ `166199f`). **Next**: PR-R1 (session resume — contract proposed in playbook §1, pending sign-off), then Feature G onward. `main` is local-only ~26 commits ahead of origin; push with the existing PAT (credentials decision 2026-07-12, playbook §1.6). Per-PR contracts live in the playbook; this file stays the backlog-level view. New agent conversations start with the playbook's Handoff Protocol (§6).
+**Everything delivered is merged to `main`**: V1 (PR-0 + A–F), DX1, E2, F2, R1, H1, G1, M1, upstream sync (@7dfe8aa), DX2, F3, M2 — one merge commit per PR, verified by 107 tutor tests + the 12-step `make smoke` journey + ruff + mypy. V1-era review policy in effect (playbook §1.8): merges gate on checks + smoke; developer dogfoods at milestones. Pending on developer: push to origin, live-stack validation of migration 23, milestone browser dogfood. **Next:** PR-G2+ (learner memory), M-coverage / M-tasks, T / V. Per-PR contracts live in the playbook; this file stays the backlog-level view. New agent conversations start with the playbook's Handoff Protocol (§6).
