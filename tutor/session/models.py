@@ -88,6 +88,18 @@ class MessageResponse(BaseModel):
     task_label: str
 
 
+class SessionSummary(BaseModel):
+    """One row of `GET /sessions` (PR-R1) — enough to render a resume list."""
+
+    session_id: str
+    topic: str
+    status: Literal["open", "closed"]
+    updated_at: str
+    task_index: int
+    task_label: str
+    help_level: int
+
+
 class SessionRecord(BaseModel):
     """Readable session log as stored."""
 

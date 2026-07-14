@@ -15,6 +15,7 @@ DEFINE INDEX IF NOT EXISTS profile_user ON profile FIELDS user_id UNIQUE;
 DEFINE TABLE IF NOT EXISTS session SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS user_id ON session TYPE string;
 DEFINE FIELD IF NOT EXISTS started_at ON session TYPE datetime DEFAULT time::now();
+DEFINE FIELD IF NOT EXISTS updated_at ON session TYPE datetime DEFAULT time::now();
 DEFINE FIELD IF NOT EXISTS ended_at ON session TYPE option<datetime>;
 DEFINE FIELD IF NOT EXISTS summary ON session TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS assessment ON session TYPE option<string>;
