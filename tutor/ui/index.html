@@ -66,13 +66,21 @@
     font-size: 12px; color: var(--muted); border: 1px solid var(--border);
     border-radius: 999px; padding: 2px 10px; background: var(--bg1);
   }
-  nav { margin-left: auto; display: flex; gap: 8px; }
+  nav { margin-left: auto; display: flex; align-items: center; gap: 8px; }
   nav a {
     color: var(--muted); text-decoration: none; font-size: 14px;
     border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px;
     transition: color .15s, border-color .15s;
   }
   nav a:hover { color: var(--gold); border-color: var(--gold-soft); }
+
+  /* ---- provider/model chip (PR-F3) -------------------------------- */
+  .llm-chip {
+    font-size: 12px; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 12px; background: var(--bg1);
+    cursor: default; white-space: nowrap;
+  }
+  .llm-chip.warn { color: var(--danger); border-color: var(--danger); cursor: pointer; }
 
   main { flex: 1; max-width: var(--content-width); width: 100%; margin: 0 auto; padding: 24px 20px 0; }
   .hidden { display: none !important; }
@@ -111,6 +119,23 @@
     background: var(--panel, #1a1f2b); color: var(--text, #e8eaed);
     border: 1px solid var(--line, #2a3140); border-radius: 8px; font: inherit;
   }
+
+  /* ---- profile questionnaire (PR-F3) ------------------------------ */
+  #profile { max-width: 520px; margin: 6vh auto 40px; }
+  #profile-hint { color: var(--faint); font-size: 14px; margin: -4px 0 18px; }
+  #profile-form { display: flex; flex-direction: column; gap: 16px; }
+  #profile-form label {
+    display: flex; flex-direction: column; gap: 6px;
+    font-size: 13.5px; color: var(--muted);
+  }
+  #profile-form input {
+    padding: 12px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong); background: var(--bg2);
+    color: var(--text); font-size: 15px; outline: none; font-family: inherit;
+  }
+  #profile-form input:focus { border-color: var(--gold-soft); }
+  #profile-form .form-hint { color: var(--faint); font-size: 12px; }
+  #profile-save { align-self: flex-start; }
   #resume { margin-top: 34px; text-align: left; }
   #resume-card:empty { display: none; }
   .resume-primary {
@@ -246,6 +271,8 @@
   </a>
   <div class="badges" id="badges"></div>
   <nav>
+    <span id="llm-chip" class="llm-chip hidden"></span>
+    <a id="profile-link" class="navlink" href="#">Perfil</a>
     <a id="history-link" class="navlink" href="#">Historial</a>
     <a id="notebooks-link" class="hidden" target="_blank" rel="noopener">Notebooks ↗</a>
   </nav>
@@ -259,7 +286,7 @@
       <button id="start">Empezar</button>
     </div>
     <button id="review-btn" class="review-btn hidden">Repasar lo pendiente</button>
-    <select id="source" class="source-select" aria-label="Fuente (opcional)">
+    <select id="source" class="source-select hidden" aria-label="Fuente (opcional)">
       <option value="">Sin fuente — buscar en todo el material</option>
     </select>
     <div id="resume" class="hidden">
@@ -277,6 +304,30 @@
       <h2>Historial y progreso</h2>
     </div>
     <div id="history-body"></div>
+  </div>
+  <div id="profile" class="hidden">
+    <div class="history-head">
+      <button id="profile-back" type="button" class="history-back">← Volver</button>
+      <h2 id="profile-title">Tu perfil de aprendizaje</h2>
+    </div>
+    <p id="profile-hint" class="hidden"></p>
+    <form id="profile-form">
+      <label>¿Qué quieres aprender? (tu objetivo)
+        <input id="profile-goal" required>
+      </label>
+      <label>¿Cómo evaluarías tu nivel actual?
+        <input id="profile-level" required>
+      </label>
+      <label>¿Cuántas horas por semana puedes dedicarle?
+        <input id="profile-hours" type="number" min="0.1" step="0.1" required>
+      </label>
+      <label>Formatos preferidos
+        <input id="profile-formats" placeholder="texto, video, audio, ejercicios…">
+        <span class="form-hint">Separados por coma.</span>
+      </label>
+      <p id="profile-error" class="error hidden"></p>
+      <button id="profile-save" type="submit">Guardar perfil</button>
+    </form>
   </div>
   <p id="error" class="error hidden"></p>
 </main>
@@ -383,6 +434,20 @@ const FRIENDLY = {
   503: "El tutor no tiene LLM configurado (TUTOR_LLM_PROVIDER / TUTOR_LLM_MODEL) o el servicio no está listo.",
 };
 
+// Pure helper (node-smoke-able): FastAPI 422 bodies carry `detail` as a list
+// of {msg, loc, ...} — turn that into one readable line instead of
+// "[object Object]". String details (409, 502, ...) pass through untouched.
+function formatApiDetail(body, fallback) {
+  const detail = body && body.detail;
+  if (typeof detail === "string" && detail) return detail;
+  if (Array.isArray(detail) && detail.length) {
+    return detail
+      .map((d) => (d && typeof d === "object" ? d.msg || JSON.stringify(d) : String(d)))
+      .join("; ");
+  }
+  return fallback;
+}
+
 async function api(path, options) {
   let response;
   try {
@@ -392,9 +457,11 @@ async function api(path, options) {
   }
   if (!response.ok) {
     let detail = response.statusText;
-    try { detail = (await response.json()).detail || detail; } catch (e) { /* keep statusText */ }
+    try { detail = formatApiDetail(await response.json(), detail); } catch (e) { /* keep statusText */ }
     if (FRIENDLY[response.status]) detail = FRIENDLY[response.status];
-    throw new Error(detail);
+    const err = new Error(detail);
+    err.status = response.status;
+    throw err;
   }
   return response.json();
 }
@@ -436,7 +503,8 @@ async function startSession() {
     setSessionHash(sessionId);
     $("input").focus();
   } catch (err) {
-    setError(err.message);
+    if (err.status === 409) openProfileOnboarding(startSession);
+    else setError(err.message);
   } finally {
     $("start").disabled = false;
   }
@@ -467,7 +535,8 @@ async function startReview() {
     setSessionHash(sessionId);
     $("input").focus();
   } catch (err) {
-    setError(err.message);
+    if (err.status === 409) openProfileOnboarding(startReview);
+    else setError(err.message);
   } finally {
     $("review-btn").disabled = false;
   }
@@ -671,12 +740,92 @@ async function loadHistory() {
 }
 
 function showHistory() {
-  show($("setup"), false); show($("chat"), false); show($("history"), true);
+  show($("setup"), false); show($("chat"), false); show($("profile"), false); show($("history"), true);
   loadHistory();
 }
 
 function showSetup() {
-  show($("history"), false); show($("chat"), false); show($("setup"), true);
+  show($("history"), false); show($("chat"), false); show($("profile"), false); show($("setup"), true);
+}
+
+/* ---- profile questionnaire (PR-F3) ---------------------------------
+   First-run: a 409 from /session or /review opens this form pre-empty;
+   on success it PUTs /profile and seamlessly retries the action that
+   triggered it. Later edits go through the "Perfil" nav item, which
+   pre-fills from GET /profile instead. */
+let profileRetryAction = null;
+
+function fillProfileForm(profile) {
+  $("profile-form").reset();
+  if (!profile) return;
+  $("profile-goal").value = profile.learning_goal || "";
+  $("profile-level").value = profile.self_assessed_level || "";
+  $("profile-hours").value = profile.weekly_availability_hours || "";
+  $("profile-formats").value = (profile.format_preferences || []).join(", ");
+}
+
+function showProfileView() {
+  show($("setup"), false); show($("chat"), false); show($("history"), false);
+  show($("profile"), true);
+  $("profile-error").classList.add("hidden");
+}
+
+async function openProfileEditor() {
+  profileRetryAction = null;
+  $("profile-title").textContent = "Tu perfil de aprendizaje";
+  show($("profile-hint"), false);
+  showProfileView();
+  try {
+    fillProfileForm(await api("/profile"));
+  } catch (e) {
+    fillProfileForm(null); // 404 — no profile yet, start from a blank form
+  }
+}
+
+function openProfileOnboarding(retryAction) {
+  profileRetryAction = retryAction;
+  $("profile-title").textContent = "Antes de empezar: cuéntanos de ti";
+  const hint = $("profile-hint");
+  hint.textContent =
+    "Necesitamos un perfil rápido antes de tu primera sesión — se guarda una " +
+    "vez y luego puedes editarlo desde “Perfil”.";
+  show(hint, true);
+  showProfileView();
+  fillProfileForm(null);
+}
+
+// Pure helper (node-smoke-able): "texto, video,  " -> ["texto", "video"].
+function parseFormatPreferences(raw) {
+  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+async function submitProfileForm(event) {
+  event.preventDefault();
+  const errEl = $("profile-error");
+  errEl.classList.add("hidden");
+  const payload = {
+    learning_goal: $("profile-goal").value.trim(),
+    self_assessed_level: $("profile-level").value.trim(),
+    weekly_availability_hours: parseFloat($("profile-hours").value),
+    format_preferences: parseFormatPreferences($("profile-formats").value),
+  };
+  $("profile-save").disabled = true;
+  try {
+    await api("/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const retry = profileRetryAction;
+    profileRetryAction = null;
+    showSetup();
+    if (retry) await retry();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden");
+  } finally {
+    $("profile-save").disabled = false;
+  }
 }
 
 async function loadSessionsPanel() {
@@ -738,10 +887,26 @@ async function openSessionById(id) {
   }
 }
 
+/* ---- provider/model chip (PR-F3): visibility only, never a key ----- */
+function renderLlmChip(cfg) {
+  const chip = $("llm-chip");
+  if (cfg && cfg.llm_provider && cfg.llm_model) {
+    chip.textContent = cfg.llm_provider + " · " + cfg.llm_model;
+    chip.classList.remove("warn");
+    chip.onclick = null;
+  } else {
+    chip.textContent = "LLM sin configurar";
+    chip.classList.add("warn");
+    chip.onclick = () => setError(FRIENDLY[503]);
+  }
+  show(chip, true);
+}
+
 /* ---- single entry point: link out to OpenNotebook (PR-F2) --------- */
 async function loadUiConfig() {
+  let cfg = null;
   try {
-    const cfg = await (await fetch("/config")).json();
+    cfg = await (await fetch("/config")).json();
     if (cfg.notebook_ui_url) {
       const link = $("notebooks-link");
       link.href = cfg.notebook_ui_url;
@@ -749,6 +914,15 @@ async function loadUiConfig() {
       show(link);
     }
   } catch (e) { /* nav link is optional — never block the session flow */ }
+  renderLlmChip(cfg);
+  // Material grounding (PR-M1/F3): the picker only makes sense when the
+  // service has grounding on; otherwise it stays hidden entirely.
+  if (cfg && cfg.grounding_enabled) {
+    show($("source"), true);
+    loadSources();
+  } else {
+    show($("source"), false);
+  }
 }
 loadUiConfig();
 
@@ -766,7 +940,6 @@ async function loadSources() {
     }
   } catch (e) { /* the picker is optional — a source is never required */ }
 }
-loadSources();
 
 /* ---- boot: resume from the URL hash, otherwise offer recent sessions */
 (function initResume() {
@@ -780,6 +953,9 @@ $("review-btn").addEventListener("click", startReview);
 loadDue();
 $("history-link").addEventListener("click", (e) => { e.preventDefault(); showHistory(); });
 $("history-back").addEventListener("click", showSetup);
+$("profile-link").addEventListener("click", (e) => { e.preventDefault(); openProfileEditor(); });
+$("profile-back").addEventListener("click", showSetup);
+$("profile-form").addEventListener("submit", submitProfileForm);
 $("topic").addEventListener("keydown", (e) => { if (e.key === "Enter") startSession(); });
 $("send").addEventListener("click", sendMessage);
 $("input").addEventListener("keydown", (e) => {

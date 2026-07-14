@@ -297,6 +297,43 @@ def test_sources_endpoint_lists_materials() -> None:
     assert len(body) == 2
 
 
+def test_sources_endpoint_empty_when_no_material_indexed() -> None:
+    # PR-F3 polish: an empty picker is a normal state, not an error.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=[])
+
+    client = OpenNotebookClient(
+        base_url="http://on:5055", transport=httpx.MockTransport(handler)
+    )
+    app = create_app(
+        settings=TutorSettings(),
+        client=client,
+        engine=_engine(FakeLLM([]), MemStore(), grounding=False),
+    )
+    response = TestClient(app).get("/sources")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_sources_endpoint_surfaces_unreachable_open_notebook_as_502() -> None:
+    # PR-F3: OpenNotebook down must be a non-blocking, clearly-labeled error —
+    # same convention as the other client-backed endpoints in app.py.
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused", request=request)
+
+    client = OpenNotebookClient(
+        base_url="http://on:5055", transport=httpx.MockTransport(handler)
+    )
+    app = create_app(
+        settings=TutorSettings(),
+        client=client,
+        engine=_engine(FakeLLM([]), MemStore(), grounding=False),
+    )
+    response = TestClient(app).get("/sources")
+    assert response.status_code == 502
+    assert "ConnectError" in response.json()["detail"]
+
+
 def test_ui_exposes_source_selector() -> None:
     from pathlib import Path
 
