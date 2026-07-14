@@ -66,6 +66,12 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
 ### Feature K — Knowledge Tree (personalized curriculum)
 - **PR-K1:** first version built on existing session history and profile.
 
+### Feature DX2 — Fast Test & Dev Loop *(registered 2026-07-14; contract in playbook §1)*
+- **PR-DX2:** fake LLM provider + `make smoke` full-journey test + `make dev`/`make restart`. Enables the V1 review policy (playbook §1.8).
+
+### Feature F3 — UI Completeness *(registered 2026-07-14; contract in playbook §1)*
+- **PR-F3:** in-UI profile questionnaire, grounding source picker, provider/model visibility.
+
 ## Registered, Unordered (2026-07-12 — developer prioritizes; no contracts yet)
 
 Captured so conversation/agent handoffs never lose them; each needs an architect contract + developer sign-off before implementation.

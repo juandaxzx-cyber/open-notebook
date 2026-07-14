@@ -6,8 +6,8 @@
 
 - Fork of OpenNotebook at `open-notebook/`. **Merged to `main`, dogfooded, one merge commit per PR:** PR-0 + Features A–F (= V1, `5e06eff`…`5869034`), PR-DX1 (one-command startup, `da029cf`), PR-E2 (session quality: per-task state + eval harness, `cd14ef0`).
 - **Delivered, pending developer sign-off + merge:** PR-F2 (unified experience) on `feature/f2/unified-ux` @ `166199f` — tutor UI as single entry point (`GET /config` + "Notebooks ↗" link), Atenea visual identity v1 (CSS design tokens, built to be lifted into the future frontend rework), markdown rendering, Spanish-first copy.
-- **In review / next:** PR-R1 (session resume) implemented @ `c8a0fa2`. **Autonomous batch 2026-07-14** (reduced-review window) added two more, each isolated: **PR-M1** (material grounding) @ `681197a` on `feature/m/grounding`, **PR-H1** (session tracking / progress view) @ `7f4c619` on `feature/h/tracking`, and **PR-G1** (cross-session review loop) @ `ad899f0` on `feature/g/review` (off the H1 tip). Next: developer review of R1/M1/H1/G1, then PR-M2 (core, after the §4 upstream sync), PR-G2+ (consolidated learner-memory — pending an agent-memory SOTA review), registered T/V in `atenea_pr_plan.md`.
-- **⚠ Autonomous batch (2026-07-14):** PR-M1 and PR-H1 were implemented without step-by-step review, on isolated branches off the R1 tip (`feature/m/grounding`, `feature/h/tracking`). Both are additive with code diffs confined to `tutor/` + `tests_tutor/` — **zero core edits** (verify each: `git show --stat <hash>`). PR-M1 is opt-in (`TUTOR_GROUNDING_ENABLED`, off by default); PR-H1 is read-only; PR-G1 (`feature/g/review`, stacked on H1) is additive (tutor DB fields only). `make check-tutor` green on all (M1 76, H1 69, G1 77). Review + dogfood before merging.
+- **Merged to `main` 2026-07-14:** F2 (+fixes), PR-R1, PR-H1, PR-G1, PR-M1 (conflicts resolved in merge f34618f: models union, engine digest superseded by grounding.py, UI union) and the §4 upstream sync (28f4e01, upstream @7dfe8aa). 87 tutor tests + ruff + mypy green post-integration.
+- **Next:** PR-DX2 (fast test & dev loop) and PR-F3 (UI completeness) — contracts in §1, both delegated under the V1 review policy below. Then PR-M2 (core), PR-G2+ (learner memory, see `agent_memory_sota.md`), T/V registered.
 - What runs today: `docker compose up -d` = SurrealDB + OpenNotebook (8502/5055) + tutor (5056, chat UI at `GET /`). Dev mode: `docker compose up -d surrealdb` + `make api` + `uv run python -m tutor`. Eval loop: `make eval-tutor`. Done criterion: `make check-tutor` green.
 - Decisions fixed: tutor service in **`tutor/`**; Python **3.12** via `uv`; tutor data in separate **`atenea`** database (shared SurrealDB instance); current user `TUTOR_USER_ID` (default `juanda`); LLM access only via the tutor's interface wrapping **Esperanto**; judge LLM should differ in provider family from the tutor; repo name stays `open-notebook` for now (rename = open decision).
 - Credentials (developer decision 2026-07-12): current GitHub PAT + DeepSeek key stay in use; rotation waived. `main` is local-only, ~26 commits ahead of origin — **pushing is a pending chore.**
@@ -289,6 +289,25 @@ Tests: marker parsing, per-task reset in the engine, persona loading, judge-prom
 
 **Usable when:** (a) in a real browser session the UI shows task/attempt/help that reset when the tutor moves to the next task; (b) `make eval-tutor` produces a report scoring the 10 criteria across the 4 personas; (c) editing `session_system.md` and re-running measurably moves the scores (v1 vs v2 comparison is part of dogfood).
 
+
+### PR-DX2 — Fast test & dev loop *(contract fixed 2026-07-14; testing delegated to agents by the developer)*
+
+- `tutor/llm/fake.py`: deterministic `fake` provider (`TUTOR_LLM_PROVIDER=fake`) — no network, no keys: fixed traits from classify, scripted session replies (including a `[[TASK: ...]]` marker and a help-ladder response), schema-valid close JSON. Registered via the existing factory; esperanto untouched.
+- `make smoke`: one command driving the FULL user journey over HTTP against an in-process app (TestClient) by default, or against a running stack if `TUTOR_SMOKE_BASE_URL` is set: health → create profile → empty list → open session (fake LLM, with and without `source_id`) → 2 messages → tracking view → close → list shows closed → review due → reopen record. Asserts codes + shapes; runs < 30s, zero config, zero keys.
+- `make dev` / `make restart`: single-command local loop — `dev` = SurrealDB (compose) + tutor with auto-reload (`uvicorn --reload`); `restart` = restart only the tutor process/container. Documented at the top of the Makefile section.
+- CI: smoke (in-process mode) added to the tutor CI job.
+
+**Usable when:** on a cold machine, `make smoke` passes end-to-end with no configuration; during dev, one command restarts the loop.
+
+### PR-F3 — UI completeness for dogfood *(contract fixed 2026-07-14)*
+
+- First-run profile: if `/session` answers 409, the UI opens an in-page questionnaire (mirroring the `PUT /profile` model: goal, self-assessed level, weekly availability, format preferences) instead of a dead end; a "Perfil" nav item allows editing later.
+- Grounding picker: `/config` gains `grounding_enabled`; when true, populate the existing `#source` select from the sources list (add a thin tutor-side `GET /sources` proxy to OpenNotebook if M1 didn't ship one); hidden when disabled.
+- Header shows the configured provider/model (extend `/config`), so the developer always knows which LLM is live.
+- Empty/loading/error states polished; still one static vanilla file, no CDN.
+
+**Usable when:** cold start → create profile in the browser → open a grounded or ungrounded session → review + history — all discoverable without curl.
+
 ## 1.5 First Live Dogfood — Findings (2026-07-12, session on "aprender a aprender")
 
 V1 works end-to-end (profile → open → dialogue → close). Quality failures observed and their disposition:
@@ -319,6 +338,10 @@ Additional deferred observation (developer, 2026-07-12): **the tutor and OpenNot
 
 - **Abandoned sessions are unreachable** — leaving the page mid-session loses the conversation from the user's point of view. Root cause is client-side only: state is fully persisted per turn, but there is no open-session listing and the UI forgets `session_id`. *Fix registered as PR-R1* (contract in §1, pending sign-off) and prioritized right after F2 merges: session loss kills the dogfooding loop, same rationale as DX1.
 - Not yet started (registered in `atenea_pr_plan.md` so handoffs never lose them): material-grounded sessions (M), knowledge tree (K, already in backlog), runtime tool creation (T), voice (V). Step by step — the developer prioritizes.
+
+## 1.8 V1 Review Policy (developer decision, 2026-07-14)
+
+Until V1 wraps: merges gate on **green checks + the automated smoke journey (PR-DX2)** instead of per-PR developer dogfood. Rationale (developer): manual multi-process restarts are high friction for someone learning the stack and needing production speed, and the UI lacks enough surface for meaningful dogfood. The developer dogfoods at milestones instead. **This policy expires with V1** — later versions return to strict per-PR developer review ("no me puedo dar el lujo de no mirar muy de cerca").
 
 ## 2. CI Policy
 
