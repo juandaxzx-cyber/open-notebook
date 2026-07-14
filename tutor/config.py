@@ -21,6 +21,7 @@ class TutorSettings(BaseModel):
     llm_model: str | None = None
     judge_provider: str | None = None
     judge_model: str | None = None
+    grounding_enabled: bool = False
 
     @classmethod
     def from_env(cls) -> "TutorSettings":
@@ -33,7 +34,8 @@ class TutorSettings(BaseModel):
         PR-F2), TUTOR_LLM_PROVIDER, TUTOR_LLM_MODEL, and for the eval harness
         TUTOR_JUDGE_PROVIDER, TUTOR_JUDGE_MODEL (default: the tutor's own
         provider/model — the runner warns, since same-family judging is
-        biased).
+        biased). TUTOR_GROUNDING_ENABLED opts into PR-M1 material grounding
+        (default off; set 1/true to anchor sessions to a chosen source).
         """
         values: dict[str, str] = {}
         env_map = {
@@ -46,6 +48,7 @@ class TutorSettings(BaseModel):
             "llm_model": "TUTOR_LLM_MODEL",
             "judge_provider": "TUTOR_JUDGE_PROVIDER",
             "judge_model": "TUTOR_JUDGE_MODEL",
+            "grounding_enabled": "TUTOR_GROUNDING_ENABLED",
         }
         for field, var in env_map.items():
             value = os.environ.get(var)

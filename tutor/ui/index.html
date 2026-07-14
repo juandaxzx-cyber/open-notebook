@@ -93,6 +93,11 @@
   #setup input:focus { border-color: var(--gold-soft); }
 
   /* ---- session resume (PR-R1) ------------------------------------ */
+  .source-select {
+    width: 100%; margin-top: 10px; padding: 10px 12px;
+    background: var(--panel, #1a1f2b); color: var(--text, #e8eaed);
+    border: 1px solid var(--line, #2a3140); border-radius: 8px; font: inherit;
+  }
   #resume { margin-top: 34px; text-align: left; }
   #resume-card:empty { display: none; }
   .resume-primary {
@@ -239,6 +244,9 @@
       <input id="topic" placeholder="Tema de la sesión…" autofocus>
       <button id="start">Empezar</button>
     </div>
+    <select id="source" class="source-select" aria-label="Fuente (opcional)">
+      <option value="">Sin fuente — buscar en todo el material</option>
+    </select>
     <div id="resume" class="hidden">
       <div id="resume-card"></div>
       <ul id="sessions-list"></ul>
@@ -387,7 +395,7 @@ async function startSession() {
     const data = await api("/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ topic }),
+      body: JSON.stringify({ topic, source_id: $("source").value || null }),
     });
     sessionId = data.session_id;
     const t = data.traits, plan = data.technique;
@@ -605,6 +613,22 @@ async function loadUiConfig() {
   } catch (e) { /* nav link is optional — never block the session flow */ }
 }
 loadUiConfig();
+
+/* ---- material picker (PR-M1): populate the source selector ---------- */
+async function loadSources() {
+  try {
+    const sources = await (await fetch("/sources")).json();
+    if (!Array.isArray(sources) || !sources.length) return;
+    const sel = $("source");
+    for (const s of sources) {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.title || s.id;
+      sel.appendChild(opt);
+    }
+  } catch (e) { /* the picker is optional — a source is never required */ }
+}
+loadSources();
 
 /* ---- boot: resume from the URL hash, otherwise offer recent sessions */
 (function initResume() {

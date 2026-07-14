@@ -16,6 +16,11 @@ Technique plan: use {{technique_primary}} as the primary technique,
 ## Retrieved material (from the learner's own indexed sources)
 {{content}}
 
+If the block above begins with "GROUNDED SOURCE", teach strictly from those
+passages and cite them by their [n] markers when you use them; do not add
+outside facts the passages already cover. Otherwise treat it as loose
+background.
+
 ## Task protocol (hard constraint)
 State: {{task_state}}.
 

@@ -13,6 +13,7 @@ from typing import Any, Literal
 
 from tutor.llm.interface import ChatMessage, LLMProvider
 from tutor.session import policy
+from tutor.session.grounding import retrieve_grounding
 from tutor.session.markers import parse_task_marker
 from tutor.session.models import (
     ContentTraits,
@@ -49,18 +50,6 @@ def _extract_json(text: str) -> dict[str, Any]:
     return result
 
 
-def _content_digest(search_result: dict[str, Any], max_items: int = 5) -> str:
-    items = search_result.get("results", [])[:max_items]
-    if not items:
-        return "(no material found for this topic)"
-    lines = []
-    for item in items:
-        title = str(item.get("title") or item.get("id") or "untitled")
-        snippet = str(item.get("content") or item.get("matches") or "")[:300]
-        lines.append(f"- {title}: {snippet}")
-    return "\n".join(lines)
-
-
 class TutorEngine:
     def __init__(
         self,
@@ -68,22 +57,29 @@ class TutorEngine:
         registry: ToolRegistry,
         store: SessionStore,
         user_id: str,
+        grounding_enabled: bool = False,
     ) -> None:
         self._llm = llm
         self._registry = registry
         self._store = store
         self._user_id = user_id
+        self._grounding_enabled = grounding_enabled
 
-    async def open(self, topic: str) -> tuple[SessionState, str]:
+    async def open(
+        self, topic: str, source_id: str | None = None
+    ) -> tuple[SessionState, str]:
         profile = await self._registry.call("profile.read", {})
         if profile is None:
             raise NoProfileError(
                 "Complete the questionnaire first: uv run python -m tutor.profile"
             )
-        search = await self._registry.call(
-            "content.search", {"query": topic, "limit": 5}
+        grounding = await retrieve_grounding(
+            self._registry,
+            topic=topic,
+            source_id=source_id,
+            enabled=self._grounding_enabled,
         )
-        content = _content_digest(search)
+        content = grounding.content
         traits = await self._classify(topic, content)
         technique = select_technique(traits, str(profile["self_assessed_level"]))
 
@@ -93,6 +89,7 @@ class TutorEngine:
             topic=topic,
             traits=traits,
             technique=technique,
+            source_id=grounding.source_id,
         )
         system = self._system_prompt(state, profile, content)
         response = await self._llm.complete(
@@ -124,7 +121,17 @@ class TutorEngine:
         profile = getattr(self, "_profile_cache", None)
         if profile is None:
             profile = await self._registry.call("profile.read", {}) or {}
-        content = getattr(self, "_content_cache", "(see session opening)")
+        content = getattr(self, "_content_cache", None)
+        if content is None:
+            # Resumed/restarted engine (PR-R1 + M1): re-derive grounding from
+            # the anchor persisted on the session so material survives resume.
+            grounding = await retrieve_grounding(
+                self._registry,
+                topic=state.topic,
+                source_id=state.source_id,
+                enabled=self._grounding_enabled,
+            )
+            content = grounding.content
 
         messages = [
             ChatMessage(
@@ -233,6 +240,7 @@ class TutorEngine:
             session_id=str(record["id"]),
             user_id=str(record["user_id"]),
             topic=str(record.get("topic") or ""),
+            source_id=record.get("source_id"),
             traits=ContentTraits.model_validate(record["traits"]),
             technique=TechniquePlan.model_validate(record["technique"]),
             help=policy.HelpState.model_validate(record.get("help") or {}),
