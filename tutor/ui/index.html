@@ -104,6 +104,8 @@
   .history-item:hover { border-color: var(--gold); }
   .history-topic { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .history-meta { color: var(--faint); font-size: 13px; flex-shrink: 0; }
+  .review-btn { margin-top: 12px; width: 100%; padding: 10px 12px; background: var(--gold, #d3b673); color: #1a1a1a; border: none; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; }
+  .review-btn:hover { filter: brightness(1.06); }
   #resume { margin-top: 34px; text-align: left; }
   #resume-card:empty { display: none; }
   .resume-primary {
@@ -251,6 +253,7 @@
       <input id="topic" placeholder="Tema de la sesión…" autofocus>
       <button id="start">Empezar</button>
     </div>
+    <button id="review-btn" class="review-btn hidden">Repasar lo pendiente</button>
     <div id="resume" class="hidden">
       <div id="resume-card"></div>
       <ul id="sessions-list"></ul>
@@ -429,6 +432,48 @@ async function startSession() {
   } finally {
     $("start").disabled = false;
   }
+}
+
+async function startReview() {
+  setError("");
+  $("review-btn").disabled = true;
+  try {
+    const data = await api("/review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    sessionId = data.session_id;
+    const t = data.traits, plan = data.technique;
+    $("badges").innerHTML = "";
+    [t.production, t.verifiability, t.structure, plan.primary].forEach((label) => {
+      const span = document.createElement("span");
+      span.className = "badge";
+      span.textContent = label;
+      $("badges").appendChild(span);
+    });
+    show($("setup"), false);
+    show($("chat"));
+    show($("composer"));
+    addMsg("tutor", data.opening_message);
+    if (data.task_index > 0) addStatus(taskStatus(data.task_index, data.task_label, 0, 0));
+    setSessionHash(sessionId);
+    $("input").focus();
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    $("review-btn").disabled = false;
+  }
+}
+
+async function loadDue() {
+  try {
+    const due = await api("/reviews/due");
+    if (Array.isArray(due) && due.length) {
+      const btn = $("review-btn");
+      btn.textContent = `Repasar lo pendiente (${due.length})`;
+      show(btn, true);
+    }
+  } catch (e) { /* review is optional — never block a fresh start */ }
 }
 
 async function sendMessage() {
@@ -707,6 +752,8 @@ loadUiConfig();
 })();
 
 $("start").addEventListener("click", startSession);
+$("review-btn").addEventListener("click", startReview);
+loadDue();
 $("history-link").addEventListener("click", (e) => { e.preventDefault(); showHistory(); });
 $("history-back").addEventListener("click", showSetup);
 $("topic").addEventListener("keydown", (e) => { if (e.key === "Enter") startSession(); });

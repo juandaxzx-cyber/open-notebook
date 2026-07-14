@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from collections.abc import Sequence
 from datetime import datetime, timedelta
@@ -11,9 +13,9 @@ from tutor.app import create_app
 from tutor.config import TutorSettings
 from tutor.llm.interface import ChatMessage, ChatResponse
 from tutor.session import policy
-from tutor.session.engine import TutorEngine
+from tutor.session.engine import NoDueReviewError, TutorEngine
 from tutor.session.models import ContentTraits, HelpState, SessionState
-from tutor.session.store import SessionStore, UnknownSessionError
+from tutor.session.store import SessionStore, UnknownSessionError, _to_naive_utc
 from tutor.session.techniques import is_novice, select_technique
 from tutor.tools.registry import ToolRegistry, ToolSpec
 
@@ -59,6 +61,8 @@ class FakeStore(SessionStore):
             "help": state.help.model_dump(),
             "task": state.task.model_dump(),
             "transcript": [t.model_dump() for t in state.transcript],
+            "reviewed_ids": list(state.reviewed_ids),
+            "review_count": 0,
             "updated_at": self._tick(),
         }
         return session_id
@@ -93,7 +97,7 @@ class FakeStore(SessionStore):
             updated_at=self._tick(),
         )
 
-    async def list(
+    async def list_for_user(
         self, user_id: str, status: str | None = None
     ) -> list[dict[str, Any]]:
         rows = [r for r in self.records.values() if r["user_id"] == user_id]
@@ -102,6 +106,33 @@ class FakeStore(SessionStore):
         elif status == "closed":
             rows = [r for r in rows if r.get("ended_at")]
         return sorted(rows, key=lambda r: str(r.get("updated_at") or ""), reverse=True)
+
+    async def due_items(self, user_id: str, now: datetime) -> list[dict[str, Any]]:
+        cutoff = _to_naive_utc(now)
+        due = [
+            r
+            for r in self.records.values()
+            if r["user_id"] == user_id
+            and r.get("ended_at")
+            and r.get("review_date")
+            and _to_naive_utc(r["review_date"]) <= cutoff
+        ]
+        due.sort(key=lambda r: _to_naive_utc(r["review_date"]))
+        return due
+
+    async def record_review(
+        self, session_ids: list[str], review_date: datetime, graduate_at: int
+    ) -> None:
+        for sid in session_ids:
+            record = self.records.get(sid)
+            if not record:
+                continue
+            count = int(record.get("review_count") or 0) + 1
+            record["review_count"] = count
+            record["review_date"] = (
+                None if count >= graduate_at else review_date.isoformat()
+            )
+            record["updated_at"] = self._tick()
 
 
 class Empty(BaseModel):
@@ -484,3 +515,137 @@ def test_ui_has_history_view() -> None:
     assert 'id="history-link"' in html
     assert "loadHistory" in html
     assert "Para repasar" in html
+
+
+# --- review / cross-session memory (PR-G1) ---
+
+
+def _due_record(
+    sid: str,
+    review_date: str | None,
+    *,
+    user: str = "juanda",
+    topic: str = "vectores",
+    review_count: int = 0,
+) -> dict[str, Any]:
+    return {
+        "id": sid,
+        "user_id": user,
+        "topic": topic,
+        "ended_at": "2026-01-01T00:00:00",
+        "review_date": review_date,
+        "assessment": "confundió el producto punto con el cruz",
+        "next_step": "practicar el producto punto",
+        "summary": "cubrió vectores base",
+        "review_count": review_count,
+    }
+
+
+def test_due_items_scoped_and_ordered() -> None:
+    store = FakeStore()
+    store.records["session:old"] = _due_record("session:old", "2026-01-01T00:00:00")
+    store.records["session:new"] = _due_record("session:new", "2026-02-01T00:00:00")
+    store.records["session:other"] = _due_record(
+        "session:other", "2026-01-01T00:00:00", user="someone"
+    )
+    store.records["session:notdue"] = _due_record("session:notdue", None)  # evicted
+    due = asyncio.run(store.due_items("juanda", datetime(2026, 6, 1)))
+    # scoped to juanda, review_date present + past, most overdue first
+    assert [r["id"] for r in due] == ["session:old", "session:new"]
+
+
+def test_open_review_injects_prior_memory() -> None:
+    store = FakeStore()
+    store.records["session:x"] = _due_record("session:x", "2026-01-01T00:00:00")
+    llm = FakeLLM(["¡Hola! Repasemos. ¿Qué recuerdas del producto punto?"])
+    engine = _engine(llm, store)
+
+    state, opening = asyncio.run(engine.open_review())
+
+    assert state.reviewed_ids == ["session:x"]
+    assert state.topic.startswith("Repaso:")
+    prompt = llm.seen[-1][0].content
+    assert "RETRIEVAL" in prompt  # the review prompt, not the normal one
+    assert "producto punto" in prompt  # unfinished next step injected
+    assert "confundió el producto punto" in prompt  # prior assessment injected
+
+
+def test_open_review_raises_when_nothing_due() -> None:
+    engine = _engine(FakeLLM([]), FakeStore())
+    with pytest.raises(NoDueReviewError):
+        asyncio.run(engine.open_review())
+
+
+def test_review_close_reschedules_covered_items() -> None:
+    store = FakeStore()
+    store.records["session:x"] = _due_record("session:x", "2026-01-01T00:00:00")
+    engine = _engine(FakeLLM(["opening review", CLOSE]), store)
+
+    state, _ = asyncio.run(engine.open_review())
+    asyncio.run(engine.close(state.session_id))
+
+    item = store.records["session:x"]
+    assert item["review_count"] == 1
+    assert item["review_date"] is not None  # rescheduled (1 < graduation), not evicted
+
+
+def test_record_review_evicts_after_graduation() -> None:
+    store = FakeStore()
+    store.records["session:a"] = _due_record(
+        "session:a", "2026-01-01T00:00:00", review_count=2
+    )
+    store.records["session:b"] = _due_record(
+        "session:b", "2026-01-01T00:00:00", review_count=0
+    )
+    future = datetime(2026, 12, 1)
+    asyncio.run(store.record_review(["session:a", "session:b"], future, 3))
+
+    assert store.records["session:a"]["review_count"] == 3
+    assert store.records["session:a"]["review_date"] is None  # EVICTED at graduation
+    assert store.records["session:b"]["review_count"] == 1
+    assert store.records["session:b"]["review_date"] == future.isoformat()  # kept
+
+
+def test_review_endpoints_list_and_open() -> None:
+    store = FakeStore()
+    store.records["session:x"] = _due_record("session:x", "2026-01-01T00:00:00")
+    app = create_app(
+        settings=TutorSettings(),
+        engine=_engine(FakeLLM(["opening review"]), store),
+    )
+    client = TestClient(app)
+
+    due = client.get("/reviews/due").json()
+    assert due[0]["session_id"] == "session:x"
+    assert due[0]["next_step"] == "practicar el producto punto"
+
+    opened = client.post("/review")
+    assert opened.status_code == 200
+    assert opened.json()["opening_message"]
+
+
+def test_review_open_returns_409_when_nothing_due() -> None:
+    app = create_app(settings=TutorSettings(), engine=_engine(FakeLLM([]), FakeStore()))
+    assert TestClient(app).post("/review").status_code == 409
+
+
+def test_review_prompt_is_retrieval_first_and_interleaves() -> None:
+    from tutor.session.engine import _render
+
+    prompt = _render(
+        "review_system.md",
+        {
+            "profile": "{}",
+            "topic": "Repaso: x, y",
+            "traits": "{}",
+            "technique_primary": "retrieval practice",
+            "technique_feedback": "contingent",
+            "technique_sequencing": "interleaving prior topics",
+            "content": "[1] x",
+            "help_state": "level 0",
+            "task_state": "none",
+        },
+    )
+    low = prompt.lower()
+    assert "retrieval" in low
+    assert "interleave" in low
