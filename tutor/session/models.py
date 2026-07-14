@@ -89,7 +89,7 @@ class MessageResponse(BaseModel):
 
 
 class SessionSummary(BaseModel):
-    """One row of `GET /sessions` (PR-R1) — enough to render a resume list."""
+    """One row of `GET /sessions` (PR-R1) — resume list + progress view (PR-H1)."""
 
     session_id: str
     topic: str
@@ -98,6 +98,7 @@ class SessionSummary(BaseModel):
     task_index: int
     task_label: str
     help_level: int
+    review_date: str | None = None  # closed sessions (PR-H1)
 
 
 class SessionRecord(BaseModel):

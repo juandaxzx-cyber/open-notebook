@@ -337,6 +337,7 @@ def _summary_record(
     task_index: int = 0,
     task_label: str = "",
     help_level: int = 0,
+    review_date: str | None = None,
 ) -> dict[str, Any]:
     return {
         "id": session_id,
@@ -354,6 +355,7 @@ def _summary_record(
         "transcript": [],
         "updated_at": updated_at,
         "ended_at": "2026-01-01T00:00:00" if closed else None,
+        "review_date": review_date,
     }
 
 
@@ -398,6 +400,7 @@ def test_sessions_list_scoped_ordered_and_filtered() -> None:
         "task_index": 1,
         "task_label": "warm-up",
         "help_level": 1,
+        "review_date": None,
     }
 
     open_only = client.get("/sessions", params={"status": "open"}).json()
@@ -437,3 +440,47 @@ def test_session_resumes_after_service_restart() -> None:
     assert reply == "still here, keep going"
     assert state2.session_id == state.session_id
     assert len(store.records[state.session_id]["transcript"]) == 3  # open+learner+tutor
+
+
+# --- session tracking / progress view (PR-H1) ---
+
+
+def test_summary_exposes_review_date_for_closed_sessions() -> None:
+    store = FakeStore()
+    store.records["session:done"] = _summary_record(
+        "session:done",
+        "juanda",
+        "vectores",
+        closed=True,
+        updated_at="2026-01-02T10:00:00",
+        review_date="2026-01-05T00:00:00",
+    )
+    app = create_app(settings=TutorSettings(), engine=_engine(FakeLLM([]), store))
+    body = TestClient(app).get("/sessions").json()
+    assert body[0]["review_date"] == "2026-01-05T00:00:00"
+
+
+def test_open_session_has_null_review_date() -> None:
+    store = FakeStore()
+    store.records["session:open"] = _summary_record(
+        "session:open",
+        "juanda",
+        "abierta",
+        closed=False,
+        updated_at="2026-01-02T10:00:00",
+    )
+    app = create_app(settings=TutorSettings(), engine=_engine(FakeLLM([]), store))
+    body = TestClient(app).get("/sessions").json()
+    assert body[0]["review_date"] is None
+
+
+def test_ui_has_history_view() -> None:
+    from pathlib import Path
+
+    html = (Path(__file__).parent.parent / "tutor" / "ui" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    assert 'id="history"' in html
+    assert 'id="history-link"' in html
+    assert "loadHistory" in html
+    assert "Para repasar" in html

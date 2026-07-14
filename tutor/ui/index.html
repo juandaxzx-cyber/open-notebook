@@ -93,6 +93,17 @@
   #setup input:focus { border-color: var(--gold-soft); }
 
   /* ---- session resume (PR-R1) ------------------------------------ */
+  .navlink { color: var(--faint); font-size: 14px; margin-right: 14px; cursor: pointer; text-decoration: none; }
+  .navlink:hover { color: var(--gold); }
+  .history-head { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+  .history-back { background: none; border: none; color: var(--faint); cursor: pointer; font: inherit; }
+  .history-back:hover { color: var(--gold); }
+  .history-section { margin: 20px 0 8px; font-size: 14px; color: var(--gold); }
+  .history-list { list-style: none; padding: 0; margin: 0; }
+  .history-item { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--line, #2a3140); border-radius: 8px; margin-bottom: 6px; cursor: pointer; }
+  .history-item:hover { border-color: var(--gold); }
+  .history-topic { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-meta { color: var(--faint); font-size: 13px; flex-shrink: 0; }
   #resume { margin-top: 34px; text-align: left; }
   #resume-card:empty { display: none; }
   .resume-primary {
@@ -228,6 +239,7 @@
   </a>
   <div class="badges" id="badges"></div>
   <nav>
+    <a id="history-link" class="navlink" href="#">Historial</a>
     <a id="notebooks-link" class="hidden" target="_blank" rel="noopener">Notebooks ↗</a>
   </nav>
 </header>
@@ -247,6 +259,13 @@
   <div id="chat" class="hidden">
     <div id="messages"></div>
     <div id="record" class="hidden"></div>
+  </div>
+  <div id="history" class="hidden">
+    <div class="history-head">
+      <button id="history-back" type="button" class="history-back">← Volver</button>
+      <h2>Historial y progreso</h2>
+    </div>
+    <div id="history-body"></div>
   </div>
   <p id="error" class="error hidden"></p>
 </main>
@@ -533,6 +552,80 @@ function renderSessionsPanel(sessions) {
   show(resumeEl, true);
 }
 
+function whenLabel(iso) {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const days = Math.round((then - Date.now()) / 86400000);
+  if (days > 1) return `en ${days} d`;
+  if (days === 1) return "mañana";
+  if (days === 0) return "hoy";
+  if (days === -1) return "ayer";
+  return `hace ${-days} d`;
+}
+
+function isDue(s) {
+  if (s.status !== "closed" || !s.review_date) return false;
+  const d = new Date(s.review_date).getTime();
+  return !Number.isNaN(d) && d <= Date.now();
+}
+
+function renderHistory(sessions) {
+  const body = $("history-body");
+  body.innerHTML = "";
+  const groups = [
+    ["Para repasar", sessions.filter(isDue)],
+    ["Abiertas", sessions.filter((s) => s.status === "open")],
+    ["Completadas", sessions.filter((s) => s.status === "closed" && !isDue(s))],
+  ];
+  let any = false;
+  for (const [title, items] of groups) {
+    if (!items.length) continue;
+    any = true;
+    const h = document.createElement("h3");
+    h.className = "history-section";
+    h.textContent = `${title} (${items.length})`;
+    body.appendChild(h);
+    const ul = document.createElement("ul");
+    ul.className = "history-list";
+    for (const s of items) {
+      const li = document.createElement("li");
+      li.className = "history-item";
+      const topic = document.createElement("span");
+      topic.className = "history-topic";
+      topic.textContent = s.topic || "sesión sin título";
+      const meta = document.createElement("span");
+      meta.className = "history-meta";
+      meta.textContent = s.review_date ? `repaso ${whenLabel(s.review_date)}` : relativeTime(s.updated_at);
+      li.appendChild(topic);
+      li.appendChild(meta);
+      li.addEventListener("click", () => openSessionById(s.session_id));
+      ul.appendChild(li);
+    }
+    body.appendChild(ul);
+  }
+  if (!any) body.innerHTML = '<p class="hint">Aún no hay sesiones.</p>';
+}
+
+async function loadHistory() {
+  const body = $("history-body");
+  body.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    renderHistory(await api("/sessions"));
+  } catch (e) {
+    body.innerHTML = '<p class="error">No se pudo cargar el historial.</p>';
+  }
+}
+
+function showHistory() {
+  show($("setup"), false); show($("chat"), false); show($("history"), true);
+  loadHistory();
+}
+
+function showSetup() {
+  show($("history"), false); show($("chat"), false); show($("setup"), true);
+}
+
 async function loadSessionsPanel() {
   try {
     const sessions = await api("/sessions");
@@ -614,6 +707,8 @@ loadUiConfig();
 })();
 
 $("start").addEventListener("click", startSession);
+$("history-link").addEventListener("click", (e) => { e.preventDefault(); showHistory(); });
+$("history-back").addEventListener("click", showSetup);
 $("topic").addEventListener("keydown", (e) => { if (e.key === "Enter") startSession(); });
 $("send").addEventListener("click", sendMessage);
 $("input").addEventListener("keydown", (e) => {
