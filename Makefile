@@ -241,3 +241,21 @@ check-tutor:
 
 eval-tutor:
 	uv run python -m tutor.eval
+
+smoke:
+	uv run python -m tutor.smoke
+
+# Local dev loop (PR-DX2). Ports: SurrealDB on localhost:8000 (compose service
+# 'surrealdb'); tutor API + UI on http://localhost:5056 (TUTOR_HOST:TUTOR_PORT
+# defaults, see tutor/config.py). Config is read from .env via --env-file.
+# Namespaced as `tutor-dev` because the core already owns the `dev` target.
+tutor-dev:
+	docker compose up -d surrealdb
+	uv run uvicorn --factory tutor.app:create_app --reload --host 0.0.0.0 --port 5056 --env-file .env
+
+# Restart ONLY the tutor process (PR-DX2), leaving SurrealDB up. Portable
+# (non-container) approach: kill any running uvicorn tutor process, relaunch it
+# with autoreload on the same port.
+tutor-restart:
+	-pkill -f "uvicorn.*tutor.app:create_app" || true
+	uv run uvi
