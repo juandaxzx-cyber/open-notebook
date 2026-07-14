@@ -44,3 +44,6 @@ jobs:
 
       - name: Run tutor checks
         run: make check-tutor
+
+      - name: Run in-process smoke journey
+        run: uv run python -m tutor.smoke
