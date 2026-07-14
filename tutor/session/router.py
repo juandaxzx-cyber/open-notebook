@@ -5,8 +5,9 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
 
-from tutor.session.engine import NoProfileError, TutorEngine
+from tutor.session.engine import NoDueReviewError, NoProfileError, TutorEngine
 from tutor.session.models import (
+    DueItem,
     MessageRequest,
     MessageResponse,
     SessionOpenRequest,
@@ -71,6 +72,50 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
                 )
             )
         return summaries
+
+    @router.get("/reviews/due", response_model=list[DueItem])
+    async def due_reviews() -> list[DueItem]:
+        try:
+            items = await _engine().due_reviews()
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise _bad_gateway(exc) from exc
+        return [
+            DueItem(
+                session_id=str(record.get("id")),
+                topic=str(record.get("topic") or ""),
+                review_date=(
+                    str(record["review_date"]) if record.get("review_date") else None
+                ),
+                next_step=(
+                    str(record["next_step"]) if record.get("next_step") else None
+                ),
+                assessment=(
+                    str(record["assessment"]) if record.get("assessment") else None
+                ),
+            )
+            for record in items
+        ]
+
+    @router.post("/review", response_model=SessionOpenResponse)
+    async def open_review() -> SessionOpenResponse:
+        try:
+            state, opening = await _engine().open_review()
+        except (NoProfileError, NoDueReviewError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise _bad_gateway(exc) from exc
+        return SessionOpenResponse(
+            session_id=state.session_id,
+            opening_message=opening,
+            traits=state.traits,
+            technique=state.technique,
+            task_index=state.task.index,
+            task_label=state.task.label,
+        )
 
     @router.post("/session", response_model=SessionOpenResponse)
     async def open_session(payload: SessionOpenRequest) -> SessionOpenResponse:

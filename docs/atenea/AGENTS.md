@@ -38,4 +38,8 @@
 
 ## Orientation for a New Agent
 
-1. Read `atenea_context.md` (what/why), then `atenea_pr_plan.md` (what's next), then this file (how), then `atenea_dev_playbook.md` (current PR contract and operational checklist
+1. Read `atenea_context.md` (what/why), then `atenea_pr_plan.md` (what's next), then this file (how), then `atenea_dev_playbook.md` (current PR contract and operational checklists).
+2. Inspect the OpenNotebook codebase directly for its REST API surface and data model — do not guess endpoints; read the code/docs in the repo.
+3. Confirm which PR you're assigned and restate its contract in your first message/PR draft. If the contract is ambiguous, ask the developer — do not improvise schema or interface decisions.
+
+`[Open decisions (developer's call, non-blocking): repo rename · machine specs if relevant to local inference]`

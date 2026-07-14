@@ -55,6 +55,7 @@ class SessionState(BaseModel):
     help: HelpState = Field(default_factory=HelpState)
     task: TaskState = Field(default_factory=TaskState)
     transcript: list[Turn] = Field(default_factory=list)
+    reviewed_ids: list[str] = Field(default_factory=list)  # review sessions (PR-G1)
 
 
 # --- API models ---
@@ -99,6 +100,16 @@ class SessionSummary(BaseModel):
     task_label: str
     help_level: int
     review_date: str | None = None  # closed sessions (PR-H1)
+
+
+class DueItem(BaseModel):
+    """A closed session due for review (PR-G1)."""
+
+    session_id: str
+    topic: str
+    review_date: str | None = None
+    next_step: str | None = None
+    assessment: str | None = None
 
 
 class SessionRecord(BaseModel):

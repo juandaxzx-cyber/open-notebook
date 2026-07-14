@@ -28,9 +28,16 @@ from tutor.tools.registry import ToolRegistry
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
+# Successful reviews before an item graduates out of the review set (PR-G1).
+GRADUATION_REVIEWS = 3
+
 
 class NoProfileError(RuntimeError):
     """Raised when a session is opened before the questionnaire exists."""
+
+
+class NoDueReviewError(RuntimeError):
+    """Raised when a review session is requested but nothing is due (PR-G1)."""
 
 
 def _render(template_name: str, values: dict[str, str]) -> str:
@@ -59,6 +66,25 @@ def _content_digest(search_result: dict[str, Any], max_items: int = 5) -> str:
         snippet = str(item.get("content") or item.get("matches") or "")[:300]
         lines.append(f"- {title}: {snippet}")
     return "\n".join(lines)
+
+
+def _format_review_memory(items: list[dict[str, Any]]) -> str:
+    """Compact memory of prior sessions being revisited (PR-G1)."""
+    if not items:
+        return "(no prior sessions are due for review)"
+    blocks = []
+    for i, item in enumerate(items, start=1):
+        topic = str(item.get("topic") or "untitled")
+        assessment = str(item.get("assessment") or "").strip() or "—"
+        next_step = str(item.get("next_step") or "").strip() or "—"
+        summary = str(item.get("summary") or "").strip() or "—"
+        blocks.append(
+            f"[{i}] {topic}\n"
+            f"    last assessment: {assessment}\n"
+            f"    unfinished next step: {next_step}\n"
+            f"    what was covered: {summary}"
+        )
+    return "\n".join(blocks)
 
 
 class TutorEngine:
@@ -116,6 +142,65 @@ class TutorEngine:
         self._content_cache = content
         return state, opening
 
+    async def due_reviews(self) -> list[dict[str, Any]]:
+        """This user's sessions due for review (PR-G1)."""
+        return await self._store.due_items(self._user_id, datetime.now(timezone.utc))
+
+    async def open_review(self, max_items: int = 3) -> tuple[SessionState, str]:
+        """Open a review session over due prior sessions (PR-G1): inject their
+        memory, interleave up to `max_items`, run retrieval-first relearning."""
+        profile = await self._registry.call("profile.read", {})
+        if profile is None:
+            raise NoProfileError(
+                "Complete the questionnaire first: uv run python -m tutor.profile"
+            )
+        due = await self.due_reviews()
+        if not due:
+            raise NoDueReviewError("Nothing is due for review yet.")
+        items = due[:max_items]
+        memory = _format_review_memory(items)
+        labels = ", ".join(str(i.get("topic") or "?") for i in items)
+        traits = ContentTraits(
+            verifiability="interpretive",
+            structure="distributed",
+            production="recall",
+            source="fallback",
+        )
+        technique = TechniquePlan(
+            primary="retrieval practice",
+            feedback_style="contingent, located feedback",
+            sequencing="interleaving prior topics",
+        )
+        state = SessionState(
+            session_id="",
+            user_id=self._user_id,
+            topic=f"Repaso: {labels}",
+            traits=traits,
+            technique=technique,
+            reviewed_ids=[str(i.get("id")) for i in items],
+        )
+        system = self._system_prompt(state, profile, memory)
+        response = await self._llm.complete(
+            [
+                ChatMessage(role="system", content=system),
+                ChatMessage(
+                    role="user",
+                    content=(
+                        "Open the review: greet me briefly, say we are revisiting "
+                        "prior material, and start by asking me to recall the first "
+                        "item before re-teaching. Open the first task."
+                    ),
+                ),
+            ]
+        )
+        raw_opening = response.content
+        opening = self._advance_task(state, raw_opening)
+        state.transcript.append(Turn(role="tutor", content=raw_opening))
+        state.session_id = await self._store.create(state)
+        self._profile_cache = profile
+        self._content_cache = memory
+        return state, opening
+
     async def message(self, session_id: str, text: str) -> tuple[SessionState, str]:
         state = self._state_from_record(await self._store.load(session_id))
         state.help = policy.next_state(state.help, text)
@@ -168,6 +253,10 @@ class TutorEngine:
             next_step=str(data.get("next_step", "")),
             review_date=review_date,
         )
+        if state.reviewed_ids:
+            await self._store.record_review(
+                state.reviewed_ids, review_date, GRADUATION_REVIEWS
+            )
         return await self._store.load(session_id)
 
     async def get(self, session_id: str) -> dict[str, Any]:
@@ -176,7 +265,7 @@ class TutorEngine:
     async def list_sessions(self, status: str | None = None) -> list[dict[str, Any]]:
         """List this user's sessions (PR-R1); user scoping stays here, same
         as every other engine entry point."""
-        return await self._store.list(self._user_id, status)
+        return await self._store.list_for_user(self._user_id, status)
 
     # --- internals ---
 
@@ -209,8 +298,9 @@ class TutorEngine:
     def _system_prompt(
         self, state: SessionState, profile: dict[str, Any], content: str
     ) -> str:
+        template = "review_system.md" if state.reviewed_ids else "session_system.md"
         return _render(
-            "session_system.md",
+            template,
             {
                 "profile": json.dumps(profile, default=str),
                 "topic": state.topic,
@@ -240,4 +330,5 @@ class TutorEngine:
             transcript=[
                 Turn.model_validate(t) for t in (record.get("transcript") or [])
             ],
+            reviewed_ids=list(record.get("reviewed_ids") or []),
         )

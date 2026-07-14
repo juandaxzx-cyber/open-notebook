@@ -1,6 +1,8 @@
 """Session persistence over the atenea database."""
 
-from datetime import datetime
+from __future__ import annotations
+
+from datetime import datetime, timezone
 from typing import Any
 
 from tutor.db import atenea_db, ensure_ok
@@ -19,6 +21,20 @@ def _rows(result: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _to_naive_utc(value: Any) -> datetime:
+    """Best-effort parse of a stored review_date (SurrealDB datetime or ISO
+    string) into a naive-UTC datetime for comparison (PR-G1)."""
+    dt = value if isinstance(value, datetime) else None
+    if dt is None:
+        try:
+            dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except ValueError:
+            return datetime.max
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
 class SessionStore:
     async def create(self, state: SessionState) -> str:
         """Persist a new session; returns the record id."""
@@ -33,7 +49,8 @@ class SessionStore:
                         technique: $technique,
                         help: $help,
                         task: $task,
-                        transcript: $transcript
+                        transcript: $transcript,
+                        reviewed_ids: $reviewed_ids
                     }
                     """,
                     {
@@ -44,6 +61,7 @@ class SessionStore:
                         "help": state.help.model_dump(),
                         "task": state.task.model_dump(),
                         "transcript": [t.model_dump() for t in state.transcript],
+                        "reviewed_ids": list(state.reviewed_ids),
                     },
                 )
             )
@@ -117,7 +135,7 @@ class SessionStore:
                 )
             )
 
-    async def list(
+    async def list_for_user(
         self, user_id: str, status: str | None = None
     ) -> list[dict[str, Any]]:
         """List a user's sessions, newest-updated first (PR-R1).
@@ -144,3 +162,76 @@ class SessionStore:
                 )
             )
         return _rows(result)
+
+    async def due_items(self, user_id: str, now: datetime) -> list[dict[str, Any]]:
+        """Closed sessions whose review_date is due, most overdue first (PR-G1).
+
+        Filters in Python over the user's sessions rather than in SurrealQL, so
+        it never depends on null/date comparison syntax; a single user's session
+        count is small.
+        """
+        cutoff = _to_naive_utc(now)
+        due = [
+            r
+            for r in await self.list_for_user(user_id)
+            if r.get("ended_at")
+            and r.get("review_date")
+            and _to_naive_utc(r["review_date"]) <= cutoff
+        ]
+        due.sort(key=lambda r: _to_naive_utc(r["review_date"]))
+        return due
+
+    async def record_review(
+        self, session_ids: list[str], review_date: datetime, graduate_at: int
+    ) -> None:
+        """Advance the review lifecycle for each covered item (PR-G1).
+
+        Increments its review_count; once that reaches `graduate_at` the item is
+        EVICTED from the review working-set (review_date cleared — the session
+        record itself stays for history), otherwise its next review is pushed out
+        to `review_date`. This is the update+evict half of cross-session memory:
+        material leaves the loop efficiently once it is no longer needed.
+        """
+        if not session_ids:
+            return
+        async with atenea_db() as db:
+            for sid in session_ids:
+                rows = _rows(
+                    ensure_ok(
+                        await db.query(
+                            "SELECT review_count FROM session WHERE id = <record>$id",
+                            {"id": sid},
+                        )
+                    )
+                )
+                count = int((rows[0].get("review_count") if rows else 0) or 0) + 1
+                if count >= graduate_at:
+                    ensure_ok(
+                        await db.query(
+                            """
+                            UPDATE session SET
+                                review_count = $count,
+                                review_date = NONE,
+                                updated_at = time::now()
+                            WHERE id = <record>$id
+                            """,
+                            {"id": sid, "count": count},
+                        )
+                    )
+                else:
+                    ensure_ok(
+                        await db.query(
+                            """
+                            UPDATE session SET
+                                review_count = $count,
+                                review_date = <datetime>$review_date,
+                                updated_at = time::now()
+                            WHERE id = <record>$id
+                            """,
+                            {
+                                "id": sid,
+                                "count": count,
+                                "review_date": review_date.isoformat(),
+                            },
+                        )
+                    )

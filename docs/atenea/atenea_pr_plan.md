@@ -50,8 +50,8 @@ A PR is valid if, once merged, the developer can use it and feel the difference 
 - **PR-R1:** resume abandoned sessions. Server-side state is already persisted per turn (SurrealDB `session` table, `store.save_progress`); what's lost is the client's `session_id` and any way to find open sessions again. Fix: list-open-sessions endpoint + UI resume path (transcript replay, session id in the URL). **Implemented + committed** on `feature/r/session-resume` @ `c8a0fa2` (66 tests green); pending developer dogfood + merge.
   - Usable when: close the tab mid-session, reopen `localhost:5056`, tap "Continuar" and the conversation is back exactly where it stopped — even after restarting the tutor service.
 
-### Feature G — Spaced Repetition
-- **PR-G1:** basic SM-2 over items flagged "to review" in sessions.
+### Feature G — Cross-Session Memory (spaced review is one part)
+- **PR-G1:** cross-session review loop — resurface due prior sessions and revisit them, with an inject / update / evict memory lifecycle. **Implemented @ `ad899f0` on `feature/g/review` (2026-07-14, autonomous, pending review):** `GET /reviews/due` + `POST /review`, `review_system.md` (retrieval-first, interleaved), crude reschedule + graduation-evict, UI "Repasar lo pendiente". Additive, no core, 77 tests. SM-2 refinement + a consolidated learner-memory = PR-G2+ (pending an agent-memory SOTA review).
 
 ### Feature H — Session & Task Tracking
 - **PR-H1:** dedicated view over already-stored session data (surface, not a new model). **Contract signed off + implemented @ `7f4c619` on `feature/h/tracking` (2026-07-14, autonomous, pending review):** `SessionSummary` gains `review_date`; UI 'Historial y progreso' groups sessions (Para repasar / Abiertas / Completadas), each opening via the existing `GET /session/{id}`. Read-only, no schema/core changes, 69 tests green.
