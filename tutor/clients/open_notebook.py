@@ -53,18 +53,27 @@ class OpenNotebookClient:
         query: str,
         limit: int = 10,
         search_type: Literal["text", "vector"] = "text",
+        source_id: str | None = None,
     ) -> dict[str, Any]:
         """Search sources and notes via POST /api/search.
 
         Request/response shapes verified in api/models.py (SearchRequest /
         SearchResponse: results, total_count, search_type).
+
+        ``source_id`` (PR-M2) is included in the request body only when set,
+        so unscoped callers send the exact same payload as before. The core
+        API matches it DB-side inside ``fn::vector_search``; it is ignored
+        for text search.
         """
+        payload: dict[str, Any] = {"query": query, "type": search_type, "limit": limit}
+        if source_id:
+            payload["source_id"] = source_id
         async with httpx.AsyncClient(
             timeout=self._timeout, transport=self._transport
         ) as client:
             response = await client.post(
                 f"{self._base_url}/api/search",
-                json={"query": query, "type": search_type, "limit": limit},
+                json=payload,
                 headers=self._headers(),
             )
             response.raise_for_status()

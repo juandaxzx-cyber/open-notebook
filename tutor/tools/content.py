@@ -1,8 +1,12 @@
 """content.search — retrieve study material from OpenNotebook.
 
-PR-M1: an optional ``source_id`` scopes results to a single source. Every
-`fn::vector_search` row already carries ``parent_id = source.id``, so the filter
-runs tutor-side (no core change); PR-M2 moves it into the core search.
+PR-M1 added an optional ``source_id`` that scoped results to a single source
+by filtering tutor-side (every `fn::vector_search` row carries
+``parent_id = source.id``). PR-M2 forwards ``source_id`` to the client so the
+core does the filtering DB-side, inside ``fn::vector_search`` (ranking then
+happens within the source, not over the whole corpus); the tutor-side
+``parent_id`` filter below is kept as defense-in-depth so this tool degrades
+safely against an older core that ignores ``source_id``.
 """
 
 from typing import Any, Literal
@@ -43,8 +47,13 @@ def _filter_by_source(result: dict[str, Any], source_id: str) -> dict[str, Any]:
 
 def content_search_tool(client: OpenNotebookClient) -> ToolSpec:
     async def handler(args: ContentSearchInput) -> dict[str, Any]:
+        # source_id since PR-M2: forwarded to the client, which sends it to
+        # the core API for DB-side scoping (see tutor/clients/open_notebook.py).
         result = await client.search(
-            query=args.query, limit=args.limit, search_type=args.type
+            query=args.query,
+            limit=args.limit,
+            search_type=args.type,
+            source_id=args.source_id,
         )
         if args.source_id:
             result = _filter_by_source(result, args.source_id)

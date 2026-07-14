@@ -55,7 +55,11 @@ class _CannedOpenNotebook(OpenNotebookClient):
         return 1
 
     async def search(
-        self, query: str, limit: int = 10, search_type: str = "text"
+        self,
+        query: str,
+        limit: int = 10,
+        search_type: str = "text",
+        source_id: str | None = None,
     ) -> dict[str, Any]:
         return {
             "results": [

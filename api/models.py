@@ -45,6 +45,11 @@ class SearchRequest(BaseModel):
     minimum_score: float = Field(
         0.2, description="Minimum score for vector search", ge=0, le=1
     )
+    source_id: Optional[str] = Field(
+        None,
+        description="Restrict vector search to this source (e.g. 'source:abc123'). "
+        "Vector search only; ignored for text search.",
+    )
 
 
 class SearchResponse(BaseModel):
