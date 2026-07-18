@@ -10,7 +10,8 @@
 - What runs today: `docker compose up -d --build` = SurrealDB + OpenNotebook (8502/5055) + tutor (5056: chat UI, profile questionnaire, source picker, resume, history, review loop). Dev loop: `make tutor-dev` / `make tutor-restart`; instant check: `make smoke`; full gate: `make check-tutor`. Eval: `make eval-tutor`.
 - Decisions fixed: tutor service in **`tutor/`**; Python **3.12** via `uv`; tutor data in separate **`atenea`** database (shared SurrealDB instance); `TUTOR_USER_ID` (default `juanda`); LLM access only via the tutor's interface wrapping **Esperanto** (plus the deterministic `fake` provider for smoke); judge LLM should differ in provider family from the tutor; repo name stays `open-notebook` (rename = open decision).
 - Credentials (developer decision 2026-07-12): existing GitHub PAT + DeepSeek key stay in use; rotation waived. `upstream` remote configured (lfnovo/open-notebook).
-- **Next queue:** PR-G2+ (consolidated learner memory — design on `agent_memory_sota.md`), M-coverage / M-tasks slices, Features T (runtime tool creation) and V (voice) registered unordered. Contracts to be written per the standing protocol (architect pins facts → Sonnet implements → architect audits).
+- **Push to origin verified done (2026-07-18):** `main` @ `c22483a` in sync with `origin/main`. Still pending on the developer: CI result of the first pushed run, live-stack validation of migration 23, milestone browser dogfood.
+- **Next queue:** PR-G2 (consolidated learner memory — **contract signed off 2026-07-18**, see §1; includes the first instance of the verification layer), then PR-G3 (retention-aware forgetting), M-coverage / M-tasks slices, Features T (runtime tool creation), V (voice), and W (LLM output verification layer — registered 2026-07-18, needs a SOTA note before contracting) registered unordered. Contracts per the standing protocol (architect pins facts → Sonnet implements → architect audits).
 - **New agent conversation? Start with §6 (Handoff Protocol).**
 
 ## 1. PR Contracts (delivered ones kept as review reference)
@@ -306,6 +307,36 @@ Tests: marker parsing, per-task reset in the engine, persona loading, judge-prom
 - Empty/loading/error states polished; still one static vanilla file, no CDN.
 
 **Usable when:** cold start → create profile in the browser → open a grounded or ungrounded session → review + history — all discoverable without curl.
+
+### PR-G2 — Consolidated learner memory *(Feature G; contract signed off 2026-07-18; grounded in `docs/atenea/agent_memory_sota.md` §7)*
+
+**Purpose.** Add the missing LTM tier: a compact, evolving, per-topic learner model (`learner_memory`), consolidated at session close (reflection) and recalled at session open — the durable "how far you've come" summary, distinct from per-session records. Agent-controlled (Letta-style), fully additive in the `atenea` DB, **zero core changes**.
+
+**Slicing.** G2 = table + verified consolidate-on-close + recall-at-open + "Tu progreso" view. Retention-aware forgetting (SM-2/strength replacing G1's count-based `GRADUATION_REVIEWS`) is **PR-G3**, not here; G2 lays the `strength` field G3 will animate.
+
+**Schema (additive, idempotent, `schema.surrealql`):** table `learner_memory` — `user_id: string` (indexed), `topic_key: string` (unique index on `(user_id, topic_key)`), `topic_label: string`, `summary: string`, `mastery_estimate: float` (0–1), `recurring_errors: array<string>`, `strength: float DEFAULT 1.0` (reserved for G3), `sessions_count: int DEFAULT 0`, `last_session_id: option<string>`, `created`/`updated: datetime`.
+
+**One seam — new module `tutor/session/memory.py`, exactly two functions:**
+- `recall(store, user_id, topic, enabled) -> LearnerMemoryContext` — the topic's note + up to 2 related notes (recency-ranked) for prompt injection; empty context if none/disabled.
+- `consolidate(store, generator_llm, verifier_llm, state, close_record, enabled) -> None` — reflection with verification (below). **Non-fatal on any failure** (log + continue): a close is never lost to a bad reflection.
+
+**Consolidation (LLM keying + local merge — developer decision 2026-07-18):** prompt `consolidate_memory.md` receives the episode (topic, summary, assessment, transcript) plus a compact list of the user's existing `{topic_key, topic_label}` pairs; returns JSON `{topic_key, topic_label, summary, mastery_estimate, recurring_errors}`. Existing key ⇒ merge/supersede (upsert over that row, `sessions_count += 1`); new key ⇒ new note. Malformed JSON ⇒ deterministic fallback key (normalized session topic), un-merged episode summary.
+
+**Verification step (developer decision 2026-07-18 — first fenced instance of Feature W):** every consolidated note is claim-checked before persisting. Prompt `verify_memory.md` (verifier LLM): every claim in the note must be evidenced by the episode; returns `{verdict: "pass"|"fail", violations: [...]}`. On fail ⇒ regenerate ONCE with the **verifier acting as generator**, violations injected as constraints ⇒ re-verify ⇒ still fail ⇒ skip the write (log). Bounded cost: worst case 3 extra LLM calls, close-path only (per-turn verification of tutoring replies = Feature W, out of scope here). Verifier config: `TUTOR_VERIFIER_PROVIDER` / `TUTOR_VERIFIER_MODEL` (env; names in `.env.example`); unset ⇒ falls back to the tutor's own LLM (zero-key smoke keeps working); warn when verifier == generator (same pattern as E2's judge warning). Intent: verifier stronger than generator.
+
+**Engine edits (three call sites, one line each):** `open` and `open_review` call `recall` and inject the note as a new system-prompt section in `session_system.md` / `review_system.md` (the learner's history on this topic — instruct the tutor to *use* it pedagogically, not recite it); `close` calls `consolidate` after `store.close` (review sessions consolidate too).
+
+**Config:** `TUTOR_MEMORY_ENABLED` (default **true** — developer accepted; off-switch kept for debug). `.env.example` names only.
+
+**API + UI:** `GET /memories` (user-scoped, recency-ordered). UI "Tu progreso" (header link): topic_label · mastery · recurring errors · last seen; Spanish-first copy.
+
+**Fake provider:** deterministic consolidation JSON + pass verdict (plus a fail-then-pass fixture reachable in tests); `make smoke` gains 2 steps (close ⇒ `GET /memories` shows the note; second open on the same topic succeeds).
+
+**Tests:** consolidate paths (new key / merge into existing / malformed-JSON fallback); verification paths (pass ⇒ write; fail ⇒ verifier-regenerated write; double-fail ⇒ no write, close record intact); recall injected into the system prompt; **disabled ⇒ byte-identical prompts** (backward-compat lock, M1-style); store CRUD + user scoping; `/memories` shape/scoping; UI markup marker; smoke extension. No network/DB/real LLM in tests.
+
+**Delimitation:** diff confined to `tutor/` + `tests_tutor/` (+ `.env.example` names, `docs/atenea` mirror). Out of scope: retention-aware decay/eviction (PR-G3), per-turn verification (Feature W), KT/predicted-mastery step selection, memory graphs, changes to G1's due queue, embeddings over memories.
+
+**Usable when:** after closing a session on a topic you've worked before, opening a new one has the tutor demonstrably pick up from your real history ("la última vez confundiste X con Y"), "Tu progreso" maps your mastered vs. weak topics — and a consolidation that fails verification never contaminates the record.
 
 ## 1.5 First Live Dogfood — Findings (2026-07-12, session on "aprender a aprender")
 
