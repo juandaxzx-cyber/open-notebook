@@ -274,6 +274,7 @@
     <span id="llm-chip" class="llm-chip hidden"></span>
     <a id="profile-link" class="navlink" href="#">Perfil</a>
     <a id="history-link" class="navlink" href="#">Historial</a>
+    <a id="progress-link" class="navlink" href="#">Tu progreso</a>
     <a id="notebooks-link" class="hidden" target="_blank" rel="noopener">Notebooks ↗</a>
   </nav>
 </header>
@@ -304,6 +305,13 @@
       <h2>Historial y progreso</h2>
     </div>
     <div id="history-body"></div>
+  </div>
+  <div id="progress" class="hidden">
+    <div class="history-head">
+      <button id="progress-back" type="button" class="history-back">← Volver</button>
+      <h2>Tu progreso</h2>
+    </div>
+    <div id="progress-body"></div>
   </div>
   <div id="profile" class="hidden">
     <div class="history-head">
@@ -692,6 +700,58 @@ function isDue(s) {
   return !Number.isNaN(d) && d <= Date.now();
 }
 
+function renderProgress(memories) {
+  const body = $("progress-body");
+  body.innerHTML = "";
+  if (!Array.isArray(memories) || !memories.length) {
+    body.innerHTML =
+      '<p class="hint">Aún no hay progreso registrado — cierra una sesión para empezar a construirlo.</p>';
+    return;
+  }
+  const ul = document.createElement("ul");
+  ul.className = "history-list";
+  for (const m of memories) {
+    const li = document.createElement("li");
+    li.className = "history-item";
+    const topic = document.createElement("span");
+    topic.className = "history-topic";
+    const mastery =
+      typeof m.mastery_estimate === "number"
+        ? `${Math.round(m.mastery_estimate * 100)}%`
+        : "—";
+    topic.textContent = `${m.topic_label || m.topic_key || "tema sin título"} · ${mastery}`;
+    const meta = document.createElement("span");
+    meta.className = "history-meta";
+    const errors = (m.recurring_errors || []).join(", ");
+    meta.textContent =
+      (errors ? `errores recurrentes: ${errors} · ` : "") +
+      (m.updated ? relativeTime(m.updated) : "");
+    li.appendChild(topic);
+    li.appendChild(meta);
+    ul.appendChild(li);
+  }
+  body.appendChild(ul);
+}
+
+async function loadProgress() {
+  const body = $("progress-body");
+  body.innerHTML = '<p class="hint">Cargando…</p>';
+  try {
+    renderProgress(await api("/memories"));
+  } catch (e) {
+    body.innerHTML = '<p class="error">No se pudo cargar tu progreso.</p>';
+  }
+}
+
+function showProgress() {
+  show($("setup"), false);
+  show($("chat"), false);
+  show($("profile"), false);
+  show($("history"), false);
+  show($("progress"), true);
+  loadProgress();
+}
+
 function renderHistory(sessions) {
   const body = $("history-body");
   body.innerHTML = "";
@@ -740,12 +800,12 @@ async function loadHistory() {
 }
 
 function showHistory() {
-  show($("setup"), false); show($("chat"), false); show($("profile"), false); show($("history"), true);
+  show($("setup"), false); show($("chat"), false); show($("profile"), false); show($("progress"), false); show($("history"), true);
   loadHistory();
 }
 
 function showSetup() {
-  show($("history"), false); show($("chat"), false); show($("profile"), false); show($("setup"), true);
+  show($("history"), false); show($("chat"), false); show($("profile"), false); show($("progress"), false); show($("setup"), true);
 }
 
 /* ---- profile questionnaire (PR-F3) ---------------------------------
@@ -765,7 +825,7 @@ function fillProfileForm(profile) {
 }
 
 function showProfileView() {
-  show($("setup"), false); show($("chat"), false); show($("history"), false);
+  show($("setup"), false); show($("chat"), false); show($("history"), false); show($("progress"), false);
   show($("profile"), true);
   $("profile-error").classList.add("hidden");
 }
@@ -953,6 +1013,8 @@ $("review-btn").addEventListener("click", startReview);
 loadDue();
 $("history-link").addEventListener("click", (e) => { e.preventDefault(); showHistory(); });
 $("history-back").addEventListener("click", showSetup);
+$("progress-link").addEventListener("click", (e) => { e.preventDefault(); showProgress(); });
+$("progress-back").addEventListener("click", showSetup);
 $("profile-link").addEventListener("click", (e) => { e.preventDefault(); openProfileEditor(); });
 $("profile-back").addEventListener("click", showSetup);
 $("profile-form").addEventListener("submit", submitProfileForm);

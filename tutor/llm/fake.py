@@ -1,4 +1,4 @@
-"""Deterministic in-process LLM provider (PR-DX2).
+"""Deterministic in-process LLM provider (PR-DX2, extended PR-G2).
 
 Selected when ``TUTOR_LLM_PROVIDER=fake``. It imports no esperanto, opens no
 network connection and needs no API keys: it inspects the prompts the
@@ -7,22 +7,31 @@ responses so the entire tutoring journey can run offline — in the smoke test,
 in CI, and on a laptop with zero configuration.
 
 It satisfies the same ``complete()`` interface the engine consumes
-(:class:`~tutor.llm.interface.LLMProvider`). The four prompt shapes the engine
+(:class:`~tutor.llm.interface.LLMProvider`). The prompt shapes the engine
 emits are told apart by stable substrings of the prompt templates:
 
-* classify  -> a fixed valid content-traits JSON object;
-* open      -> an opening turn carrying a ``[[TASK: ...]]`` marker;
-* message   -> a deterministic reply (a help-ladder style hint when the learner
-               asks for help, a neutral acknowledgement otherwise);
-* close     -> a schema-valid closing record JSON object.
+* classify    -> a fixed valid content-traits JSON object;
+* open        -> an opening turn carrying a ``[[TASK: ...]]`` marker;
+* message     -> a deterministic reply (a help-ladder style hint when the
+                 learner asks for help, a neutral acknowledgement otherwise);
+* close       -> a schema-valid closing record JSON object;
+* consolidate -> a schema-valid learner-memory note (PR-G2), keyed off the
+                 same normalized-topic slug `recall` looks up so a fresh
+                 session on the same topic finds it;
+* verify      -> a "pass" verdict (PR-G2) — the deterministic default never
+                 blocks a write; `FakeVerifierProvider` below is the fixture
+                 tests use to exercise the fail paths.
 
 The model name is read from the environment but unused — any value is accepted.
 """
 
+import json
+import re
 from collections.abc import Sequence
 
 from tutor.llm.interface import ChatMessage, ChatResponse, LLMProvider
 from tutor.session import policy
+from tutor.session.memory import normalize_topic_key
 
 # A fixed, valid ContentTraits payload (matches classify_traits.md's schema).
 _TRAITS_JSON = (
@@ -64,6 +73,17 @@ _MESSAGE_REPLY = (
     "step, so we can check the reasoning together before I say anything."
 )
 
+# A pass verdict (matches verify_memory.md's schema) — the deterministic
+# default so consolidation never blocks on verification in the smoke path.
+_VERIFY_PASS_JSON = '{"verdict": "pass", "violations": []}'
+
+# A fail verdict with one plausible violation, for the fail-then-pass /
+# double-fail test fixtures below.
+_VERIFY_FAIL_JSON = (
+    '{"verdict": "fail", "violations": ["claims mastery the transcript does '
+    'not show the learner demonstrating"]}'
+)
+
 
 def _classify_prompt(joined: str) -> bool:
     return "Classify the following study topic" in joined
@@ -71,6 +91,39 @@ def _classify_prompt(joined: str) -> bool:
 
 def _close_prompt(joined: str) -> bool:
     return "Produce its closing record" in joined or "session below is ending" in joined
+
+
+def _consolidate_prompt(joined: str) -> bool:
+    return "Reflect on this tutoring episode" in joined
+
+
+def _verify_prompt(joined: str) -> bool:
+    return "Verify this consolidated learner-memory note" in joined
+
+
+def _topic_from_prompt(joined: str) -> str:
+    match = re.search(r"^TOPIC: (.*)$", joined, re.MULTILINE)
+    return match.group(1).strip() if match else "general"
+
+
+def _consolidate_json(joined: str) -> str:
+    """A deterministic, schema-valid consolidation note (matches
+    `consolidate_memory.md`'s schema). `topic_key` is the same normalized
+    slug `tutor.session.memory.recall` looks up, so a second session on the
+    same topic finds this note (PR-DX2/G2 smoke: "second open succeeds")."""
+    topic = _topic_from_prompt(joined)
+    payload = {
+        "topic_key": normalize_topic_key(topic),
+        "topic_label": topic,
+        "summary": (
+            "The learner engaged with this topic in a guided session and made "
+            "a first attempt with some support; independent mastery is not yet "
+            "demonstrated."
+        ),
+        "mastery_estimate": 0.4,
+        "recurring_errors": [],
+    }
+    return json.dumps(payload)
 
 
 class FakeProvider(LLMProvider):
@@ -92,6 +145,10 @@ class FakeProvider(LLMProvider):
             return _TRAITS_JSON
         if _close_prompt(joined):
             return _CLOSE_JSON
+        if _consolidate_prompt(joined):
+            return _consolidate_json(joined)
+        if _verify_prompt(joined):
+            return _VERIFY_PASS_JSON
         last_user = next(
             (m.content for m in reversed(messages) if m.role == "user"), ""
         )
@@ -102,3 +159,35 @@ class FakeProvider(LLMProvider):
         if policy.wants_help(last_user) or policy.gives_up(last_user):
             return _HELP_REPLY
         return _MESSAGE_REPLY
+
+
+class FakeVerifierProvider(LLMProvider):
+    """Deterministic PR-G2 test fixture: fails the first `fail_times`
+    verifications it sees, then passes. Also answers a `consolidate_memory.md`
+    regeneration prompt like a generator would, since a failed verification
+    hands generation to the verifier (see `tutor.session.memory.consolidate`).
+
+    `fail_times=1` -> fail-then-pass (the write succeeds on the regenerated
+    note). `fail_times=2` -> double-fail (both verifications fail, so the
+    write is skipped and the close record stays intact)."""
+
+    def __init__(self, model_name: str = "fake-verifier", fail_times: int = 1) -> None:
+        self._model = model_name or "fake-verifier"
+        self._fail_times = fail_times
+        self._verify_calls = 0
+
+    async def complete(self, messages: Sequence[ChatMessage]) -> ChatResponse:
+        joined = "\n".join(m.content for m in messages)
+        if _consolidate_prompt(joined):
+            return ChatResponse(
+                content=_consolidate_json(joined), provider="fake", model=self._model
+            )
+        if _verify_prompt(joined):
+            self._verify_calls += 1
+            content = (
+                _VERIFY_FAIL_JSON
+                if self._verify_calls <= self._fail_times
+                else _VERIFY_PASS_JSON
+            )
+            return ChatResponse(content=content, provider="fake", model=self._model)
+        return ChatResponse(content=_MESSAGE_REPLY, provider="fake", model=self._model)

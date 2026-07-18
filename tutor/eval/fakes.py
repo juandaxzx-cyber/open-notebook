@@ -63,12 +63,15 @@ def build_fake_registry(persona: Persona) -> ToolRegistry:
 
 class InMemorySessionStore(SessionStore):
     """Same contract as SessionStore, dict-backed. Mirrors every method the
-    engine and router use — including list/due/review (PR-DX2) — so the whole
-    journey runs without SurrealDB."""
+    engine and router use — including list/due/review (PR-DX2) and
+    consolidated memory CRUD (PR-G2) — so the whole journey runs without
+    SurrealDB."""
 
     def __init__(self) -> None:
         self._records: dict[str, dict[str, Any]] = {}
         self._counter = 0
+        self._memories: dict[str, dict[str, Any]] = {}
+        self._memory_counter = 0
 
     def _stamp(self) -> str:
         """Monotonic stand-in for `updated_at` so list ordering is stable."""
@@ -158,6 +161,58 @@ class InMemorySessionStore(SessionStore):
                 None if count >= graduate_at else review_date.isoformat()
             )
             record["updated_at"] = self._stamp()
+
+    # --- consolidated learner memory (PR-G2) ---
+
+    async def list_memories(self, user_id: str) -> list[dict[str, Any]]:
+        rows = [m for m in self._memories.values() if m["user_id"] == user_id]
+        return sorted(rows, key=lambda m: str(m.get("updated") or ""), reverse=True)
+
+    async def upsert_memory(
+        self,
+        user_id: str,
+        topic_key: str,
+        topic_label: str,
+        summary: str,
+        mastery_estimate: float,
+        recurring_errors: list[str],
+        last_session_id: str | None,
+    ) -> dict[str, Any]:
+        existing = next(
+            (
+                m
+                for m in self._memories.values()
+                if m["user_id"] == user_id and m["topic_key"] == topic_key
+            ),
+            None,
+        )
+        self._memory_counter += 1
+        if existing is not None:
+            existing.update(
+                topic_label=topic_label,
+                summary=summary,
+                mastery_estimate=mastery_estimate,
+                recurring_errors=list(recurring_errors),
+                sessions_count=int(existing.get("sessions_count") or 0) + 1,
+                last_session_id=last_session_id,
+                updated=self._stamp(),
+            )
+            return dict(existing)
+        record_id = f"learner_memory:eval{self._memory_counter}"
+        record = {
+            "id": record_id,
+            "user_id": user_id,
+            "topic_key": topic_key,
+            "topic_label": topic_label,
+            "summary": summary,
+            "mastery_estimate": mastery_estimate,
+            "recurring_errors": list(recurring_errors),
+            "sessions_count": 1,
+            "last_session_id": last_session_id,
+            "updated": self._stamp(),
+        }
+        self._memories[record_id] = record
+        return dict(record)
 
 
 class InMemoryProfileService(ProfileService):
