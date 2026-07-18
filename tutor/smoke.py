@@ -95,6 +95,7 @@ def build_in_process_client() -> TestClient:
         store=InMemorySessionStore(),
         user_id=default_user_id(),
         grounding_enabled=True,  # lets the source_id leg run fully offline
+        memory_enabled=True,  # PR-G2: consolidate-on-close + recall-at-open
     )
     app = create_app(
         settings=TutorSettings(),
@@ -204,6 +205,28 @@ class _Journey:
             and all(
                 k in rec for k in ("summary", "assessment", "next_step", "review_date")
             ),
+        )
+
+        # PR-G2: consolidate-on-close writes a durable per-topic memory note;
+        # GET /memories ("Tu progreso") surfaces it.
+        r = c.get("/memories")
+        memories = r.json()
+        self.check(
+            "GET /memories (PR-G2, shows the consolidated note)",
+            r.status_code == 200
+            and isinstance(memories, list)
+            and (not self.in_process or any(m.get("topic_label") for m in memories)),
+            f"{len(memories) if isinstance(memories, list) else '?'} notes",
+        )
+
+        # PR-G2: a second session on the same topic must still open cleanly —
+        # recall() finds (or gracefully skips) the just-consolidated note.
+        r = c.post("/session", json={"topic": "vectores"})
+        second = r.json()
+        self.check(
+            "POST /session again on the same topic (PR-G2 recall)",
+            r.status_code == 200 and bool(second.get("session_id")),
+            f"session_id={second.get('session_id')}",
         )
 
         r = c.get("/sessions", params={"status": "closed"})

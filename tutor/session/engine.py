@@ -15,6 +15,7 @@ from tutor.llm.interface import ChatMessage, LLMProvider
 from tutor.session import policy
 from tutor.session.grounding import retrieve_grounding
 from tutor.session.markers import parse_task_marker
+from tutor.session.memory import LearnerMemoryContext, consolidate, recall
 from tutor.session.models import (
     ContentTraits,
     HelpState,
@@ -45,7 +46,11 @@ def _render(template_name: str, values: dict[str, str]) -> str:
     text = (PROMPTS_DIR / template_name).read_text(encoding="utf-8")
     for key, value in values.items():
         text = text.replace("{{" + key + "}}", value)
-    return text
+    # Normalize to exactly one trailing newline: every template already
+    # follows this convention, and it is what keeps the disabled-memory path
+    # byte-identical to pre-G2 output when {{memory_section}} renders empty
+    # (PR-G2 backward-compat lock) instead of leaving a stray blank line.
+    return text.rstrip("\n") + "\n"
 
 
 def _extract_json(text: str) -> dict[str, Any]:
@@ -84,12 +89,19 @@ class TutorEngine:
         store: SessionStore,
         user_id: str,
         grounding_enabled: bool = False,
+        memory_enabled: bool = False,
+        verifier_llm: LLMProvider | None = None,
     ) -> None:
         self._llm = llm
         self._registry = registry
         self._store = store
         self._user_id = user_id
         self._grounding_enabled = grounding_enabled
+        self._memory_enabled = memory_enabled
+        # Unset verifier ⇒ falls back to the tutor's own LLM (PR-G2 contract:
+        # zero-key smoke keeps working); app.py resolves + warns on same-family
+        # from config, this is just a safe default for direct construction.
+        self._verifier_llm = verifier_llm or llm
 
     async def open(
         self, topic: str, source_id: str | None = None
@@ -108,6 +120,7 @@ class TutorEngine:
         content = grounding.content
         traits = await self._classify(topic, content)
         technique = select_technique(traits, str(profile["self_assessed_level"]))
+        memory = await recall(self._store, self._user_id, topic, self._memory_enabled)
 
         state = SessionState(
             session_id="",  # assigned by the store
@@ -117,7 +130,7 @@ class TutorEngine:
             technique=technique,
             source_id=grounding.source_id,
         )
-        system = self._system_prompt(state, profile, content)
+        system = self._system_prompt(state, profile, content, memory)
         response = await self._llm.complete(
             [
                 ChatMessage(role="system", content=system),
@@ -134,9 +147,10 @@ class TutorEngine:
         opening = self._advance_task(state, raw_opening)
         state.transcript.append(Turn(role="tutor", content=raw_opening))
         state.session_id = await self._store.create(state)
-        # keep profile/content for the prompt on later turns
+        # keep profile/content/memory for the prompt on later turns
         self._profile_cache = profile
         self._content_cache = content
+        self._memory_cache = memory
         return state, opening
 
     async def due_reviews(self) -> list[dict[str, Any]]:
@@ -155,7 +169,7 @@ class TutorEngine:
         if not due:
             raise NoDueReviewError("Nothing is due for review yet.")
         items = due[:max_items]
-        memory = _format_review_memory(items)
+        review_memory_text = _format_review_memory(items)
         labels = ", ".join(str(i.get("topic") or "?") for i in items)
         traits = ContentTraits(
             verifiability="interpretive",
@@ -176,7 +190,10 @@ class TutorEngine:
             technique=technique,
             reviewed_ids=[str(i.get("id")) for i in items],
         )
-        system = self._system_prompt(state, profile, memory)
+        learner_memory = await recall(
+            self._store, self._user_id, state.topic, self._memory_enabled
+        )
+        system = self._system_prompt(state, profile, review_memory_text, learner_memory)
         response = await self._llm.complete(
             [
                 ChatMessage(role="system", content=system),
@@ -195,7 +212,8 @@ class TutorEngine:
         state.transcript.append(Turn(role="tutor", content=raw_opening))
         state.session_id = await self._store.create(state)
         self._profile_cache = profile
-        self._content_cache = memory
+        self._content_cache = review_memory_text
+        self._memory_cache = learner_memory
         return state, opening
 
     async def message(self, session_id: str, text: str) -> tuple[SessionState, str]:
@@ -217,10 +235,15 @@ class TutorEngine:
                 enabled=self._grounding_enabled,
             )
             content = grounding.content
+        # Memory is recalled once, at open/open_review (PR-G2 contract); a
+        # resumed engine with no cache simply carries no memory section here
+        # rather than issuing a second recall call from this seam.
+        memory = getattr(self, "_memory_cache", None) or LearnerMemoryContext()
 
         messages = [
             ChatMessage(
-                role="system", content=self._system_prompt(state, profile, content)
+                role="system",
+                content=self._system_prompt(state, profile, content, memory),
             )
         ]
         for turn in state.transcript:
@@ -264,7 +287,16 @@ class TutorEngine:
             await self._store.record_review(
                 state.reviewed_ids, review_date, GRADUATION_REVIEWS
             )
-        return await self._store.load(session_id)
+        record = await self._store.load(session_id)
+        await consolidate(
+            self._store,
+            self._llm,
+            self._verifier_llm,
+            state,
+            record,
+            self._memory_enabled,
+        )
+        return record
 
     async def get(self, session_id: str) -> dict[str, Any]:
         return await self._store.load(session_id)
@@ -273,6 +305,11 @@ class TutorEngine:
         """List this user's sessions (PR-R1); user scoping stays here, same
         as every other engine entry point."""
         return await self._store.list_for_user(self._user_id, status)
+
+    async def list_memories(self) -> list[dict[str, Any]]:
+        """This user's consolidated memory notes, recency-ordered (PR-G2);
+        user scoping stays here, same as every other engine entry point."""
+        return await self._store.list_memories(self._user_id)
 
     # --- internals ---
 
@@ -303,7 +340,11 @@ class TutorEngine:
             )
 
     def _system_prompt(
-        self, state: SessionState, profile: dict[str, Any], content: str
+        self,
+        state: SessionState,
+        profile: dict[str, Any],
+        content: str,
+        memory: LearnerMemoryContext | None = None,
     ) -> str:
         template = "review_system.md" if state.reviewed_ids else "session_system.md"
         return _render(
@@ -322,6 +363,9 @@ class TutorEngine:
                     if state.task.index > 0
                     else "no task opened yet — your next message must open one"
                 ),
+                # PR-G2: "" when disabled/no note — keeps the prompt
+                # byte-identical to pre-G2 output (backward-compat lock).
+                "memory_section": (memory or LearnerMemoryContext()).content,
             },
         )
 

@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from tutor.session.engine import NoDueReviewError, NoProfileError, TutorEngine
 from tutor.session.models import (
     DueItem,
+    MemoryItem,
     MessageRequest,
     MessageResponse,
     SessionOpenRequest,
@@ -96,6 +97,36 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
                 ),
             )
             for record in items
+        ]
+
+    @router.get("/memories", response_model=list[MemoryItem])
+    async def list_memories() -> list[MemoryItem]:
+        """The learner's consolidated memory notes, recency-ordered
+        (PR-G2) — "Tu progreso" in the UI."""
+        try:
+            records = await _engine().list_memories()
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise _bad_gateway(exc) from exc
+        return [
+            MemoryItem(
+                topic_key=str(record.get("topic_key") or ""),
+                topic_label=str(record.get("topic_label") or ""),
+                summary=str(record.get("summary") or ""),
+                mastery_estimate=float(record.get("mastery_estimate") or 0.0),
+                recurring_errors=[
+                    str(e) for e in (record.get("recurring_errors") or [])
+                ],
+                sessions_count=int(record.get("sessions_count") or 0),
+                last_session_id=(
+                    str(record["last_session_id"])
+                    if record.get("last_session_id")
+                    else None
+                ),
+                updated=(str(record["updated"]) if record.get("updated") else None),
+            )
+            for record in records
         ]
 
     @router.post("/review", response_model=SessionOpenResponse)

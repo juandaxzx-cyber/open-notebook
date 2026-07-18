@@ -22,6 +22,9 @@ class TutorSettings(BaseModel):
     judge_provider: str | None = None
     judge_model: str | None = None
     grounding_enabled: bool = False
+    memory_enabled: bool = True
+    verifier_provider: str | None = None
+    verifier_model: str | None = None
 
     @classmethod
     def from_env(cls) -> "TutorSettings":
@@ -36,6 +39,13 @@ class TutorSettings(BaseModel):
         provider/model — the runner warns, since same-family judging is
         biased). TUTOR_GROUNDING_ENABLED opts into PR-M1 material grounding
         (default off; set 1/true to anchor sessions to a chosen source).
+        TUTOR_MEMORY_ENABLED opts into PR-G2 consolidated learner memory
+        (default ON; set 0/false to disable as a debug off-switch).
+        TUTOR_VERIFIER_PROVIDER / TUTOR_VERIFIER_MODEL select the LLM that
+        claim-checks each consolidated memory note before it is persisted
+        (PR-G2); unset ⇒ falls back to the tutor's own provider/model (the
+        engine warns when verifier == generator, same pattern as the eval
+        judge in PR-E2).
         """
         values: dict[str, str] = {}
         env_map = {
@@ -49,6 +59,9 @@ class TutorSettings(BaseModel):
             "judge_provider": "TUTOR_JUDGE_PROVIDER",
             "judge_model": "TUTOR_JUDGE_MODEL",
             "grounding_enabled": "TUTOR_GROUNDING_ENABLED",
+            "memory_enabled": "TUTOR_MEMORY_ENABLED",
+            "verifier_provider": "TUTOR_VERIFIER_PROVIDER",
+            "verifier_model": "TUTOR_VERIFIER_MODEL",
         }
         for field, var in env_map.items():
             value = os.environ.get(var)

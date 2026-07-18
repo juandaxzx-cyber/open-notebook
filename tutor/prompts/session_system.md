@@ -65,3 +65,4 @@ task. The learner does not see the marker.
    learner states one concrete next step in if-then form ("si <situación>,
    entonces <acción>").
 9. Keep each turn under ~180 words.
+{{memory_section}}

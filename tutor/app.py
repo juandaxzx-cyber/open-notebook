@@ -1,5 +1,6 @@
 """FastAPI app factory for the tutoring service (API-first, AGENTS.md rule #2)."""
 
+import sys
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -9,7 +10,10 @@ from pydantic import BaseModel
 from tutor import __version__
 from tutor.clients.open_notebook import OpenNotebookClient
 from tutor.config import TutorSettings
+from tutor.llm.esperanto import EsperantoProvider
 from tutor.llm.factory import MissingLLMConfigError, provider_from_env
+from tutor.llm.fake import FakeProvider
+from tutor.llm.interface import LLMProvider
 from tutor.profile.models import default_user_id
 from tutor.profile.router import build_router as build_profile_router
 from tutor.profile.service import ProfileService
@@ -45,6 +49,30 @@ class UiConfigResponse(BaseModel):
     llm_model: str | None = None
 
 
+def _verifier_from_env(settings: TutorSettings, tutor_llm: LLMProvider) -> LLMProvider:
+    """Resolve the PR-G2 verifier LLM. TUTOR_VERIFIER_PROVIDER/MODEL unset ⇒
+    the tutor's own LLM instance (zero-key smoke keeps working). Warns when
+    the resolved verifier is the same provider as the tutor's — same-family
+    judging inflates scores (self-preference bias), same pattern as the E2
+    eval judge warning."""
+    verifier_provider = settings.verifier_provider or settings.llm_provider
+    verifier_model = settings.verifier_model or settings.llm_model
+    if verifier_provider == settings.llm_provider:
+        print(
+            "WARNING: verifier provider == tutor provider "
+            f"({verifier_provider}). Same-family verification is a weaker "
+            "check (self-preference bias); set TUTOR_VERIFIER_PROVIDER/MODEL.",
+            file=sys.stderr,
+        )
+    if not settings.verifier_provider:
+        return tutor_llm
+    if (verifier_provider or "").lower() == "fake":
+        return FakeProvider(model_name=verifier_model or "fake")
+    return EsperantoProvider(
+        provider=str(verifier_provider), model_name=str(verifier_model)
+    )
+
+
 def _build_engine(settings: TutorSettings) -> TutorEngine | None:
     """Engine is optional: without TUTOR_LLM_* config the session endpoints
     return 503 while the rest of the service keeps working."""
@@ -52,12 +80,15 @@ def _build_engine(settings: TutorSettings) -> TutorEngine | None:
         llm = provider_from_env(settings)
     except MissingLLMConfigError:
         return None
+    verifier_llm = _verifier_from_env(settings, llm) if settings.memory_enabled else llm
     return TutorEngine(
         llm=llm,
         registry=build_default_registry(settings),
         store=SessionStore(),
         user_id=default_user_id(),
         grounding_enabled=settings.grounding_enabled,
+        memory_enabled=settings.memory_enabled,
+        verifier_llm=verifier_llm,
     )
 
 

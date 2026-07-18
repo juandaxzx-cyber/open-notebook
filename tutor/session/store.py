@@ -237,3 +237,106 @@ class SessionStore:
                             },
                         )
                     )
+
+    # --- consolidated learner memory (PR-G2) ---
+
+    async def list_memories(self, user_id: str) -> list[dict[str, Any]]:
+        """This user's consolidated memory notes, most-recently-updated
+        first (recency-ranking for `recall`'s "related" notes)."""
+        async with atenea_db() as db:
+            result = ensure_ok(
+                await db.query(
+                    """
+                    SELECT * FROM learner_memory
+                    WHERE user_id = $user_id
+                    ORDER BY updated DESC
+                    """,
+                    {"user_id": user_id},
+                )
+            )
+        return _rows(result)
+
+    async def upsert_memory(
+        self,
+        user_id: str,
+        topic_key: str,
+        topic_label: str,
+        summary: str,
+        mastery_estimate: float,
+        recurring_errors: list[str],
+        last_session_id: str | None,
+    ) -> dict[str, Any]:
+        """Create or update the (user_id, topic_key) memory note. Existing
+        key ⇒ overwrite the consolidated fields and bump `sessions_count`;
+        new key ⇒ a fresh note with `sessions_count = 1` (PR-G2 LLM-keying +
+        local-merge contract — the merge decision itself lives here, not in
+        the generator prompt)."""
+        async with atenea_db() as db:
+            existing = _rows(
+                ensure_ok(
+                    await db.query(
+                        """
+                        SELECT * FROM learner_memory
+                        WHERE user_id = $user_id AND topic_key = $topic_key
+                        """,
+                        {"user_id": user_id, "topic_key": topic_key},
+                    )
+                )
+            )
+            if existing:
+                record_id = existing[0]["id"]
+                sessions_count = int(existing[0].get("sessions_count") or 0) + 1
+                result = ensure_ok(
+                    await db.query(
+                        """
+                        UPDATE learner_memory SET
+                            topic_label = $topic_label,
+                            summary = $summary,
+                            mastery_estimate = $mastery_estimate,
+                            recurring_errors = $recurring_errors,
+                            sessions_count = $sessions_count,
+                            last_session_id = $last_session_id,
+                            updated = time::now()
+                        WHERE id = <record>$id
+                        """,
+                        {
+                            "id": record_id,
+                            "topic_label": topic_label,
+                            "summary": summary,
+                            "mastery_estimate": mastery_estimate,
+                            "recurring_errors": recurring_errors,
+                            "sessions_count": sessions_count,
+                            "last_session_id": last_session_id,
+                        },
+                    )
+                )
+            else:
+                result = ensure_ok(
+                    await db.query(
+                        """
+                        CREATE learner_memory CONTENT {
+                            user_id: $user_id,
+                            topic_key: $topic_key,
+                            topic_label: $topic_label,
+                            summary: $summary,
+                            mastery_estimate: $mastery_estimate,
+                            recurring_errors: $recurring_errors,
+                            sessions_count: 1,
+                            last_session_id: $last_session_id
+                        }
+                        """,
+                        {
+                            "user_id": user_id,
+                            "topic_key": topic_key,
+                            "topic_label": topic_label,
+                            "summary": summary,
+                            "mastery_estimate": mastery_estimate,
+                            "recurring_errors": recurring_errors,
+                            "last_session_id": last_session_id,
+                        },
+                    )
+                )
+        rows = _rows(result)
+        if not rows:
+            raise RuntimeError("learner_memory upsert did not return a row")
+        return rows[0]

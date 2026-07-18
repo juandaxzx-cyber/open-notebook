@@ -117,6 +117,20 @@ class DueItem(BaseModel):
     assessment: str | None = None
 
 
+class MemoryItem(BaseModel):
+    """One row of `GET /memories` (PR-G2): the learner's consolidated,
+    per-topic memory note — recency-ordered, distinct from a session record."""
+
+    topic_key: str
+    topic_label: str
+    summary: str
+    mastery_estimate: float
+    recurring_errors: list[str] = Field(default_factory=list)
+    sessions_count: int = 0
+    last_session_id: str | None = None
+    updated: str | None = None
+
+
 class SessionRecord(BaseModel):
     """Readable session log as stored."""
 
