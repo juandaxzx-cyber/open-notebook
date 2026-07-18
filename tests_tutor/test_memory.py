@@ -704,3 +704,52 @@ def test_ui_has_progress_view() -> None:
     assert 'id="progress-link"' in html
     assert "loadProgress" in html
     assert "/memories" in html
+
+
+def test_merge_prompt_integrates_prior_note_content() -> None:
+    """Audit lock (2026-07-18): merging must see the prior note's content —
+    the generator prompt carries it (with the integrate instruction) and the
+    verifier receives it as admissible evidence. Guards against the
+    v1-contract regression where merge degenerated into a single-episode
+    overwrite and the LTM never accumulated."""
+    store = FakeMemoryStore()
+    asyncio.run(
+        store.upsert_memory(
+            user_id="juanda",
+            topic_key=normalize_topic_key("vectores"),
+            topic_label="Vectores",
+            summary="PRIOR-NOTE-SENTINEL: struggled with dot product signs.",
+            mastery_estimate=0.4,
+            recurring_errors=["sign errors in dot products"],
+            last_session_id="session:a",
+        )
+    )
+    note_json = json.dumps(
+        {
+            "topic_key": normalize_topic_key("vectores"),
+            "topic_label": "Vectores",
+            "summary": "Improved: dot product signs now handled correctly.",
+            "mastery_estimate": 0.6,
+            "recurring_errors": [],
+        }
+    )
+    generator = FakeLLM([note_json])
+    verifier = FakeLLM(['{"verdict": "pass", "violations": []}'])
+    asyncio.run(
+        consolidate(
+            store,
+            generator,
+            verifier,
+            _state(session_id="session:b"),
+            CLOSE_RECORD,
+            enabled=True,
+        )
+    )
+    gen_prompt = generator.seen[0][-1].content
+    assert "PRIOR-NOTE-SENTINEL" in gen_prompt
+    assert "INTEGRATE" in gen_prompt
+    ver_prompt = verifier.seen[0][-1].content
+    assert "PRIOR-NOTE-SENTINEL" in ver_prompt
+    notes = asyncio.run(store.list_memories("juanda"))
+    assert len(notes) == 1
+    assert notes[0]["sessions_count"] == 2

@@ -15,9 +15,11 @@ points and the engine calls each exactly once (`recall` in `open`/`open_review`,
 Consolidation is LLM-keyed with local merge (developer decision 2026-07-18):
 the generator LLM proposes `{topic_key, topic_label, summary,
 mastery_estimate, recurring_errors}`; this module decides whether that key
-matches an existing note (upsert) or starts a new one — the generator never
-sees or merges prior note content itself, only the compact list of existing
-`{topic_key, topic_label}` pairs (kept small on purpose).
+matches an existing note (upsert) or starts a new one. The generator sees
+the existing notes WITH their content (truncated summaries) so that reusing
+a key means INTEGRATING the prior note with the new episode — trajectory,
+resolved vs. persisting errors — never a single-episode overwrite
+(contract amendment 2026-07-18, post-audit).
 
 Verification: every note is claim-checked against the episode (`verify_memory.md`)
 before it is persisted. A failing note is regenerated ONCE with the verifier
@@ -194,12 +196,23 @@ def _fallback_note(topic: str, summary: str) -> dict[str, Any]:
     }
 
 
-def _format_existing_keys(existing: list[dict[str, Any]]) -> str:
+def _format_existing_notes(existing: list[dict[str, Any]]) -> str:
     if not existing:
         return "(none yet — this is the learner's first memory note)"
-    return "\n".join(
-        f"- {e.get('topic_key')}: {e.get('topic_label')}" for e in existing
-    )
+    lines = []
+    for e in existing:
+        summary = str(e.get("summary") or "").strip()
+        if len(summary) > 300:
+            summary = summary[:297] + "..."
+        errors = ", ".join(str(x) for x in (e.get("recurring_errors") or []))
+        lines.append(
+            f"- {e.get('topic_key')}: {e.get('topic_label')} "
+            f"(sessions: {e.get('sessions_count', 0)}, "
+            f"mastery ~{e.get('mastery_estimate', 0.5)})\n"
+            f"  current note: {summary or '(empty)'}\n"
+            f"  recurring errors: {errors or '(none recorded)'}"
+        )
+    return "\n".join(lines)
 
 
 def _format_violations(violations: list[str]) -> str:
@@ -258,10 +271,33 @@ def _episode_values(
     }
 
 
-def _verify_values(episode: dict[str, str], note: dict[str, Any]) -> dict[str, str]:
+def _verify_values(
+    episode: dict[str, str],
+    note: dict[str, Any],
+    prior_note: dict[str, Any] | None,
+) -> dict[str, str]:
     values = dict(episode)
     values["note"] = json.dumps(note, ensure_ascii=False)
+    if prior_note is None:
+        values["prior_note"] = "(none — this is the learner's first note on the topic)"
+    else:
+        values["prior_note"] = json.dumps(
+            {
+                "topic_key": prior_note.get("topic_key"),
+                "summary": prior_note.get("summary"),
+                "mastery_estimate": prior_note.get("mastery_estimate"),
+                "recurring_errors": prior_note.get("recurring_errors"),
+            },
+            ensure_ascii=False,
+        )
     return values
+
+
+def _prior_note_for(
+    existing: list[dict[str, Any]], note: dict[str, Any]
+) -> dict[str, Any] | None:
+    key = note.get("topic_key")
+    return next((e for e in existing if e.get("topic_key") == key), None)
 
 
 async def _consolidate(
@@ -284,7 +320,7 @@ async def _consolidate(
         existing = []
 
     generate_values = dict(episode)
-    generate_values["existing_keys"] = _format_existing_keys(existing)
+    generate_values["existing_notes"] = _format_existing_notes(existing)
     generate_values["violations"] = _format_violations([])
 
     note, malformed = await _generate_note(generator_llm, generate_values)
@@ -292,18 +328,19 @@ async def _consolidate(
         note = _fallback_note(state.topic, summary)
 
     verdict, violations = await _verify_note(
-        verifier_llm, _verify_values(episode, note)
+        verifier_llm, _verify_values(episode, note, _prior_note_for(existing, note))
     )
 
     if verdict != "pass":
         regen_values = dict(episode)
-        regen_values["existing_keys"] = _format_existing_keys(existing)
+        regen_values["existing_notes"] = _format_existing_notes(existing)
         regen_values["violations"] = _format_violations(violations)
         note2, malformed2 = await _generate_note(verifier_llm, regen_values)
         if malformed2:
             note2 = _fallback_note(state.topic, summary)
         verdict2, _violations2 = await _verify_note(
-            verifier_llm, _verify_values(episode, note2)
+            verifier_llm,
+            _verify_values(episode, note2, _prior_note_for(existing, note2)),
         )
         if verdict2 != "pass":
             logger.warning(
