@@ -110,6 +110,49 @@ Fit: additive, tutor-side only (`tutor/session/verification.py` seam, same
 one-seam pattern as grounding/memory/scheduling); no core changes; fake
 provider gets deterministic verdicts so smoke stays zero-key.
 
+## 6. Addendum (2026-07-19 night): the 2026 frontier, and the NotebookLM lesson
+
+**Frontier methods are mostly white-box — and therefore NOT ours to use.**
+The 2026 wave operates on model internals: contrastive/layer-contrast
+decoding (DoLa family), "retrieval heads" that extract factual content from
+long contexts, dynamic suppression of hallucination-driving attention heads
+(AARF), activation steering (CASAL), inference-time manifold orthogonalization,
+and metacognition proposals. All require logit/attention/weight access.
+Atenea consumes LLMs over provider APIs (DeepSeek et al.) — none of this is
+reachable. Practical consequence: **our entire leverage lives in the
+black-box layer: context engineering + claim-check verification + abstention.**
+That is not a consolation prize; it is where the best product results come
+from (below).
+
+**NotebookLM case study (reported hallucination ~13% vs ~40% for
+ChatGPT/Gemini on document QA).** Its recipe is context discipline, not a
+secret model: (1) **whole-document grounding** — with a long context window it
+ingests entire sources rather than top-k chunks, preserving structure and
+avoiding retrieval misses; (2) a **closed-world contract**: answer ONLY from
+the sources, refuse when the sources do not cover the question; (3)
+**mandatory inline citations** on every claim; (4) answers traceable to
+passages the user can click and check. Atenea maps cleanly: M1/M2 inject up
+to ~6 passages / ~4k chars — the chunk-RAG shape, not the whole-source shape.
+M3's `get_source(full_text)` + sectionize opens the whole-source path for
+small/medium sources (token-budget switch: whole source when it fits, scoped
+retrieval when it does not). W1 supplies the missing pieces (2)-(3): the
+closed-world contract enforced by a verifier, and citation checking.
+
+**Developer decision (2026-07-19):** the judge/verifier stays DeepSeek for
+now — its hallucination-proneness is treated as a feature of the testbed
+(techniques that tame DeepSeek should transfer up). Discipline adopted in
+exchange: N≥2 eval runs per configuration before accepting any delta
+(observed same-config variance ±0.25 on the 0-2 scale).
+
+Additional sources (addendum):
+- NotebookLM RAG for tutoring — https://arxiv.org/html/2504.09720v2
+- NotebookLM grounding overview — https://www.emergentmind.com/topics/notebooklm
+- Hallucination detection/mitigation SOTA 2026 (survey) — https://zylos.ai/zh/research/2026-01-27-llm-hallucination-detection-mitigation/
+- CASAL activation steering — https://arxiv.org/pdf/2510.02324
+- Manifold orthogonalization — https://arxiv.org/pdf/2606.03022
+- Metacognition position — https://arxiv.org/pdf/2605.01428
+- LLM overconfidence in document QA — https://arxiv.org/pdf/2509.25498
+
 ## Sources
 
 - Why Language Models Hallucinate (Kalai, Nachum, Vempala, Zhang, OpenAI 2025) — https://arxiv.org/abs/2509.04664 · https://openai.com/index/why-language-models-hallucinate/
