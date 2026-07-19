@@ -14,7 +14,7 @@
 - Decisions fixed: tutor service in **`tutor/`**; Python **3.12** via `uv`; tutor data in separate **`atenea`** database (shared SurrealDB instance); `TUTOR_USER_ID` (default `juanda`); LLM access only via the tutor's interface wrapping **Esperanto** (plus the deterministic `fake` provider for smoke); judge LLM should differ in provider family from the tutor; repo name stays `open-notebook` (rename = open decision).
 - Credentials (developer decision 2026-07-12): existing GitHub PAT + DeepSeek key stay in use; rotation waived. `upstream` remote configured (lfnovo/open-notebook).
 - **Push to origin verified done (2026-07-18):** `main` @ `c22483a` in sync with `origin/main`. Still pending on the developer: CI result of the first pushed run, live-stack validation of migration 23, milestone browser dogfood.
-- **Next queue:** milestone dogfood (see `DOGFOOD.md`), then M-coverage / M-tasks slices, Features T (runtime tool creation), V (voice), and W (LLM output verification layer — registered 2026-07-18, needs a SOTA note before contracting; G2 shipped its first fenced instance) registered unordered. **Sequencing rule (developer, 2026-07-19):** nothing that *consumes* learner-memory content (K/tree, memory-informed M-tasks) gets contracted until the developer has dogfooded Feature G (DOGFOOD.md item 2). Contracts per the standing protocol (architect pins facts → Sonnet implements → architect audits).
+- **Next queue (strategic review, developer sign-off 2026-07-19; dogfood deferred for logistics but ABSOLUTE — DOGFOOD.md stays current at every merge):** (1) **PR-DX3** eval loop in CI (contract §1) → (2) **Feature W SOTA note** (`docs/atenea/hallucination_verification_sota.md`) → (3) **W1 contract** informed by both. Parked until the dogfood era: PR-M3 (signed, §1), M-tasks, T, V; K/tree and memory-informed M-tasks additionally blocked by the sequencing rule. **Sequencing rule (developer, 2026-07-19):** nothing that *consumes* learner-memory content gets contracted until the developer has dogfooded Feature G (DOGFOOD.md item 2). Contracts per the standing protocol (architect pins facts → Sonnet implements → architect audits).
 - **New agent conversation? Start with §6 (Handoff Protocol).**
 
 ## 1. PR Contracts (delivered ones kept as review reference)
@@ -353,6 +353,19 @@ Replaces G1's crude forgetting (count-based `GRADUATION_REVIEWS=3` + flat `revie
 - **Tests:** SM-2 tables (progression, penalty, reset); grade parse/fallback; horizon eviction; retention math; pre-G3 compat; endpoint/UI markers; smoke extension.
 
 **Usable when:** an item you nail moves out (6d → 15d → …) and eventually leaves the queue by interval; one you fumble comes back tomorrow; "Tu progreso" shows retention decaying since the last review.
+
+### PR-M3 — Source coverage *(Feature M, M-coverage slice; contract SIGNED 2026-07-19 but PARKED by the developer pending the dogfood era — its value only materializes with real material use)*
+
+Grounded sessions gain coverage: deterministic `sectionize(full_text)` in a new seam `tutor/session/coverage.py` (client gains `get_source(id)` over the REST `full_text` OpenNotebook already exposes — zero core); `[[COVERED: n]]` marker (same pattern as E2's `[[TASK:]]`, parsed/stripped/kept-in-transcript) emitted only for genuinely worked sections, prompt gets a section map with ✓s and prioritizes the uncovered; new additive table `source_coverage` (user_id, source_id, total_sections, covered[], unique (user_id, source_id)) accumulating cross-session; session responses gain `coverage {covered,total,pct}` + UI chip. Ungrounded ⇒ byte-identical (lock test). Out of scope: M-tasks, coverage decay, multi-source, learner-memory consumption. **Usable when:** the coverage chip grows live as you work sections and persists across sessions, and the tutor proposes exactly what's missing.
+
+### PR-DX3 — Eval loop in CI *(contract signed off 2026-07-19; prioritized over M3 by the 2026-07-19 strategic review: session quality is the felt-value gap and E2's harness is unexploited)*
+
+Runs the PR-E2 evaluation harness (4 scripted personas → real tutor LLM → LLM-judge over 10 evidence-based criteria + no-LLM metrics) in GitHub Actions, so agents can iterate the pedagogy prompts against measurements without the developer's machine or time.
+
+- New workflow `.github/workflows/tutor-eval.yml` (logged in `CORE_CHANGES.md`): triggers = `workflow_dispatch` (inputs: provider/model/judge overrides) + push to `main` touching `tutor/prompts/**` or `tutor/eval/**`. Steps: uv sync → `make eval-tutor` with `TUTOR_LLM_*` / `TUTOR_JUDGE_*` from workflow inputs/vars (defaults documented in the file) and provider keys from repo secrets (`DEEPSEEK_API_KEY` first; other providers' standard names passed through when present) → publish the run: `eval_runs/<ts>.json` + the console table appended to an **accumulating `eval-reports` branch** (history preserved so prompt versions are comparable), readable from the sandbox via `git fetch origin eval-reports`.
+- Zero (or near-zero) changes under `tutor/` — the runner already writes the JSON and prints the table.
+- **Developer one-time:** add repo secret `DEEPSEEK_API_KEY` (GitHub → Settings → Secrets and variables → Actions). Judge from a different family later = one more secret. Cost control: dispatch-first; the push trigger only fires on prompt/eval changes.
+- **Usable when:** dispatching the workflow (or pushing a prompt tweak) yields, minutes later, a scored rubric per persona on `eval-reports` — and an agent can propose a prompt change, point at the before/after scores, and be audited on evidence.
 
 ## 1.5 First Live Dogfood — Findings (2026-07-12, session on "aprender a aprender")
 
