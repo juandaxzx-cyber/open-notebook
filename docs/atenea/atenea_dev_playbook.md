@@ -12,7 +12,7 @@
 - Decisions fixed: tutor service in **`tutor/`**; Python **3.12** via `uv`; tutor data in separate **`atenea`** database (shared SurrealDB instance); `TUTOR_USER_ID` (default `juanda`); LLM access only via the tutor's interface wrapping **Esperanto** (plus the deterministic `fake` provider for smoke); judge LLM should differ in provider family from the tutor; repo name stays `open-notebook` (rename = open decision).
 - Credentials (developer decision 2026-07-12): existing GitHub PAT + DeepSeek key stay in use; rotation waived. `upstream` remote configured (lfnovo/open-notebook).
 - **Push to origin verified done (2026-07-18):** `main` @ `c22483a` in sync with `origin/main`. Still pending on the developer: CI result of the first pushed run, live-stack validation of migration 23, milestone browser dogfood.
-- **Next queue:** PR-G3 (retention-aware forgetting — SM-2/strength over `learner_memory.strength`, replaces G1's count-based graduation), M-coverage / M-tasks slices, Features T (runtime tool creation), V (voice), and W (LLM output verification layer — registered 2026-07-18, needs a SOTA note before contracting; G2 shipped its first fenced instance) registered unordered. Contracts per the standing protocol (architect pins facts → Sonnet implements → architect audits).
+- **Next queue:** PR-G3 (contract signed off 2026-07-19, §1 — completes Feature G; milestone dogfood follows), then M-coverage / M-tasks slices, Features T (runtime tool creation), V (voice), and W (LLM output verification layer — registered 2026-07-18, needs a SOTA note before contracting; G2 shipped its first fenced instance) registered unordered. **Sequencing rule (developer, 2026-07-19):** nothing that *consumes* learner-memory content (K/tree, memory-informed M-tasks) gets contracted until the developer has dogfooded Feature G. Contracts per the standing protocol (architect pins facts → Sonnet implements → architect audits).
 - **New agent conversation? Start with §6 (Handoff Protocol).**
 
 ## 1. PR Contracts (delivered ones kept as review reference)
@@ -338,6 +338,19 @@ Tests: marker parsing, per-task reset in the engine, persona loading, judge-prom
 **Delimitation:** diff confined to `tutor/` + `tests_tutor/` (+ `.env.example` names, `docs/atenea` mirror). Out of scope: retention-aware decay/eviction (PR-G3), per-turn verification (Feature W), KT/predicted-mastery step selection, memory graphs, changes to G1's due queue, embeddings over memories.
 
 **Usable when:** after closing a session on a topic you've worked before, opening a new one has the tutor demonstrably pick up from your real history ("la última vez confundiste X con Y"), "Tu progreso" maps your mastered vs. weak topics — and a consolidation that fails verification never contaminates the record.
+
+### PR-G3 — Retention-aware forgetting *(Feature G, final slice; contract signed off 2026-07-19; completes Feature G = milestone dogfood point)*
+
+Replaces G1's crude forgetting (count-based `GRADUATION_REVIEWS=3` + flat `review_in_days` reschedule in `store.record_review`) with retention-aware scheduling (`agent_memory_sota.md` §7 rec 3). Additive; diff confined to `tutor/` + `tests_tutor/` (+ `.env.example` names, docs mirror).
+
+- **SM-2 per reviewed item.** `session` gains optional `ease` (default 2.5) and `review_interval_days`. The review-session close JSON gains a per-reviewed-item **quality grade 0–5** (deterministic in the `fake` provider). Classic SM-2: q<3 ⇒ interval resets to 1 day + ease penalized; q≥3 ⇒ interval grows (1 → 6 → interval×ease) with the standard ease update. Malformed/missing grades ⇒ conservative default q=3, clamped to [0,5] — never evict on a parse error. No LLM verification here (W applies to content, not bounded scalars).
+- **Eviction by horizon, not count.** `GRADUATION_REVIEWS` is removed: an item leaves the review working-set when its next interval exceeds `TUTOR_REVIEW_HORIZON_DAYS` (env, default 60). Record stays for history, as today.
+- **Visible decay.** `learner_memory.strength` (reserved by G2) updates on each topic consolidation (rises with successful sessions/reviews). `GET /memories` and "Tu progreso" show **estimated retention** = mastery × Ebbinghaus decay over time since `last_seen` — computed at read time by a pure function.
+- **One seam:** new module `tutor/session/scheduling.py` with pure functions `sm2_next(ease, interval, quality)` and `retention(mastery, strength, elapsed)`, table-unit-tested. Called from existing sites only: `close` (grades), `record_review` (evolved signature), `/memories` read path.
+- **Compat:** pre-G3 sessions without `ease`/`interval` get defaults on first review (interval seeded from their `review_in_days`). No core changes, no OpenNotebook migrations.
+- **Tests:** SM-2 tables (progression, penalty, reset); grade parse/fallback; horizon eviction; retention math; pre-G3 compat; endpoint/UI markers; smoke extension.
+
+**Usable when:** an item you nail moves out (6d → 15d → …) and eventually leaves the queue by interval; one you fumble comes back tomorrow; "Tu progreso" shows retention decaying since the last review.
 
 ## 1.5 First Live Dogfood — Findings (2026-07-12, session on "aprender a aprender")
 
