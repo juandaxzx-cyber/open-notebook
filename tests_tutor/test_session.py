@@ -15,7 +15,13 @@ from tutor.llm.interface import ChatMessage, ChatResponse
 from tutor.session import policy
 from tutor.session.engine import NoDueReviewError, TutorEngine
 from tutor.session.models import ContentTraits, HelpState, SessionState
-from tutor.session.store import SessionStore, UnknownSessionError, _to_naive_utc
+from tutor.session.scheduling import sm2_next
+from tutor.session.store import (
+    SessionStore,
+    UnknownSessionError,
+    _seed_interval_days,
+    _to_naive_utc,
+)
 from tutor.session.techniques import is_novice, select_technique
 from tutor.tools.registry import ToolRegistry, ToolSpec
 
@@ -122,16 +128,40 @@ class FakeStore(SessionStore):
         return due
 
     async def record_review(
-        self, session_ids: list[str], review_date: datetime, graduate_at: int
+        self,
+        session_ids: list[str],
+        grades: dict[str, float],
+        now: datetime,
+        horizon_days: float,
     ) -> None:
+        """Mirrors `tutor.session.store.SessionStore.record_review` (PR-G3):
+        per-item SM-2 update, evict-by-horizon instead of count."""
         for sid in session_ids:
             record = self.records.get(sid)
             if not record:
                 continue
-            count = int(record.get("review_count") or 0) + 1
-            record["review_count"] = count
+            ease = record.get("ease")
+            ease = 2.5 if ease is None else float(ease)
+            interval = record.get("review_interval_days")
+            interval = (
+                _seed_interval_days(record) if interval is None else float(interval)
+            )
+            quality = grades.get(sid)
+            if quality is None:
+                # Parse-error fallback (audit fix): q=3 scheduling, never
+                # evict, interval capped at horizon — mirrors the real store.
+                new_ease, new_interval, _ = sm2_next(ease, interval, 3.0, horizon_days)
+                new_interval = min(new_interval, horizon_days)
+                evict = False
+            else:
+                new_ease, new_interval, evict = sm2_next(
+                    ease, interval, quality, horizon_days
+                )
+            record["ease"] = new_ease
+            record["review_interval_days"] = new_interval
+            record["review_count"] = int(record.get("review_count") or 0) + 1
             record["review_date"] = (
-                None if count >= graduate_at else review_date.isoformat()
+                None if evict else (now + timedelta(days=new_interval)).isoformat()
             )
             record["updated_at"] = self._tick()
 
@@ -347,13 +377,20 @@ def test_close_prompt_is_grounded_in_transcript() -> None:
 
     prompt = _render(
         "close_summary.md",
-        {"topic": "t", "technique_primary": "x", "transcript": "tutor: hola"},
+        {
+            "topic": "t",
+            "technique_primary": "x",
+            "transcript": "tutor: hola",
+            "review_grades_instructions": "",
+            "review_grades_field": "",
+        },
     )
     lowered = prompt.lower()
     assert "do not invent" in lowered
     assert "too short to assess" in lowered
     assert "ground every statement" in lowered
     assert '"summary"' in prompt and '"review_in_days"' in prompt
+    assert "review_grades" not in prompt  # PR-G3: only requested for reviews
 
 
 # --- resume (PR-R1) ---
@@ -578,6 +615,9 @@ def test_open_review_raises_when_nothing_due() -> None:
 
 
 def test_review_close_reschedules_covered_items() -> None:
+    # No `review_grades` in CLOSE -> engine defaults quality=3 (PR-G3
+    # fallback), which for a fresh item (no ease/interval yet) advances the
+    # SM-2 progression's second step: interval 1 -> 6 days.
     store = FakeStore()
     store.records["session:x"] = _due_record("session:x", "2026-01-01T00:00:00")
     engine = _engine(FakeLLM(["opening review", CLOSE]), store)
@@ -587,24 +627,81 @@ def test_review_close_reschedules_covered_items() -> None:
 
     item = store.records["session:x"]
     assert item["review_count"] == 1
-    assert item["review_date"] is not None  # rescheduled (1 < graduation), not evicted
+    assert item["review_date"] is not None  # rescheduled, not evicted
+    assert item["review_interval_days"] == 6.0
+    assert item["ease"] is not None
 
 
-def test_record_review_evicts_after_graduation() -> None:
+def test_record_review_evicts_when_new_interval_exceeds_horizon() -> None:
+    # PR-G3: eviction is by SM-2 interval vs TUTOR_REVIEW_HORIZON_DAYS, not
+    # by a fixed review count (GRADUATION_REVIEWS, removed).
     store = FakeStore()
     store.records["session:a"] = _due_record(
         "session:a", "2026-01-01T00:00:00", review_count=2
     )
+    store.records["session:a"]["ease"] = 2.5
+    store.records["session:a"]["review_interval_days"] = 55.0
     store.records["session:b"] = _due_record(
         "session:b", "2026-01-01T00:00:00", review_count=0
     )
-    future = datetime(2026, 12, 1)
-    asyncio.run(store.record_review(["session:a", "session:b"], future, 3))
+    now = datetime(2026, 6, 1)
+    asyncio.run(
+        store.record_review(
+            ["session:a", "session:b"],
+            {"session:a": 5.0, "session:b": 5.0},
+            now,
+            60.0,
+        )
+    )
 
-    assert store.records["session:a"]["review_count"] == 3
-    assert store.records["session:a"]["review_date"] is None  # EVICTED at graduation
-    assert store.records["session:b"]["review_count"] == 1
-    assert store.records["session:b"]["review_date"] == future.isoformat()  # kept
+    a = store.records["session:a"]
+    assert a["review_count"] == 3
+    assert a["review_date"] is None  # EVICTED: 55 * new_ease > 60-day horizon
+    assert a["review_interval_days"] > 60.0
+
+    b = store.records["session:b"]
+    assert b["review_count"] == 1
+    assert b["review_date"] is not None  # kept: fresh item's 6-day step <= horizon
+    assert b["review_interval_days"] == 6.0
+
+
+def test_missing_grade_never_evicts_even_near_horizon() -> None:
+    # Audit lock (2026-07-19): a malformed/missing grade (absent from the
+    # grades dict) must NEVER evict — contract: "never evict on a parse
+    # error". The item is scheduled as q=3 with the interval capped at the
+    # horizon, so an LLM formatting hiccup cannot silently graduate material.
+    store = FakeStore()
+    store.records["session:a"] = _due_record(
+        "session:a", "2026-01-01T00:00:00", review_count=2
+    )
+    store.records["session:a"]["ease"] = 2.5
+    store.records["session:a"]["review_interval_days"] = 55.0  # would evict at q=3
+    asyncio.run(store.record_review(["session:a"], {}, datetime(2026, 6, 1), 60.0))
+    a = store.records["session:a"]
+    assert a["review_date"] is not None  # NOT evicted
+    assert a["review_interval_days"] == 60.0  # capped at horizon
+
+
+def test_review_close_applies_explicit_review_grades() -> None:
+    # Low quality (< 3) resets the interval to 1 day regardless of how far
+    # along the item was (PR-G3 SM-2 penalty/reset branch), reachable
+    # end-to-end via a close JSON that names review_grades explicitly.
+    store = FakeStore()
+    store.records["session:x"] = _due_record("session:x", "2026-01-01T00:00:00")
+    store.records["session:x"]["ease"] = 2.5
+    store.records["session:x"]["review_interval_days"] = 20.0
+    low_grade_close = (
+        '{"summary": "s", "assessment": "a", "next_step": "n", '
+        '"review_in_days": 3, "review_grades": [1]}'
+    )
+    engine = _engine(FakeLLM(["opening review", low_grade_close]), store)
+
+    state, _ = asyncio.run(engine.open_review())
+    asyncio.run(engine.close(state.session_id))
+
+    item = store.records["session:x"]
+    assert item["review_interval_days"] == 1.0
+    assert item["review_date"] is not None  # 1 day is well under the horizon
 
 
 def test_review_endpoints_list_and_open() -> None:

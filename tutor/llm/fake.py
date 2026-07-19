@@ -14,7 +14,9 @@ emits are told apart by stable substrings of the prompt templates:
 * open        -> an opening turn carrying a ``[[TASK: ...]]`` marker;
 * message     -> a deterministic reply (a help-ladder style hint when the
                  learner asks for help, a neutral acknowledgement otherwise);
-* close       -> a schema-valid closing record JSON object;
+* close       -> a schema-valid closing record JSON object; a REVIEW
+                 session's close additionally carries deterministic
+                 per-item `review_grades` (PR-G3);
 * consolidate -> a schema-valid learner-memory note (PR-G2), keyed off the
                  same normalized-topic slug `recall` looks up so a fresh
                  session on the same topic finds it;
@@ -48,6 +50,20 @@ _CLOSE_JSON = (
     'learner engaged but has not yet demonstrated independent application.", '
     '"next_step": "Resume with one more worked example, then a similar problem '
     'to solve unaided.", "review_in_days": 3}'
+)
+
+# Same closing record, extended with deterministic per-item quality grades
+# (PR-G3) for a REVIEW session's close. A fixed-length list of moderate-good
+# grades (4/5) is safe regardless of how many items were actually reviewed —
+# the engine only reads as many entries as `reviewed_ids` has and defaults
+# any it can't find, so a longer list never causes an index error.
+_CLOSE_JSON_REVIEW = (
+    '{"summary": "A short review session: prior items were revisited with '
+    'retrieval-first practice and some contingent hints.", '
+    '"assessment": "Recall was mostly successful with occasional effort; no '
+    'item required the full answer to be given.", '
+    '"next_step": "Keep revisiting the weaker item(s) at the next scheduled '
+    'review.", "review_in_days": 3, "review_grades": [4, 4, 4, 4, 4]}'
 )
 
 # The opening turn always declares the first task via a marker so the engine's
@@ -91,6 +107,13 @@ def _classify_prompt(joined: str) -> bool:
 
 def _close_prompt(joined: str) -> bool:
     return "Produce its closing record" in joined or "session below is ending" in joined
+
+
+def _review_close_prompt(joined: str) -> bool:
+    """A close prompt for a REVIEW session carries the `"review_grades"`
+    schema field literal injected by `engine.close` (PR-G3) — that marker is
+    only present when `state.reviewed_ids` was non-empty."""
+    return '"review_grades"' in joined
 
 
 def _consolidate_prompt(joined: str) -> bool:
@@ -144,7 +167,7 @@ class FakeProvider(LLMProvider):
         if _classify_prompt(joined):
             return _TRAITS_JSON
         if _close_prompt(joined):
-            return _CLOSE_JSON
+            return _CLOSE_JSON_REVIEW if _review_close_prompt(joined) else _CLOSE_JSON
         if _consolidate_prompt(joined):
             return _consolidate_json(joined)
         if _verify_prompt(joined):

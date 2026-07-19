@@ -723,8 +723,14 @@ function renderProgress(memories) {
     const meta = document.createElement("span");
     meta.className = "history-meta";
     const errors = (m.recurring_errors || []).join(", ");
+    // PR-G3: estimated retention (Ebbinghaus decay since last seen).
+    const retentionText =
+      typeof m.estimated_retention === "number"
+        ? `retención ~${Math.round(m.estimated_retention * 100)}% · `
+        : "";
     meta.textContent =
       (errors ? `errores recurrentes: ${errors} · ` : "") +
+      retentionText +
       (m.updated ? relativeTime(m.updated) : "");
     li.appendChild(topic);
     li.appendChild(meta);

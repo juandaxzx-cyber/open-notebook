@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from tutor.db import atenea_db, ensure_ok
 from tutor.session.models import SessionState
+from tutor.session.scheduling import sm2_next
 
 
 class UnknownSessionError(KeyError):
@@ -33,6 +34,26 @@ def _to_naive_utc(value: Any) -> datetime:
     if dt.tzinfo is not None:
         dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     return dt
+
+
+def _seed_interval_days(record: dict[str, Any]) -> float:
+    """Pre-G3 compat seed (PR-G3 contract): a record reviewed for the first
+    time under G3 has no `review_interval_days` yet. Seed it from the gap
+    between when it was closed (`ended_at`) and when its (G1, flat)
+    `review_date` was set, so the first SM-2 step isn't a jarring reset;
+    falls back to 1.0 day when that gap can't be derived (missing fields,
+    non-positive gap, unparseable dates)."""
+    ended_at = record.get("ended_at")
+    review_date = record.get("review_date")
+    if not ended_at or not review_date:
+        return 1.0
+    try:
+        gap = (
+            _to_naive_utc(review_date) - _to_naive_utc(ended_at)
+        ).total_seconds() / 86400.0
+    except Exception:  # noqa: BLE001 — defensive: a bad date must never block a review
+        return 1.0
+    return gap if gap > 0 else 1.0
 
 
 class SessionStore:
@@ -184,15 +205,23 @@ class SessionStore:
         return due
 
     async def record_review(
-        self, session_ids: list[str], review_date: datetime, graduate_at: int
+        self,
+        session_ids: list[str],
+        grades: dict[str, float],
+        now: datetime,
+        horizon_days: float,
     ) -> None:
-        """Advance the review lifecycle for each covered item (PR-G1).
+        """Advance the review lifecycle for each covered item (PR-G3):
+        per-item SM-2 update from its quality grade (`grades[session_id]`,
+        see `tutor.session.scheduling.sm2_next`), then either reschedule
+        (`review_date = now + new_interval_days`) or EVICT (new interval
+        exceeds `horizon_days` — `review_date` cleared, the session record
+        itself stays for history, same as before). Replaces PR-G1's flat
+        count-based reschedule/graduation (`GRADUATION_REVIEWS`, removed).
 
-        Increments its review_count; once that reaches `graduate_at` the item is
-        EVICTED from the review working-set (review_date cleared — the session
-        record itself stays for history), otherwise its next review is pushed out
-        to `review_date`. This is the update+evict half of cross-session memory:
-        material leaves the loop efficiently once it is no longer needed.
+        Pre-G3 records without `ease`/`review_interval_days` get compat
+        defaults seeded on this, their first G3-tracked review (see
+        `_seed_interval_days`) — no migration needed.
         """
         if not session_ids:
             return
@@ -201,30 +230,66 @@ class SessionStore:
                 rows = _rows(
                     ensure_ok(
                         await db.query(
-                            "SELECT review_count FROM session WHERE id = <record>$id",
+                            """
+                            SELECT ease, review_interval_days, review_count,
+                                   ended_at, review_date
+                            FROM session WHERE id = <record>$id
+                            """,
                             {"id": sid},
                         )
                     )
                 )
-                count = int((rows[0].get("review_count") if rows else 0) or 0) + 1
-                if count >= graduate_at:
+                record = rows[0] if rows else {}
+                ease = record.get("ease")
+                ease = 2.5 if ease is None else float(ease)
+                interval = record.get("review_interval_days")
+                interval = (
+                    _seed_interval_days(record) if interval is None else float(interval)
+                )
+                quality = grades.get(sid)
+                if quality is None:
+                    # Parse-error fallback (contract): schedule as a neutral
+                    # q=3 but NEVER evict — cap the interval at the horizon so
+                    # the item gets one more real review instead of silently
+                    # graduating off an LLM formatting hiccup.
+                    new_ease, new_interval, _ = sm2_next(
+                        ease, interval, 3.0, horizon_days
+                    )
+                    new_interval = min(new_interval, horizon_days)
+                    evict = False
+                else:
+                    new_ease, new_interval, evict = sm2_next(
+                        ease, interval, quality, horizon_days
+                    )
+                review_count = int(record.get("review_count") or 0) + 1
+                if evict:
                     ensure_ok(
                         await db.query(
                             """
                             UPDATE session SET
+                                ease = $ease,
+                                review_interval_days = $interval,
                                 review_count = $count,
                                 review_date = NONE,
                                 updated_at = time::now()
                             WHERE id = <record>$id
                             """,
-                            {"id": sid, "count": count},
+                            {
+                                "id": sid,
+                                "ease": new_ease,
+                                "interval": new_interval,
+                                "count": review_count,
+                            },
                         )
                     )
                 else:
+                    new_review_date = now + timedelta(days=new_interval)
                     ensure_ok(
                         await db.query(
                             """
                             UPDATE session SET
+                                ease = $ease,
+                                review_interval_days = $interval,
                                 review_count = $count,
                                 review_date = <datetime>$review_date,
                                 updated_at = time::now()
@@ -232,8 +297,10 @@ class SessionStore:
                             """,
                             {
                                 "id": sid,
-                                "count": count,
-                                "review_date": review_date.isoformat(),
+                                "ease": new_ease,
+                                "interval": new_interval,
+                                "count": review_count,
+                                "review_date": new_review_date.isoformat(),
                             },
                         )
                     )
@@ -286,6 +353,13 @@ class SessionStore:
             if existing:
                 record_id = existing[0]["id"]
                 sessions_count = int(existing[0].get("sessions_count") or 0) + 1
+                # PR-G3: strength rises with each successful consolidation
+                # touch on the topic — a simple bounded rule (+0.5 per
+                # touch, capped at 5.0) so `retention()` (read-time, in
+                # /memories) sees a slower decay the more a topic has been
+                # reinforced. Not itself a mastery signal — mastery_estimate
+                # already covers "how well", this covers "how durable".
+                strength = min(float(existing[0].get("strength") or 1.0) + 0.5, 5.0)
                 result = ensure_ok(
                     await db.query(
                         """
@@ -295,6 +369,7 @@ class SessionStore:
                             mastery_estimate = $mastery_estimate,
                             recurring_errors = $recurring_errors,
                             sessions_count = $sessions_count,
+                            strength = $strength,
                             last_session_id = $last_session_id,
                             updated = time::now()
                         WHERE id = <record>$id
@@ -306,6 +381,7 @@ class SessionStore:
                             "mastery_estimate": mastery_estimate,
                             "recurring_errors": recurring_errors,
                             "sessions_count": sessions_count,
+                            "strength": strength,
                             "last_session_id": last_session_id,
                         },
                     )

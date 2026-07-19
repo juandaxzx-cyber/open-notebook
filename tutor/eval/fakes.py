@@ -6,7 +6,7 @@ OpenNotebook instance is needed. The smoke (PR-DX2) reuses the same in-memory
 store and profile service to drive the full HTTP journey offline.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from pydantic import BaseModel
@@ -15,7 +15,13 @@ from tutor.eval.personas import Persona
 from tutor.profile.models import Profile, ProfileIn
 from tutor.profile.service import ProfileService
 from tutor.session.models import SessionState
-from tutor.session.store import SessionStore, UnknownSessionError, _to_naive_utc
+from tutor.session.scheduling import sm2_next
+from tutor.session.store import (
+    SessionStore,
+    UnknownSessionError,
+    _seed_interval_days,
+    _to_naive_utc,
+)
 from tutor.tools.registry import ToolRegistry, ToolSpec
 
 
@@ -149,16 +155,33 @@ class InMemorySessionStore(SessionStore):
         return due
 
     async def record_review(
-        self, session_ids: list[str], review_date: datetime, graduate_at: int
+        self,
+        session_ids: list[str],
+        grades: dict[str, float],
+        now: datetime,
+        horizon_days: float,
     ) -> None:
+        """Mirrors `tutor.session.store.SessionStore.record_review` (PR-G3):
+        per-item SM-2 update, evict-by-horizon instead of count."""
         for sid in session_ids:
             record = self._records.get(sid)
             if not record:
                 continue
-            count = int(record.get("review_count") or 0) + 1
-            record["review_count"] = count
+            ease = record.get("ease")
+            ease = 2.5 if ease is None else float(ease)
+            interval = record.get("review_interval_days")
+            interval = (
+                _seed_interval_days(record) if interval is None else float(interval)
+            )
+            quality = grades.get(sid, 3.0)
+            new_ease, new_interval, evict = sm2_next(
+                ease, interval, quality, horizon_days
+            )
+            record["ease"] = new_ease
+            record["review_interval_days"] = new_interval
+            record["review_count"] = int(record.get("review_count") or 0) + 1
             record["review_date"] = (
-                None if count >= graduate_at else review_date.isoformat()
+                None if evict else (now + timedelta(days=new_interval)).isoformat()
             )
             record["updated_at"] = self._stamp()
 
