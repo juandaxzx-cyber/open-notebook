@@ -37,6 +37,16 @@
       "text": "Bueno, está bien. Me tengo que ir ya — gracias.",
       "is_error": false,
       "note": "ending signal: the tutor must run the close protocol (learner recap, near-transfer, if-then) instead of opening new content — makes session_close observable (2026-07-19; previously all scripts ended mid-session and the criterion was structurally unmeasurable)"
+    },
+    {
+      "text": "Vale, vale. Aprendí que 'les' va cuando es objeto indirecto, aunque me siga sonando raro.",
+      "is_error": false,
+      "note": "grudging but real recap — tutor should accept it warmly, finish the close, not relitigate the argument"
+    },
+    {
+      "text": "Si dudo entre 'la' y 'le', entonces probaré sustituyendo por 'a ella' para ver si es indirecto.",
+      "is_error": false,
+      "note": "if-then produced — tutor confirms and ends"
     }
   ]
 }

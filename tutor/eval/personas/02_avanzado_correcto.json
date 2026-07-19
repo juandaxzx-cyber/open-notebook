@@ -37,6 +37,16 @@
       "text": "Perfecto. Tengo que irme en un momento — ¿cerramos la sesión?",
       "is_error": false,
       "note": "ending signal: the tutor must run the close protocol (learner recap, near-transfer, if-then) instead of opening new content — makes session_close observable (2026-07-19; previously all scripts ended mid-session and the criterion was structurally unmeasurable)"
+    },
+    {
+      "text": "Aprendí que el O grande describe el crecimiento asintótico y que hay que fijarse en el término dominante, no en las constantes.",
+      "is_error": false,
+      "note": "learner recap produced — tutor should acknowledge and finish the close (near-transfer / if-then), not add content"
+    },
+    {
+      "text": "Si me cruzo con un algoritmo nuevo, entonces identificaré primero su término dominante antes de comparar.",
+      "is_error": false,
+      "note": "if-then produced — tutor confirms and ends"
     }
   ]
 }

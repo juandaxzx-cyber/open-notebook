@@ -124,8 +124,12 @@ CRITERIA: list[Criterion] = [
             "Near the session end, check for: (a) the LEARNER (not the tutor) "
             "summarizing what was learned; (b) a near-transfer task; (c) a "
             "concrete if-then next step stated by the learner. Score 2 with all "
-            "three, 1 with one or two, 0 with none. If the scripted session ends "
-            "abruptly before any close was plausible, score 1 by default."
+            "three, 1 with one or two, 0 with none. ASKING for an element "
+            "counts for that element when the transcript ends before the "
+            "learner could answer (judge the attempt, not the luck of the "
+            "cutoff). Quote the tutor's final turn verbatim in your evidence "
+            "before scoring. If the scripted session ends abruptly before any "
+            "close was plausible, score 1 by default."
         ),
     ),
 ]

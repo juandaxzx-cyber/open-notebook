@@ -42,6 +42,16 @@
       "text": "Uf, creo que hasta aquí llego hoy, gracias. ¿Lo dejamos?",
       "is_error": false,
       "note": "ending signal: the tutor must run the close protocol (learner recap, near-transfer, if-then) instead of opening new content — makes session_close observable (2026-07-19; previously all scripts ended mid-session and the criterion was structurally unmeasurable)"
+    },
+    {
+      "text": "Creo que aprendí que una función compuesta es una función dentro de otra, y que la regla de la cadena multiplica la derivada de la de fuera por la de la de dentro.",
+      "is_error": false,
+      "note": "learner recap produced — the tutor should acknowledge, set ONE small near-transfer task or ask for the if-then, never open new content"
+    },
+    {
+      "text": "Vale. Si mañana veo una derivada compuesta en el examen, entonces primero identificaré cuál es la función externa y cuál la interna.",
+      "is_error": false,
+      "note": "if-then produced — the tutor should confirm the close and END; anything beyond a short goodbye is a violation"
     }
   ]
 }

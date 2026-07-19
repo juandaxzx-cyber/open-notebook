@@ -37,6 +37,16 @@
       "text": "Vale, gracias. Lo dejamos aquí por hoy.",
       "is_error": false,
       "note": "ending signal: the tutor must run the close protocol (learner recap, near-transfer, if-then) instead of opening new content — makes session_close observable (2026-07-19; previously all scripts ended mid-session and the criterion was structurally unmeasurable)"
+    },
+    {
+      "text": "Creo que lo importante es que cada tirada es independiente: lo que salió antes no cambia la probabilidad de la siguiente.",
+      "is_error": false,
+      "note": "learner recap produced (correct — the misconception was repaired); tutor finishes the close without reopening content"
+    },
+    {
+      "text": "Si veo una racha en un juego de azar, entonces recordaré que la probabilidad sigue siendo la misma.",
+      "is_error": false,
+      "note": "if-then produced — tutor confirms and ends"
     }
   ]
 }
