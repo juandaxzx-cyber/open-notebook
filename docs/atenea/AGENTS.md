@@ -7,7 +7,8 @@
 - This repo is a fork of OpenNotebook (MIT): https://github.com/juandaxzx-cyber/open-notebook (keeping the name for now — rename is an open decision, developer's call; keeping it makes the fork relationship and upstream sync obvious)
 - The tutoring service lives in this same repo as a distinct module/service: **`tutor/`** (sibling of `api/` and `open_notebook/` at the repo root)
 - Run locally: `docker compose up` (OpenNotebook stack) + `uv run python -m tutor` for the tutoring service (serves FastAPI on `TUTOR_PORT`, default 5056; contract details in `atenea_dev_playbook.md`)
-- Python version: **3.12** (see `.python-version`; managed with `uv`) · Env template: keep `.env.example` current — variable names only, never values. Developer provisions API keys on demand; agents must never hardcode or request actual secrets in code or logs.
+- Python version: **3.12** (see `.python-version`; managed with `uv`) · Env template: keep `.env.example` current — variable names only, never values. Developer provisions API keys on demand; agents must never hardcode secrets in code, logs, or commits.
+- **Credentials channel (developer decision 2026-07-19):** the developer may hand the repo-scoped GitHub PAT to agents through the chat channel (risk accepted). Agents store it only in `.git/` (credential store, never committed), never print it in output, code, logs, or commit messages, and use it for push + reading CI runs/logs. All other secrets still arrive via `.env`/environment only.
 - Line endings: **LF everywhere**. The repo is configured with `core.autocrlf=input`; never commit CRLF. If a diff shows hundreds of whitespace-only changes, stop and fix your editor/git config instead of committing.
 
 ## Agent Hierarchy & Permissions
