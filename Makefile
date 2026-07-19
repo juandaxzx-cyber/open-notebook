@@ -237,7 +237,7 @@ check-tutor:
 	uv run ruff format --check tutor tests_tutor
 	uv run ruff check tutor tests_tutor
 	uv run python -m mypy tutor tests_tutor
-	uv run pytest tests_tutor -v
+	uv run python -m pytest tests_tutor -v  # -m puts CWD on sys.path so `tutor` imports
 
 eval-tutor:
 	uv run python -m tutor.eval
