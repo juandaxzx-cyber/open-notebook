@@ -89,23 +89,21 @@ def sm2_next(
     return new_ease, new_interval, evict
 
 
-def parse_quality(value: Any) -> float:
+def parse_quality(value: Any) -> float | None:
     """Parse one review-close quality grade from LLM output.
 
-    Malformed or missing input (None, non-numeric, NaN) falls back to a
-    conservative, neutral default of 3.0 rather than raising — per contract,
-    "never evict on a parse error". Read literally: a fallback grade of 3
-    (a normal "recalled with some effort" grade, not a failure grade) never
-    forces eviction *by itself*; whether the item is evicted afterwards is
-    still decided by `sm2_next`'s ordinary horizon check on the resulting
-    interval, exactly as it would for any other real grade of 3.
+    Malformed or missing input (None, non-numeric, NaN) returns None so the
+    caller can apply the contract's fallback: schedule with a neutral q=3 but
+    NEVER evict on a parse error (interval capped at the horizon) — an LLM
+    formatting hiccup must not silently graduate material out of the review
+    working-set (audit fix 2026-07-19).
     """
     try:
         q = float(value)
     except (TypeError, ValueError):
-        return 3.0
+        return None
     if math.isnan(q):
-        return 3.0
+        return None
     return _clamp(q, 0.0, 5.0)
 
 

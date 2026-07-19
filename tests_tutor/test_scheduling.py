@@ -103,17 +103,18 @@ def test_parse_quality_clamps_out_of_range_values() -> None:
     assert parse_quality(-2) == 0.0
 
 
-def test_parse_quality_falls_back_to_three_on_missing_value() -> None:
-    assert parse_quality(None) == 3.0
+def test_parse_quality_returns_none_on_missing_value() -> None:
+    assert parse_quality(None) is None
 
 
-def test_parse_quality_falls_back_to_three_on_malformed_value() -> None:
-    assert parse_quality("not a number") == 3.0
-    assert parse_quality({"nope": True}) == 3.0
+def test_parse_quality_returns_none_on_malformed_value() -> None:
+    # None signals the caller to apply the no-evict fallback (audit fix).
+    assert parse_quality("not a number") is None
+    assert parse_quality({"nope": True}) is None
 
 
-def test_parse_quality_falls_back_to_three_on_nan() -> None:
-    assert parse_quality(float("nan")) == 3.0
+def test_parse_quality_returns_none_on_nan() -> None:
+    assert parse_quality(float("nan")) is None
 
 
 # --- retention: Ebbinghaus-style decay ---

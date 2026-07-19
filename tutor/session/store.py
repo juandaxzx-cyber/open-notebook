@@ -246,10 +246,21 @@ class SessionStore:
                 interval = (
                     _seed_interval_days(record) if interval is None else float(interval)
                 )
-                quality = grades.get(sid, 3.0)
-                new_ease, new_interval, evict = sm2_next(
-                    ease, interval, quality, horizon_days
-                )
+                quality = grades.get(sid)
+                if quality is None:
+                    # Parse-error fallback (contract): schedule as a neutral
+                    # q=3 but NEVER evict — cap the interval at the horizon so
+                    # the item gets one more real review instead of silently
+                    # graduating off an LLM formatting hiccup.
+                    new_ease, new_interval, _ = sm2_next(
+                        ease, interval, 3.0, horizon_days
+                    )
+                    new_interval = min(new_interval, horizon_days)
+                    evict = False
+                else:
+                    new_ease, new_interval, evict = sm2_next(
+                        ease, interval, quality, horizon_days
+                    )
                 review_count = int(record.get("review_count") or 0) + 1
                 if evict:
                     ensure_ok(

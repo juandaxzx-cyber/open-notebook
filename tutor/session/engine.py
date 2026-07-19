@@ -314,10 +314,13 @@ class TutorEngine:
         if state.reviewed_ids:
             raw_grades = data.get("review_grades")
             raw_list = raw_grades if isinstance(raw_grades, list) else []
-            grades = {
+            # Absent sid in `grades` = malformed/missing grade: the store
+            # schedules it with a neutral q=3 but never evicts (contract).
+            parsed = {
                 sid: parse_quality(raw_list[i] if i < len(raw_list) else None)
                 for i, sid in enumerate(state.reviewed_ids)
             }
+            grades = {sid: q for sid, q in parsed.items() if q is not None}
             await self._store.record_review(
                 state.reviewed_ids,
                 grades,

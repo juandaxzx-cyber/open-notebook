@@ -146,10 +146,17 @@ class FakeStore(SessionStore):
             interval = (
                 _seed_interval_days(record) if interval is None else float(interval)
             )
-            quality = grades.get(sid, 3.0)
-            new_ease, new_interval, evict = sm2_next(
-                ease, interval, quality, horizon_days
-            )
+            quality = grades.get(sid)
+            if quality is None:
+                # Parse-error fallback (audit fix): q=3 scheduling, never
+                # evict, interval capped at horizon — mirrors the real store.
+                new_ease, new_interval, _ = sm2_next(ease, interval, 3.0, horizon_days)
+                new_interval = min(new_interval, horizon_days)
+                evict = False
+            else:
+                new_ease, new_interval, evict = sm2_next(
+                    ease, interval, quality, horizon_days
+                )
             record["ease"] = new_ease
             record["review_interval_days"] = new_interval
             record["review_count"] = int(record.get("review_count") or 0) + 1
@@ -656,6 +663,23 @@ def test_record_review_evicts_when_new_interval_exceeds_horizon() -> None:
     assert b["review_count"] == 1
     assert b["review_date"] is not None  # kept: fresh item's 6-day step <= horizon
     assert b["review_interval_days"] == 6.0
+
+
+def test_missing_grade_never_evicts_even_near_horizon() -> None:
+    # Audit lock (2026-07-19): a malformed/missing grade (absent from the
+    # grades dict) must NEVER evict — contract: "never evict on a parse
+    # error". The item is scheduled as q=3 with the interval capped at the
+    # horizon, so an LLM formatting hiccup cannot silently graduate material.
+    store = FakeStore()
+    store.records["session:a"] = _due_record(
+        "session:a", "2026-01-01T00:00:00", review_count=2
+    )
+    store.records["session:a"]["ease"] = 2.5
+    store.records["session:a"]["review_interval_days"] = 55.0  # would evict at q=3
+    asyncio.run(store.record_review(["session:a"], {}, datetime(2026, 6, 1), 60.0))
+    a = store.records["session:a"]
+    assert a["review_date"] is not None  # NOT evicted
+    assert a["review_interval_days"] == 60.0  # capped at horizon
 
 
 def test_review_close_applies_explicit_review_grades() -> None:
