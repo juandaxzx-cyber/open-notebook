@@ -23,7 +23,9 @@ def surreal_url() -> str:
     return os.environ.get("SURREAL_URL", "ws://localhost:8000/rpc")
 
 
-def surreal_credentials() -> dict[str, str]:
+def surreal_credentials() -> dict[str, Any]:
+    # dict[str, Any], not dict[str, str]: surrealdb's signin() takes the
+    # invariant dict[str, Value] (CI mypy with real stubs; 2026-07-19).
     return {
         "username": os.environ.get("SURREAL_USER", "root"),
         "password": os.environ.get("SURREAL_PASSWORD", "root"),

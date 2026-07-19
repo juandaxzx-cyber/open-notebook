@@ -94,6 +94,12 @@ class TestTestCredentialClosesOracle:
         cred = MagicMock(spec=Credential)
         cred.provider = "vertex"
         cred.to_esperanto_config.return_value = {"project": "p", "location": "us-central1"}
+        # pydantic v2 does not expose model fields in dir(cls), so a spec'd
+        # MagicMock raises AttributeError on READ access to them; set the
+        # fields apply_vertex_env() touches explicitly (CI failure 2026-07-19).
+        cred.project = "p"
+        cred.location = "us-central1"
+        cred.credentials_path = None
 
         from api.credentials_service import test_credential
 

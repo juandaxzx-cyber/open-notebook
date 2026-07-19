@@ -37,8 +37,12 @@ class EsperantoProvider:
         response = await self._model.achat_complete(
             messages=[{"role": m.role, "content": m.content} for m in messages]
         )
+        # achat_complete's return type is a union with the streaming
+        # AsyncGenerator; we never request streaming, so narrow via getattr
+        # (CI mypy with the real esperanto types, 2026-07-19).
+        content = getattr(response, "content", None)
         return ChatResponse(
-            content=response.content or "",
+            content=content or "",
             provider=self._provider,
             model=self._model_name,
         )
