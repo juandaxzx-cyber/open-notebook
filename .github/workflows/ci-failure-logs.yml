@@ -1,0 +1,56 @@
+# Publishes the tail of every failed CI job's log to the `ci-logs` branch so
+# development agents (whose sandbox cannot reach api.github.com) can read
+# failures via plain `git fetch origin ci-logs`. Latest failure only —
+# these are transient diagnostics, not history.
+name: CI Failure Logs
+
+on:
+  workflow_run:
+    workflows: ["Tests", "Tutor CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect failed job log tails
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          WF_NAME: ${{ github.event.workflow_run.name }}
+          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          mkdir -p /tmp/cilogs && cd /tmp/cilogs
+          out="failure-$(echo "$WF_NAME" | tr ' ' '_')-run${RUN_NUMBER}.log"
+          {
+            echo "workflow: $WF_NAME  run: #$RUN_NUMBER (id $RUN_ID)"
+            echo "commit: $HEAD_SHA"
+            echo "collected: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > "$out"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs" \
+            --jq '.jobs[] | select(.conclusion == "failure") | "\(.id)\t\(.name)"' \
+          | while IFS="$(printf '\t')" read -r id name; do
+              [ -z "$id" ] && continue
+              echo "" >> "$out"
+              echo "===== FAILED JOB: $name (id $id) — last 250 lines =====" >> "$out"
+              gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" 2>/dev/null \
+                | tail -n 250 >> "$out" || echo "(could not download log)" >> "$out"
+            done
+      - name: Push to ci-logs branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WF_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          cd /tmp/cilogs
+          git init -q -b ci-logs
+          git config user.name "ci-logs"
+          git config user.email "ci-logs@users.noreply.github.com"
+          git add -A
+          git commit -q -m "logs: ${WF_NAME:-ci} failure"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" HEAD:refs/heads/ci-logs

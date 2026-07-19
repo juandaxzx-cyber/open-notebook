@@ -43,3 +43,10 @@ Format:
 - Reason: extension wasn't viable — the filter has to run DB-side, inside `fn::vector_search` itself, so that similarity ranking and `LIMIT $match_count` happen *within* the chosen source rather than over the whole corpus and then be filtered down client-side (which is what PR-M1 did as a stopgap, and what this PR replaces with real scoping). That ranking step cannot be reproduced correctly from outside the function.
 - Upstream-merge risk: **medium** — any upstream redefinition of `fn::vector_search` (a new migration touching the same function) will conflict with migration 23's `REMOVE FUNCTION` / `DEFINE FUNCTION` pair, since both edit the same object. The new parameter defaults to `NONE` and the down-migration (`23_down.surrealql`, byte-identical to migration 9's body) fully restores pre-PR-M2 behavior, so the redefinition is cleanly revertible even if upstream moves the function elsewhere.
 - Revert recipe: run `23_down.surrealql` (drops the DB function back to migration 9's exact body), then drop the `source_id` parameter at the three Python call sites (`domain/notebook.py::vector_search`, `api/models.py::SearchRequest`, `api/routers/search.py`'s vector branch). The tutor side (`tutor/clients/open_notebook.py::search`, `tutor/tools/content.py`, `tutor/session/grounding.py`) needs no change on revert: `source_id` is only ever included in the outgoing request body when set, so an older core that ignores the extra field falls back automatically to the tutor-side `parent_id` filter that PR-M1 already put in place as defense-in-depth.
+
+## .github/workflows/ci-failure-logs.yml (new, 2026-07-19)
+- **Why:** the agents' sandbox cannot reach api.github.com, so CI failures were
+  unreadable without the developer manually pasting logs. On any failed Tests /
+  Tutor CI run this workflow pushes the failed jobs' log tails to the `ci-logs`
+  branch, readable via `git fetch origin ci-logs`.
+- **Upstream-merge risk:** none — new file, no upstream counterpart.
