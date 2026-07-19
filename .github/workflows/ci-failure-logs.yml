@@ -6,7 +6,7 @@ name: CI Failure Logs
 
 on:
   workflow_run:
-    workflows: ["Tests", "Tutor CI"]
+    workflows: ["Tests", "Tutor CI", "Tutor Eval"]
     types: [completed]
 
 permissions:

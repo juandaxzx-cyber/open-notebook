@@ -1,0 +1,82 @@
+# PR-DX3: runs the PR-E2 pedagogy-evaluation harness (scripted personas ->
+# real tutor LLM -> LLM judge, 10 evidence-based criteria + no-LLM metrics)
+# in CI, publishing every run to the accumulating `eval-reports` branch so
+# agents can iterate the pedagogy prompts against measurements
+# (git fetch origin eval-reports). Requires repo secret DEEPSEEK_API_KEY
+# (or another provider's standard key + dispatch inputs).
+name: Tutor Eval
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Tutor LLM provider (esperanto id)"
+        default: "deepseek"
+      model:
+        description: "Tutor LLM model"
+        default: "deepseek-chat"
+      judge_provider:
+        description: "Judge provider (ideally a different family)"
+        default: "deepseek"
+      judge_model:
+        description: "Judge model"
+        default: "deepseek-reasoner"
+  push:
+    branches: [main]
+    paths:
+      - "tutor/prompts/**"
+      - "tutor/eval/**"
+
+permissions:
+  contents: write
+
+jobs:
+  eval:
+    name: Pedagogy Eval
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run eval
+        env:
+          TUTOR_LLM_PROVIDER: ${{ inputs.provider || 'deepseek' }}
+          TUTOR_LLM_MODEL: ${{ inputs.model || 'deepseek-chat' }}
+          TUTOR_JUDGE_PROVIDER: ${{ inputs.judge_provider || 'deepseek' }}
+          TUTOR_JUDGE_MODEL: ${{ inputs.judge_model || 'deepseek-reasoner' }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: uv run python -m tutor.eval 2>&1 | tee /tmp/eval_console.txt
+
+      - name: Publish to eval-reports branch (accumulating)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ts=$(date -u +%Y%m%dT%H%M%SZ)
+          sha="${GITHUB_SHA:0:7}"
+          mkdir -p /tmp/pub && cd /tmp/pub
+          git init -q -b eval-reports
+          git config user.name "eval-reports"
+          git config user.email "eval-reports@users.noreply.github.com"
+          # restore prior history of reports, if the branch exists
+          git fetch -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" eval-reports \
+            && git checkout -q FETCH_HEAD -- . || true
+          for f in "$GITHUB_WORKSPACE"/eval_runs/*.json; do
+            [ -e "$f" ] && cp "$f" "run-${ts}-${sha}-$(basename "$f")"
+          done
+          cp /tmp/eval_console.txt "run-${ts}-${sha}-console.txt"
+          git add -A
+          git commit -q -m "eval: ${ts} @${sha}"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" HEAD:refs/heads/eval-reports

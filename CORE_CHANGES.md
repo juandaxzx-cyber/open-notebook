@@ -50,3 +50,10 @@ Format:
   Tutor CI run this workflow pushes the failed jobs' log tails to the `ci-logs`
   branch, readable via `git fetch origin ci-logs`.
 - **Upstream-merge risk:** none — new file, no upstream counterpart.
+
+## .github/workflows/tutor-eval.yml (new, 2026-07-19 — PR-DX3)
+- **Why:** runs the PR-E2 pedagogy eval harness in CI (dispatch or on prompt/eval
+  changes), publishing scored runs to the accumulating `eval-reports` branch so
+  agents iterate the pedagogy prompts against measurements without the
+  developer's machine. Needs repo secret DEEPSEEK_API_KEY (or another provider).
+- **Upstream-merge risk:** none — new file, no upstream counterpart.
