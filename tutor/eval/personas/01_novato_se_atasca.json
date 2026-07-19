@@ -13,10 +13,35 @@
     "Error típico: derivar la función externa e interna por separado y sumarlas."
   ],
   "turns": [
-    {"text": "Vale, empecemos. No sé muy bien qué es una función compuesta.", "is_error": false, "note": "confesión honesta de laguna; el tutor debería enseñar antes de exigir"},
-    {"text": "Entonces para derivar sin(x^2)... ¿sería cos(x^2)?", "is_error": true, "note": "ERROR: olvida multiplicar por la derivada interna 2x; solo derivó la función externa"},
-    {"text": "Ah no lo pillo, ¿me das una pista?", "is_error": false, "note": "petición explícita de ayuda; el tutor debe subir UN nivel de la escalera, no dar la solución completa"},
-    {"text": "Sigo sin verlo, no sé por dónde seguir.", "is_error": false, "note": "segunda petición; escalera debe subir otro nivel"},
-    {"text": "Creo que ahora sí: cos(x^2) por 2x, ¿verdad?", "is_error": false, "note": "respuesta CORRECTA tras el andamiaje; el tutor debería confirmar y bajar estructura / subir dificultad"}
+    {
+      "text": "Vale, empecemos. No sé muy bien qué es una función compuesta.",
+      "is_error": false,
+      "note": "confesión honesta de laguna; el tutor debería enseñar antes de exigir"
+    },
+    {
+      "text": "Entonces para derivar sin(x^2)... ¿sería cos(x^2)?",
+      "is_error": true,
+      "note": "ERROR: olvida multiplicar por la derivada interna 2x; solo derivó la función externa"
+    },
+    {
+      "text": "Ah no lo pillo, ¿me das una pista?",
+      "is_error": false,
+      "note": "petición explícita de ayuda; el tutor debe subir UN nivel de la escalera, no dar la solución completa"
+    },
+    {
+      "text": "Sigo sin verlo, no sé por dónde seguir.",
+      "is_error": false,
+      "note": "segunda petición; escalera debe subir otro nivel"
+    },
+    {
+      "text": "Creo que ahora sí: cos(x^2) por 2x, ¿verdad?",
+      "is_error": false,
+      "note": "respuesta CORRECTA tras el andamiaje; el tutor debería confirmar y bajar estructura / subir dificultad"
+    },
+    {
+      "text": "Uf, creo que hasta aquí llego hoy, gracias. ¿Lo dejamos?",
+      "is_error": false,
+      "note": "ending signal: the tutor must run the close protocol (learner recap, near-transfer, if-then) instead of opening new content — makes session_close observable (2026-07-19; previously all scripts ended mid-session and the criterion was structurally unmeasurable)"
+    }
   ]
 }

@@ -13,9 +13,30 @@
     "Dos bucles anidados independientes sobre n elementos son O(n^2)."
   ],
   "turns": [
-    {"text": "Sé lo básico de O grande. Ponme algo que me haga pensar.", "is_error": false, "note": "señala nivel alto; el tutor NO debería micro-guiar ni explicar lo elemental (expertise reversal)"},
-    {"text": "Un bucle de 0 a n con dentro una búsqueda binaria: O(n log n).", "is_error": false, "note": "respuesta CORRECTA; el tutor debería subir la dificultad, no repetir lo básico"},
-    {"text": "Si el bucle interno solo llega hasta i, la suma 1+2+...+n da O(n^2).", "is_error": false, "note": "respuesta CORRECTA y sofisticada; merece un salto de dificultad, no elogio vacío"},
-    {"text": "Amortizado, n inserciones en un arreglo dinámico son O(n) totales, O(1) amortizado cada una.", "is_error": false, "note": "respuesta CORRECTA nivel experto"}
+    {
+      "text": "Sé lo básico de O grande. Ponme algo que me haga pensar.",
+      "is_error": false,
+      "note": "señala nivel alto; el tutor NO debería micro-guiar ni explicar lo elemental (expertise reversal)"
+    },
+    {
+      "text": "Un bucle de 0 a n con dentro una búsqueda binaria: O(n log n).",
+      "is_error": false,
+      "note": "respuesta CORRECTA; el tutor debería subir la dificultad, no repetir lo básico"
+    },
+    {
+      "text": "Si el bucle interno solo llega hasta i, la suma 1+2+...+n da O(n^2).",
+      "is_error": false,
+      "note": "respuesta CORRECTA y sofisticada; merece un salto de dificultad, no elogio vacío"
+    },
+    {
+      "text": "Amortizado, n inserciones en un arreglo dinámico son O(n) totales, O(1) amortizado cada una.",
+      "is_error": false,
+      "note": "respuesta CORRECTA nivel experto"
+    },
+    {
+      "text": "Perfecto. Tengo que irme en un momento — ¿cerramos la sesión?",
+      "is_error": false,
+      "note": "ending signal: the tutor must run the close protocol (learner recap, near-transfer, if-then) instead of opening new content — makes session_close observable (2026-07-19; previously all scripts ended mid-session and the criterion was structurally unmeasurable)"
+    }
   ]
 }
