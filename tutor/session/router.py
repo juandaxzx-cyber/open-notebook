@@ -1,6 +1,7 @@
 """Session endpoints: GET /sessions, POST /session, POST /session/{id}/message,
 POST /session/{id}/close, GET /session/{id}."""
 
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
@@ -15,7 +16,8 @@ from tutor.session.models import (
     SessionOpenResponse,
     SessionSummary,
 )
-from tutor.session.store import UnknownSessionError
+from tutor.session.scheduling import retention
+from tutor.session.store import UnknownSessionError, _to_naive_utc
 
 
 def _status_of(record: dict[str, Any]) -> Literal["open", "closed"]:
@@ -109,25 +111,40 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
             raise
         except Exception as exc:  # noqa: BLE001
             raise _bad_gateway(exc) from exc
-        return [
-            MemoryItem(
-                topic_key=str(record.get("topic_key") or ""),
-                topic_label=str(record.get("topic_label") or ""),
-                summary=str(record.get("summary") or ""),
-                mastery_estimate=float(record.get("mastery_estimate") or 0.0),
-                recurring_errors=[
-                    str(e) for e in (record.get("recurring_errors") or [])
-                ],
-                sessions_count=int(record.get("sessions_count") or 0),
-                last_session_id=(
-                    str(record["last_session_id"])
-                    if record.get("last_session_id")
-                    else None
-                ),
-                updated=(str(record["updated"]) if record.get("updated") else None),
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        items = []
+        for record in records:
+            mastery = float(record.get("mastery_estimate") or 0.0)
+            strength = float(record.get("strength") or 1.0)
+            updated = record.get("updated")
+            # PR-G3: retention is estimated at READ time from elapsed days
+            # since this note was last touched; no `updated` yet (should not
+            # happen post-create, but defensive) reads as "just now".
+            elapsed_days = (
+                (now_naive - _to_naive_utc(updated)).total_seconds() / 86400.0
+                if updated
+                else 0.0
             )
-            for record in records
-        ]
+            items.append(
+                MemoryItem(
+                    topic_key=str(record.get("topic_key") or ""),
+                    topic_label=str(record.get("topic_label") or ""),
+                    summary=str(record.get("summary") or ""),
+                    mastery_estimate=mastery,
+                    recurring_errors=[
+                        str(e) for e in (record.get("recurring_errors") or [])
+                    ],
+                    sessions_count=int(record.get("sessions_count") or 0),
+                    last_session_id=(
+                        str(record["last_session_id"])
+                        if record.get("last_session_id")
+                        else None
+                    ),
+                    updated=(str(updated) if updated else None),
+                    estimated_retention=retention(mastery, strength, elapsed_days),
+                )
+            )
+        return items
 
     @router.post("/review", response_model=SessionOpenResponse)
     async def open_review() -> SessionOpenResponse:

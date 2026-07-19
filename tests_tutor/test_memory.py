@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
@@ -124,7 +125,11 @@ class FakeMemoryStore(SessionStore):
         return []
 
     async def record_review(
-        self, session_ids: list[str], review_date: Any, graduate_at: int
+        self,
+        session_ids: list[str],
+        grades: dict[str, float],
+        now: Any,
+        horizon_days: float,
     ) -> None:
         return None
 
@@ -154,12 +159,16 @@ class FakeMemoryStore(SessionStore):
             None,
         )
         if existing is not None:
+            # PR-G3: mirrors SessionStore.upsert_memory's bounded strength
+            # bump (+0.5 per touch, capped at 5.0).
+            strength = min(float(existing.get("strength") or 1.0) + 0.5, 5.0)
             existing.update(
                 topic_label=topic_label,
                 summary=summary,
                 mastery_estimate=mastery_estimate,
                 recurring_errors=list(recurring_errors),
                 sessions_count=int(existing.get("sessions_count") or 0) + 1,
+                strength=strength,
                 last_session_id=last_session_id,
                 updated=f"{self._m:06d}",
             )
@@ -174,6 +183,7 @@ class FakeMemoryStore(SessionStore):
             "mastery_estimate": mastery_estimate,
             "recurring_errors": list(recurring_errors),
             "sessions_count": 1,
+            "strength": 1.0,
             "last_session_id": last_session_id,
             "updated": f"{self._m:06d}",
         }
@@ -605,6 +615,50 @@ def test_memory_store_upsert_and_user_scoping() -> None:
     assert a_notes2[0]["last_session_id"] == "session:z"
 
 
+def test_upsert_memory_strength_rises_with_each_touch_and_is_bounded() -> None:
+    # PR-G3: strength rises with each successful consolidation touch on the
+    # topic (+0.5 per touch here), capped at 5.0; a brand-new note starts at
+    # the schema default (1.0).
+    store = FakeMemoryStore()
+    first = asyncio.run(
+        store.upsert_memory(
+            user_id="juanda",
+            topic_key="k1",
+            topic_label="K1",
+            summary="s1",
+            mastery_estimate=0.5,
+            recurring_errors=[],
+            last_session_id=None,
+        )
+    )
+    assert first["strength"] == 1.0
+    second = asyncio.run(
+        store.upsert_memory(
+            user_id="juanda",
+            topic_key="k1",
+            topic_label="K1",
+            summary="s2",
+            mastery_estimate=0.5,
+            recurring_errors=[],
+            last_session_id=None,
+        )
+    )
+    assert second["strength"] == 1.5
+    for _ in range(20):  # many touches must never exceed the cap
+        record = asyncio.run(
+            store.upsert_memory(
+                user_id="juanda",
+                topic_key="k1",
+                topic_label="K1",
+                summary="s",
+                mastery_estimate=0.5,
+                recurring_errors=[],
+                last_session_id=None,
+            )
+        )
+    assert record["strength"] == 5.0
+
+
 def test_recall_matches_by_normalized_topic_and_ranks_related_by_recency() -> None:
     store = FakeMemoryStore()
     asyncio.run(
@@ -680,6 +734,35 @@ def test_memories_endpoint_shape_and_scoping() -> None:
     assert row["last_session_id"] == "session:x"
 
 
+def test_memories_endpoint_carries_estimated_retention() -> None:
+    # PR-G3: retention is computed at READ time from mastery/strength/elapsed
+    # since `updated`. FakeMemoryStore stamps `updated` with a monotonic
+    # counter (not a real timestamp) that `_to_naive_utc` can't parse -> it
+    # falls back to `datetime.max`, so elapsed clamps to 0 and retention
+    # reads back at exactly mastery.
+    store = FakeMemoryStore()
+    asyncio.run(
+        store.upsert_memory(
+            user_id="juanda",
+            topic_key="vectores",
+            topic_label="Vectores",
+            summary="s",
+            mastery_estimate=0.8,
+            recurring_errors=[],
+            last_session_id=None,
+        )
+    )
+    engine = TutorEngine(
+        llm=FakeLLM([]), registry=_fake_registry(), store=store, user_id="juanda"
+    )
+    app = create_app(settings=TutorSettings(), engine=engine)
+    body = TestClient(app).get("/memories").json()
+
+    assert len(body) == 1
+    assert "estimated_retention" in body[0]
+    assert body[0]["estimated_retention"] == pytest.approx(0.8)
+
+
 def test_memories_endpoint_empty_when_nothing_stored() -> None:
     engine = TutorEngine(
         llm=FakeLLM([]),
@@ -704,6 +787,15 @@ def test_ui_has_progress_view() -> None:
     assert 'id="progress-link"' in html
     assert "loadProgress" in html
     assert "/memories" in html
+
+
+def test_ui_progress_shows_estimated_retention() -> None:
+    # PR-G3: "Tu progreso" surfaces estimated_retention as Spanish copy.
+    html = (Path(__file__).parent.parent / "tutor" / "ui" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    assert "estimated_retention" in html
+    assert "retención" in html
 
 
 def test_merge_prompt_integrates_prior_note_content() -> None:

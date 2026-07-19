@@ -29,6 +29,12 @@ DEFINE FIELD IF NOT EXISTS help ON session FLEXIBLE TYPE option<object>;
 DEFINE FIELD IF NOT EXISTS transcript ON session FLEXIBLE TYPE option<array>;
 DEFINE FIELD IF NOT EXISTS reviewed_ids ON session FLEXIBLE TYPE option<array>;
 DEFINE FIELD IF NOT EXISTS review_count ON session TYPE int DEFAULT 0;
+-- Retention-aware forgetting (PR-G3): per-item SM-2 state, replacing G1's
+-- count-based GRADUATION_REVIEWS. Both option<float> so pre-G3 records
+-- (created before this field existed) read back as NONE — record_review
+-- seeds sensible defaults on first use, no migration needed.
+DEFINE FIELD IF NOT EXISTS ease ON session TYPE option<float>;
+DEFINE FIELD IF NOT EXISTS review_interval_days ON session TYPE option<float>;
 DEFINE INDEX IF NOT EXISTS session_user ON session FIELDS user_id;
 
 -- Consolidated learner memory (PR-G2): the durable, per-topic "how far

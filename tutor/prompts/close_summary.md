@@ -18,11 +18,11 @@ Grounding rules (read before writing):
   and that no real assessment is possible yet. Do not fabricate a rich record.
 - In that case next_step should restart the session from where it stopped, so
   the learner can actually begin.
-
+{{review_grades_instructions}}
 Answer with ONLY a JSON object, no prose, in the language the learner used:
 {
   "summary": "2-4 sentences: what was covered and how it went",
   "assessment": "2-3 sentences: current mastery, concrete gaps observed",
   "next_step": "one concrete next activity",
-  "review_in_days": <integer 1-14: when to review this material>
+  "review_in_days": <integer 1-14: when to review this material>{{review_grades_field}}
 }

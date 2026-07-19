@@ -25,6 +25,7 @@ class TutorSettings(BaseModel):
     memory_enabled: bool = True
     verifier_provider: str | None = None
     verifier_model: str | None = None
+    review_horizon_days: float = 60.0
 
     @classmethod
     def from_env(cls) -> "TutorSettings":
@@ -45,7 +46,9 @@ class TutorSettings(BaseModel):
         claim-checks each consolidated memory note before it is persisted
         (PR-G2); unset ⇒ falls back to the tutor's own provider/model (the
         engine warns when verifier == generator, same pattern as the eval
-        judge in PR-E2).
+        judge in PR-E2). TUTOR_REVIEW_HORIZON_DAYS (PR-G3, default 60) is
+        the SM-2 forgetting horizon: a reviewed item leaves the review
+        working-set once its next interval exceeds this many days.
         """
         values: dict[str, str] = {}
         env_map = {
@@ -62,6 +65,7 @@ class TutorSettings(BaseModel):
             "memory_enabled": "TUTOR_MEMORY_ENABLED",
             "verifier_provider": "TUTOR_VERIFIER_PROVIDER",
             "verifier_model": "TUTOR_VERIFIER_MODEL",
+            "review_horizon_days": "TUTOR_REVIEW_HORIZON_DAYS",
         }
         for field, var in env_map.items():
             value = os.environ.get(var)

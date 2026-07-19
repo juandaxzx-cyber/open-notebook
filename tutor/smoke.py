@@ -219,6 +219,13 @@ class _Journey:
             f"{len(memories) if isinstance(memories, list) else '?'} notes",
         )
 
+        # PR-G3: each memory row carries a read-time estimated retention.
+        self.check(
+            "GET /memories rows carry estimated_retention (PR-G3)",
+            not self.in_process or all("estimated_retention" in m for m in memories),
+            f"{[m.get('estimated_retention') for m in memories]}",
+        )
+
         # PR-G2: a second session on the same topic must still open cleanly —
         # recall() finds (or gracefully skips) the just-consolidated note.
         r = c.post("/session", json={"topic": "vectores"})

@@ -28,3 +28,15 @@ def test_from_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.port == 6001
     assert settings.open_notebook_api_url == "http://open-notebook:5055"
     assert settings.open_notebook_password == "secret"
+
+
+def test_review_horizon_days_defaults_to_sixty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("TUTOR_REVIEW_HORIZON_DAYS", raising=False)
+    assert TutorSettings.from_env().review_horizon_days == 60.0
+
+
+def test_review_horizon_days_reads_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TUTOR_REVIEW_HORIZON_DAYS", "45")
+    assert TutorSettings.from_env().review_horizon_days == 45.0

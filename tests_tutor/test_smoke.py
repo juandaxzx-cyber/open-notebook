@@ -23,6 +23,17 @@ _CLOSE = [
         content="The tutoring session below is ending. Produce its closing record.",
     )
 ]
+_CLOSE_REVIEW = [
+    ChatMessage(
+        role="user",
+        content=(
+            "The tutoring session below is ending. Produce its closing record.\n"
+            "- This is a REVIEW session revisiting 2 prior item(s)...\n"
+            "Answer with ONLY a JSON object...\n"
+            '"review_grades": [<int 0-5 per item, same order as above>]'
+        ),
+    )
+]
 _HELP = [
     ChatMessage(role="system", content="sys"),
     ChatMessage(role="assistant", content="[[TASK: x]] hi"),
@@ -55,6 +66,21 @@ def test_fake_close_output_parses_to_record() -> None:
     data = json.loads(_complete(FakeProvider(), _CLOSE))
     assert set(data) >= {"summary", "assessment", "next_step", "review_in_days"}
     assert isinstance(data["review_in_days"], int)
+    assert "review_grades" not in data  # only requested for review sessions
+
+
+def test_fake_close_output_review_variant_includes_grades() -> None:
+    # PR-G3: a review-session close carries deterministic per-item grades.
+    data = json.loads(_complete(FakeProvider(), _CLOSE_REVIEW))
+    assert set(data) >= {
+        "summary",
+        "assessment",
+        "next_step",
+        "review_in_days",
+        "review_grades",
+    }
+    assert isinstance(data["review_grades"], list) and data["review_grades"]
+    assert all(0 <= g <= 5 for g in data["review_grades"])
 
 
 def test_fake_open_carries_task_marker() -> None:

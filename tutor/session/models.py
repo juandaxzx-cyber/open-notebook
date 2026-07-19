@@ -129,6 +129,10 @@ class MemoryItem(BaseModel):
     sessions_count: int = 0
     last_session_id: str | None = None
     updated: str | None = None
+    # PR-G3: mastery decayed by an Ebbinghaus-style curve since `updated`,
+    # computed at read time (tutor.session.scheduling.retention) — "Tu
+    # progreso" shows this as "retención ~NN%".
+    estimated_retention: float = 0.0
 
 
 class SessionRecord(BaseModel):

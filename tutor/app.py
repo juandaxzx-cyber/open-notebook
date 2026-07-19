@@ -89,6 +89,7 @@ def _build_engine(settings: TutorSettings) -> TutorEngine | None:
         grounding_enabled=settings.grounding_enabled,
         memory_enabled=settings.memory_enabled,
         verifier_llm=verifier_llm,
+        review_horizon_days=settings.review_horizon_days,
     )
 
 

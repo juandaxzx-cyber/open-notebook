@@ -24,14 +24,12 @@ from tutor.session.models import (
     TechniquePlan,
     Turn,
 )
+from tutor.session.scheduling import DEFAULT_HORIZON_DAYS, parse_quality
 from tutor.session.store import SessionStore
 from tutor.session.techniques import select_technique
 from tutor.tools.registry import ToolRegistry
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
-
-# Successful reviews before an item graduates out of the review set (PR-G1).
-GRADUATION_REVIEWS = 3
 
 
 class NoProfileError(RuntimeError):
@@ -91,6 +89,7 @@ class TutorEngine:
         grounding_enabled: bool = False,
         memory_enabled: bool = False,
         verifier_llm: LLMProvider | None = None,
+        review_horizon_days: float = DEFAULT_HORIZON_DAYS,
     ) -> None:
         self._llm = llm
         self._registry = registry
@@ -102,6 +101,9 @@ class TutorEngine:
         # zero-key smoke keeps working); app.py resolves + warns on same-family
         # from config, this is just a safe default for direct construction.
         self._verifier_llm = verifier_llm or llm
+        # SM-2 forgetting horizon (PR-G3): TUTOR_REVIEW_HORIZON_DAYS, resolved
+        # by app.py from settings; a safe default for direct construction.
+        self._review_horizon_days = review_horizon_days
 
     async def open(
         self, topic: str, source_id: str | None = None
@@ -264,12 +266,38 @@ class TutorEngine:
         transcript_text = "\n".join(
             f"{turn.role}: {turn.content}" for turn in state.transcript
         )
+        # PR-G3: review sessions ask the close JSON for a per-reviewed-item
+        # quality grade (0-5, SM-2 style), aligned positionally with
+        # `state.reviewed_ids` — the LLM never sees internal session ids, it
+        # just grades the items in the order they were covered. Both extra
+        # template values are "" for a normal (non-review) close, keeping
+        # its schema unchanged from pre-G3.
+        review_grades_instructions = ""
+        review_grades_field = ""
+        if state.reviewed_ids:
+            n = len(state.reviewed_ids)
+            review_grades_instructions = (
+                f"- This is a REVIEW session revisiting {n} prior item(s), in "
+                "the order they were covered in the transcript above. For "
+                "EACH of them, in that same order, grade the learner's "
+                "recall quality this session on a 0-5 scale (SM-2 style): "
+                "0-2 = failed to recall / needed the answer given to them; "
+                "3 = recalled with noticeable effort or a partial error; "
+                "4 = recalled correctly with some hesitation; 5 = recalled "
+                "quickly and correctly. Base every grade strictly on the "
+                "transcript.\n"
+            )
+            review_grades_field = (
+                ',\n  "review_grades": [<int 0-5 per item, same order as above>]'
+            )
         prompt = _render(
             "close_summary.md",
             {
                 "topic": state.topic,
                 "technique_primary": state.technique.primary,
                 "transcript": transcript_text,
+                "review_grades_instructions": review_grades_instructions,
+                "review_grades_field": review_grades_field,
             },
         )
         response = await self._llm.complete([ChatMessage(role="user", content=prompt)])
@@ -284,8 +312,17 @@ class TutorEngine:
             review_date=review_date,
         )
         if state.reviewed_ids:
+            raw_grades = data.get("review_grades")
+            raw_list = raw_grades if isinstance(raw_grades, list) else []
+            grades = {
+                sid: parse_quality(raw_list[i] if i < len(raw_list) else None)
+                for i, sid in enumerate(state.reviewed_ids)
+            }
             await self._store.record_review(
-                state.reviewed_ids, review_date, GRADUATION_REVIEWS
+                state.reviewed_ids,
+                grades,
+                datetime.now(timezone.utc),
+                self._review_horizon_days,
             )
         record = await self._store.load(session_id)
         await consolidate(
