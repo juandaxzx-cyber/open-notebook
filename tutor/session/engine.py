@@ -13,8 +13,13 @@ from pathlib import Path
 from typing import Any, Literal
 
 from tutor.llm.interface import ChatMessage, LLMProvider
+from tutor.ownership import SourceOwnerStoreProtocol
 from tutor.session import policy, verification
-from tutor.session.grounding import DEFAULT_BUDGET_TOKENS, retrieve_grounding
+from tutor.session.grounding import (
+    DEFAULT_BUDGET_TOKENS,
+    CanViewSource,
+    retrieve_grounding,
+)
 from tutor.session.markers import parse_task_marker
 from tutor.session.memory import LearnerMemoryContext, consolidate, recall
 from tutor.session.models import (
@@ -125,6 +130,7 @@ class TutorEngine:
         grounding_budget_tokens: int = DEFAULT_BUDGET_TOKENS,
         daily_turn_cap: int = 0,
         usage_store: UsageCounterStoreProtocol | None = None,
+        ownership_store: SourceOwnerStoreProtocol | None = None,
     ) -> None:
         self._llm = llm
         self._registry = registry
@@ -156,6 +162,15 @@ class TutorEngine:
         self._usage_store: UsageCounterStoreProtocol = (
             usage_store or UsageCounterStore()
         )
+        # PR-BT3: additive, same "unset -> untouched" pattern as
+        # grounding_enabled/memory_enabled/daily_turn_cap above. Unlike
+        # those, there is no env off-switch for ownership filtering itself
+        # (the contract has no opt-out) — the safety valve here is
+        # structural: direct/test construction that never mentions this
+        # param builds no visibility checker at all (see `_can_view`),
+        # so existing callers/tests never touch a store. `app.py` always
+        # wires a real `SourceOwnerStore()` for the live service.
+        self._ownership_store = ownership_store
         # PR-BT1 cache privacy fix (audit finding 2026-07-20): these were
         # engine-global scalars, so under concurrent users user B could be
         # served user A's cached profile/content/memory/grounding. Re-keyed
@@ -186,6 +201,7 @@ class TutorEngine:
             source_id=source_id,
             enabled=self._grounding_enabled,
             budget_tokens=self._grounding_budget_tokens,
+            can_view=self._can_view(requester),
         )
         content = grounding.content
         traits = await self._classify(topic, content)
@@ -342,6 +358,7 @@ class TutorEngine:
                 source_id=state.source_id,
                 enabled=self._grounding_enabled,
                 budget_tokens=self._grounding_budget_tokens,
+                can_view=self._can_view(requester),
             )
             content = grounding.content
             grounded = grounding.grounded
@@ -484,6 +501,21 @@ class TutorEngine:
         return await self._store.list_memories(requester)
 
     # --- internals ---
+
+    def _can_view(self, requester: str) -> CanViewSource | None:
+        """PR-BT3: build a `retrieve_grounding`-shaped visibility checker
+        bound to this requester, or `None` when no ownership store was
+        wired (additive/off, see __init__) — `retrieve_grounding` itself
+        skips the whole gate when this is `None`, so unset stays
+        byte-identical to pre-BT3 behavior."""
+        if self._ownership_store is None:
+            return None
+        store = self._ownership_store
+
+        async def check(source_id: str) -> bool:
+            return await store.is_visible(source_id, requester)
+
+        return check
 
     def _advance_task(self, state: SessionState, raw_reply: str) -> str:
         """Parse a task marker (PR-E2): on a new task, bump the task counter

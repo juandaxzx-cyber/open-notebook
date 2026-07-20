@@ -117,3 +117,18 @@ def test_chat_page_has_provider_chip_and_grounding_gate() -> None:
     assert 'id="llm-chip"' in body
     assert "grounding_enabled" in body
     assert "/sources" in body
+
+
+def test_chat_page_has_upload_affordance_and_privado_badge() -> None:
+    # PR-BT3: upload affordance (file/url/text tabs) in the source picker,
+    # gated by grounding_enabled like the picker itself, plus the "privado"
+    # badge suffix rendered for the requester's own private uploads.
+    body = TestClient(create_app(settings=TutorSettings())).get("/").text
+    assert 'id="upload-toggle"' in body
+    assert 'id="upload-panel"' in body
+    assert 'data-utab="file"' in body
+    assert 'data-utab="url"' in body
+    assert 'data-utab="text"' in body
+    assert "/sources/upload" in body
+    assert "/sources/create" in body
+    assert "privado" in body  # badge suffix in loadSources

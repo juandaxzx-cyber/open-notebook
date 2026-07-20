@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from tutor.app import create_app
 from tutor.clients.open_notebook import OpenNotebookClient
 from tutor.config import TutorSettings
+from tutor.eval.fakes import InMemorySourceOwnerStore
 from tutor.llm.interface import ChatMessage, ChatResponse
 from tutor.session.engine import TutorEngine
 from tutor.session.grounding import retrieve_grounding
@@ -287,13 +288,18 @@ def test_open_response_echoes_source_id() -> None:
 
 
 def test_sources_endpoint_lists_materials() -> None:
+    # PR-BT3: /sources now filters by ownership — an explicit (empty) fake
+    # store keeps every source grandfathered/public, same as pre-BT3
+    # behavior, without touching a live SurrealDB in this test. Cross-user
+    # filtering itself is covered in tests_tutor/test_ownership.py.
     app = create_app(
         settings=TutorSettings(),
         client=_client(),
         engine=_engine(FakeLLM([]), MemStore(), grounding=False),
+        ownership_store=InMemorySourceOwnerStore(),
     )
     body = TestClient(app).get("/sources").json()
-    assert {"id": "source:A", "title": "Algebra"} in body
+    assert {"id": "source:A", "title": "Algebra", "private": False} in body
     assert len(body) == 2
 
 

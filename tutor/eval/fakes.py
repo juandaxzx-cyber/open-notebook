@@ -12,6 +12,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from tutor.eval.personas import Persona
+from tutor.ownership import normalize_source_id
 from tutor.profile.models import Profile, ProfileIn
 from tutor.profile.service import ProfileService
 from tutor.session.models import SessionState
@@ -301,3 +302,41 @@ class InMemoryProfileService(ProfileService):
         profile = Profile(user_id=user_id, **payload.model_dump())
         self._stored[user_id] = profile
         return profile
+
+
+class InMemorySourceOwnerStore:
+    """Same contract as `tutor.ownership.SourceOwnerStore`, dict-backed
+    (PR-BT3). Grandfather clause: a source_id with no row is public — the
+    same rule the real store enforces. Used by `tests_tutor/test_ownership.py`
+    and the smoke's upload step."""
+
+    def __init__(self) -> None:
+        self._rows: dict[str, dict[str, Any]] = {}
+
+    async def create(self, source_id: str, user_id: str, public: bool = False) -> None:
+        key = normalize_source_id(source_id)
+        self._rows[key] = {"source_id": key, "user_id": user_id, "public": public}
+
+    async def get(self, source_id: str) -> dict[str, Any] | None:
+        key = normalize_source_id(source_id)
+        row = self._rows.get(key)
+        return dict(row) if row else None
+
+    async def is_visible(self, source_id: str, user_id: str) -> bool:
+        row = await self.get(source_id)
+        if row is None:
+            return True
+        if bool(row.get("public")):
+            return True
+        return str(row.get("user_id")) == user_id
+
+    async def share(self, source_id: str) -> bool:
+        key = normalize_source_id(source_id)
+        row = self._rows.get(key)
+        if row is None or bool(row.get("public")):
+            return False
+        row["public"] = True
+        return True
+
+    async def list_all(self) -> list[dict[str, Any]]:
+        return [dict(r) for r in self._rows.values()]

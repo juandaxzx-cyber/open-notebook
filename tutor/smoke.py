@@ -29,6 +29,7 @@ from tutor.config import TutorSettings
 from tutor.eval.fakes import (
     InMemoryProfileService,
     InMemorySessionStore,
+    InMemorySourceOwnerStore,
     InMemoryUsageStore,
 )
 from tutor.llm.fake import FakeProvider
@@ -50,10 +51,13 @@ _PROFILE = {
 
 class _CannedOpenNotebook(OpenNotebookClient):
     """Offline OpenNotebook stand-in: one indexed source, canned search rows
-    tagged with a parent_id so the material-grounding leg works in-process."""
+    tagged with a parent_id so the material-grounding leg works in-process.
+    PR-BT3: also tracks sources "created" through the upload/create proxy,
+    so a later GET /sources reflects them (mirrors real ON persistence)."""
 
     def __init__(self) -> None:
         super().__init__(base_url="http://smoke.local")
+        self._created: list[dict[str, str]] = []
 
     async def count_indexed_sources(self, page_size: int = 100) -> int:
         return 1
@@ -80,13 +84,38 @@ class _CannedOpenNotebook(OpenNotebookClient):
     async def list_sources(
         self, limit: int = 100, notebook_id: str | None = None
     ) -> list[dict[str, str]]:
-        return [{"id": f"source:{_SOURCE_ID}", "title": "Demo material"}]
+        return [
+            {"id": f"source:{_SOURCE_ID}", "title": "Demo material"},
+            *self._created,
+        ]
+
+    async def create_source_from_file(
+        self,
+        filename: str,
+        content: bytes,
+        content_type: str | None = None,
+        *,
+        title: str | None = None,
+    ) -> dict[str, Any]:
+        # PR-BT3: canned proxy target for POST /sources/upload — offline,
+        # deterministic, mirrors the shape of a real SourceResponse enough
+        # for the smoke's ownership-write step.
+        row = {"id": "source:uploaded", "title": title or filename}
+        self._created.append(row)
+        return dict(row)
+
+    async def create_source_json(self, payload: dict[str, Any]) -> dict[str, Any]:
+        # PR-BT3: canned proxy target for POST /sources/create.
+        row = {"id": "source:created", "title": payload.get("title") or "created"}
+        self._created.append(row)
+        return dict(row)
 
 
 def build_in_process_client() -> TestClient:
     """Wire the real app with fake LLM + in-memory store/profile + canned ON."""
     profile_service = InMemoryProfileService()
     canned = _CannedOpenNotebook()
+    ownership_store = InMemorySourceOwnerStore()
 
     registry = ToolRegistry()
     registry.register(content_search_tool(canned))
@@ -115,12 +144,14 @@ def build_in_process_client() -> TestClient:
         # disable the cap in smoke, let it pass naturally").
         daily_turn_cap=settings.daily_turn_cap,
         usage_store=InMemoryUsageStore(),
+        ownership_store=ownership_store,  # PR-BT3
     )
     app = create_app(
         settings=settings,
         client=canned,
         profile_service=profile_service,
         engine=engine,
+        ownership_store=ownership_store,  # PR-BT3: shared with the engine above
     )
     return TestClient(app)
 
@@ -307,6 +338,35 @@ class _Journey:
             "POST /session with source_id carries a clean verification outcome (PR-W1)",
             not self.in_process or gbody.get("verification_outcome") == "clean",
             f"verification_outcome={gbody.get('verification_outcome')}",
+        )
+
+        # PR-BT3: upload proxy writes a private source_owner row; the owner
+        # (the default single-tenant user in this smoke, auth off) sees it
+        # right back through the /sources picker. Cross-user blocking is
+        # unit/integration-tested in tests_tutor/test_ownership.py — the
+        # smoke only proves the write+read path is wired end-to-end.
+        r = c.post(
+            "/sources/create", json={"text": "Contenido de prueba", "title": "Nota"}
+        )
+        created = r.json()
+        self.check(
+            "POST /sources/create (PR-BT3 upload proxy)",
+            r.status_code == 200
+            and bool(created.get("id"))
+            and created.get("private") is True,
+            f"id={created.get('id')}, private={created.get('private')}",
+        )
+
+        r = c.get("/sources")
+        picker = r.json()
+        self.check(
+            "GET /sources includes the uploaded source, badged private (PR-BT3)",
+            r.status_code == 200
+            and any(
+                s.get("id") == created.get("id") and s.get("private") is True
+                for s in picker
+            ),
+            f"{len(picker) if isinstance(picker, list) else '?'} sources",
         )
 
 
