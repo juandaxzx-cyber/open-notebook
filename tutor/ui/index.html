@@ -359,6 +359,36 @@
 const $ = (id) => document.getElementById(id);
 let sessionId = null;
 
+/* ---- per-request identity (PR-BT1): magic-link token -------------------
+   R1's "no localStorage" rule was about SESSION state (server-derived by
+   design); this is a credential, which is exactly what localStorage is for.
+   On load: read ?t= (the magic-link landing), persist it, strip it from the
+   URL (never leave a bearer token sitting in the address bar/history), and
+   send it as `Authorization: Bearer <token>` on every API call from then on.
+   With TUTOR_AUTH_ENABLED=false (default) the server ignores it entirely, so
+   this is a no-op in the common dev/single-tenant case. ---- */
+const ATENEA_TOKEN_KEY = "atenea_token";
+
+function initAuthToken() {
+  const params = new URLSearchParams(window.location.search);
+  const t = params.get("t");
+  if (t) {
+    localStorage.setItem(ATENEA_TOKEN_KEY, t);
+    params.delete("t");
+    const rest = params.toString();
+    const url = window.location.pathname + (rest ? "?" + rest : "") + window.location.hash;
+    window.history.replaceState({}, "", url);
+  }
+}
+initAuthToken();
+
+function authHeaders(extra) {
+  const token = localStorage.getItem(ATENEA_TOKEN_KEY);
+  const headers = Object.assign({}, extra || {});
+  if (token) headers["Authorization"] = "Bearer " + token;
+  return headers;
+}
+
 function show(el, on = true) { el.classList.toggle("hidden", !on); }
 
 /* ---- tiny markdown renderer (escape-first, tutor replies only) ---- */
@@ -464,6 +494,7 @@ function setError(text) {
 const FRIENDLY = {
   409: "Aún no hay perfil de aprendiz — crea tu perfil (cuestionario inicial) antes de abrir una sesión.",
   503: "El tutor no tiene LLM configurado (TUTOR_LLM_PROVIDER / TUTOR_LLM_MODEL) o el servicio no está listo.",
+  401: "Tu acceso no es válido o ha caducado — pide tu enlace de acceso.",
 };
 
 // Pure helper (node-smoke-able): FastAPI 422 bodies carry `detail` as a list
@@ -481,9 +512,11 @@ function formatApiDetail(body, fallback) {
 }
 
 async function api(path, options) {
+  const opts = Object.assign({}, options);
+  opts.headers = authHeaders(opts.headers);
   let response;
   try {
-    response = await fetch(path, options);
+    response = await fetch(path, opts);
   } catch (e) {
     throw new Error("Sin conexión con el tutor — ¿está corriendo el servicio en este puerto?");
   }
@@ -1002,7 +1035,7 @@ function renderLlmChip(cfg) {
 async function loadUiConfig() {
   let cfg = null;
   try {
-    cfg = await (await fetch("/config")).json();
+    cfg = await (await fetch("/config", { headers: authHeaders() })).json();
     if (cfg.notebook_ui_url) {
       const link = $("notebooks-link");
       link.href = cfg.notebook_ui_url;
@@ -1029,7 +1062,7 @@ loadUiConfig();
 /* ---- material picker (PR-M1): populate the source selector ---------- */
 async function loadSources() {
   try {
-    const sources = await (await fetch("/sources")).json();
+    const sources = await (await fetch("/sources", { headers: authHeaders() })).json();
     if (!Array.isArray(sources) || !sources.length) return;
     const sel = $("source");
     for (const s of sources) {
