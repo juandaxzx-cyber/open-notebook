@@ -41,6 +41,13 @@ class TutorSettings(BaseModel):
     # test) and never touches the access_token table. true: Bearer header /
     # `t` query param resolution, 401 on missing/invalid/revoked.
     auth_enabled: bool = False
+    # Tester provisioning + daily cap (PR-BT2). `public_url` is the base the
+    # `tutor.access create` CLI builds magic links from (`<public_url>/?t=
+    # <token>`, matching the UI's `?t=` landing, PR-BT1). `daily_turn_cap`
+    # gates `engine.message`: 0 = unlimited (also the engine's own direct-
+    # construction default, so unrelated tests never touch usage_counter).
+    public_url: str = "http://localhost:5056"
+    daily_turn_cap: int = 50
 
     @classmethod
     def from_env(cls) -> "TutorSettings":
@@ -72,6 +79,11 @@ class TutorSettings(BaseModel):
         injected in full instead of scoped passages. TUTOR_AUTH_ENABLED
         (PR-BT1, default false) gates per-request identity: off keeps today's
         single-tenant behavior; on requires a valid magic-link token.
+        TUTOR_PUBLIC_URL (PR-BT2, default http://localhost:5056) is the base
+        URL the `tutor.access create` CLI prints magic links from.
+        TUTOR_DAILY_TURN_CAP (PR-BT2, default 50) caps learner turns per UTC
+        day per user, enforced in `engine.message` before the LLM call; 0
+        means unlimited.
         """
         values: dict[str, str] = {}
         env_map = {
@@ -93,6 +105,8 @@ class TutorSettings(BaseModel):
             "verify_profile": "TUTOR_VERIFY_PROFILE",
             "grounding_budget_tokens": "TUTOR_GROUNDING_BUDGET_TOKENS",
             "auth_enabled": "TUTOR_AUTH_ENABLED",
+            "public_url": "TUTOR_PUBLIC_URL",
+            "daily_turn_cap": "TUTOR_DAILY_TURN_CAP",
         }
         for field, var in env_map.items():
             value = os.environ.get(var)

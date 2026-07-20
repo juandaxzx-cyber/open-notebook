@@ -10,11 +10,10 @@ touches the token store. `true` => a missing/invalid/revoked token is a 401
 JSON error (FastAPI's default `{"detail": ...}` shape, same pattern as every
 other error path in this service).
 
-Raw tokens are NEVER stored or logged — only their SHA-256 hash. Token
-*provisioning* (the `tutor.access` CLI, daily cap, sharing) is PR-BT2/BT3;
-this module only resolves tokens that already exist in the `access_token`
-table, plus the minimal store CRUD the schema requires (kept here, not a
-CLI, so tests and dogfood can seed a token without waiting on BT2).
+Raw tokens are NEVER stored or logged — only their SHA-256 hash. `create` /
+`get_by_hash` predate the CLI (PR-BT1, so tests and dogfood could seed a
+token before BT2 existed); `list_all` / `revoke` (PR-BT2) are the extra
+store methods `python -m tutor.access` builds on (sharing is PR-BT3).
 """
 
 from __future__ import annotations
@@ -99,6 +98,35 @@ class AccessTokenStore:
             )
         rows = _rows(result)
         return rows[0] if rows else None
+
+    async def list_all(self) -> list[dict[str, Any]]:
+        """Every provisioned token, newest first — the `tutor.access list`
+        CLI verb (PR-BT2). Raw tokens are never stored, so this only ever
+        surfaces `user_id`/`label`/`created`/`revoked` (plus the hash, which
+        the CLI does not print)."""
+        async with atenea_db() as db:
+            result = ensure_ok(
+                await db.query("SELECT * FROM access_token ORDER BY created DESC")
+            )
+        return _rows(result)
+
+    async def revoke(self, user_id_or_label: str) -> int:
+        """Mark every not-yet-revoked token matching `user_id_or_label` (by
+        `user_id` OR `label`) as revoked; returns how many rows changed. The
+        `tutor.access revoke` CLI verb (PR-BT2) reports 0 as "nothing to
+        revoke" rather than an error — revoking twice is a no-op, not a
+        failure."""
+        async with atenea_db() as db:
+            result = ensure_ok(
+                await db.query(
+                    """
+                    UPDATE access_token SET revoked = true
+                    WHERE (user_id = $key OR label = $key) AND revoked = false
+                    """,
+                    {"key": user_id_or_label},
+                )
+            )
+        return len(_rows(result))
 
 
 def default_resolve_user() -> Any:

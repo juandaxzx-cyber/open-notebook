@@ -22,6 +22,7 @@ from tutor.session.engine import TutorEngine
 from tutor.session.router import build_session_router
 from tutor.session.store import SessionStore
 from tutor.tools.defaults import build_default_registry
+from tutor.usage import UsageCounterStore
 
 UI_PATH = Path(__file__).parent / "ui" / "index.html"
 
@@ -104,6 +105,8 @@ def _build_engine(settings: TutorSettings) -> TutorEngine | None:
         verify_turns=settings.verify_turns,
         verify_profile=settings.verify_profile,
         grounding_budget_tokens=settings.grounding_budget_tokens,
+        daily_turn_cap=settings.daily_turn_cap,
+        usage_store=UsageCounterStore(),
     )
 
 

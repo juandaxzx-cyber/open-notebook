@@ -71,3 +71,29 @@ def test_verify_reads_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_verify_turns_rejects_unknown_scope() -> None:
     with pytest.raises(Exception):  # pydantic ValidationError
         TutorSettings(verify_turns="sometimes")  # type: ignore[arg-type]
+
+
+# --- PR-BT2: tester provisioning + daily cap ---
+
+
+def test_bt2_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in ("TUTOR_PUBLIC_URL", "TUTOR_DAILY_TURN_CAP"):
+        monkeypatch.delenv(var, raising=False)
+    settings = TutorSettings.from_env()
+    assert settings.public_url == "http://localhost:5056"
+    assert settings.daily_turn_cap == 50
+
+
+def test_bt2_reads_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TUTOR_PUBLIC_URL", "https://atenea.example.com")
+    monkeypatch.setenv("TUTOR_DAILY_TURN_CAP", "10")
+    settings = TutorSettings.from_env()
+    assert settings.public_url == "https://atenea.example.com"
+    assert settings.daily_turn_cap == 10
+
+
+def test_bt2_daily_turn_cap_zero_means_unlimited(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TUTOR_DAILY_TURN_CAP", "0")
+    assert TutorSettings.from_env().daily_turn_cap == 0

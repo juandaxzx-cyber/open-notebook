@@ -20,6 +20,7 @@ from tutor.session.models import (
 )
 from tutor.session.scheduling import retention
 from tutor.session.store import UnknownSessionError, _to_naive_utc
+from tutor.usage import DailyCapExceededError
 
 
 def _status_of(record: dict[str, Any]) -> Literal["open", "closed"]:
@@ -213,6 +214,15 @@ def build_session_router(
             )
         except UnknownSessionError as exc:
             raise HTTPException(status_code=404, detail="Unknown session") from exc
+        except DailyCapExceededError as exc:
+            # PR-BT2: friendly Spanish message (UI copy convention), 429.
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "Has alcanzado tu límite de mensajes por hoy. "
+                    "Vuelve a intentarlo mañana."
+                ),
+            ) from exc
         except HTTPException:
             raise
         except Exception as exc:  # noqa: BLE001

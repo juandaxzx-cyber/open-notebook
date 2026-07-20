@@ -71,3 +71,14 @@ DEFINE FIELD IF NOT EXISTS created ON access_token TYPE datetime DEFAULT time::n
 DEFINE FIELD IF NOT EXISTS revoked ON access_token TYPE bool DEFAULT false;
 DEFINE INDEX IF NOT EXISTS access_token_user ON access_token FIELDS user_id;
 DEFINE INDEX IF NOT EXISTS access_token_hash ON access_token FIELDS token_hash UNIQUE;
+
+-- Daily turn cap (PR-BT2): one row per (user_id, day), day = UTC calendar
+-- date "YYYY-MM-DD". `tutor/usage.py::UsageCounterStore.increment` upserts
+-- this row on every `engine.message` call; enforcement compares `turns`
+-- against `TUTOR_DAILY_TURN_CAP` before the LLM is invoked.
+DEFINE TABLE IF NOT EXISTS usage_counter SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS user_id ON usage_counter TYPE string;
+DEFINE FIELD IF NOT EXISTS day ON usage_counter TYPE string;
+DEFINE FIELD IF NOT EXISTS turns ON usage_counter TYPE int DEFAULT 0;
+DEFINE INDEX IF NOT EXISTS usage_counter_user ON usage_counter FIELDS user_id;
+DEFINE INDEX IF NOT EXISTS usage_counter_user_day ON usage_counter FIELDS user_id, day UNIQUE;

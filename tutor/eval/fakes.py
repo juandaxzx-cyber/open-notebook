@@ -261,6 +261,32 @@ class InMemorySessionStore(SessionStore):
         return dict(record)
 
 
+class InMemoryUsageStore:
+    """Same contract as `tutor.usage.UsageCounterStore`, dict-backed
+    (PR-BT2). Mirrors `InMemorySessionStore`'s role: lets the smoke journey
+    exercise the daily-cap increment/enforce path end-to-end without
+    SurrealDB, cap wired on (not disabled) so it "passes naturally" per the
+    PR-BT2 contract rather than being bypassed."""
+
+    def __init__(self) -> None:
+        self._counts: dict[tuple[str, str], int] = {}
+
+    async def increment(self, user_id: str, day: str) -> int:
+        key = (user_id, day)
+        self._counts[key] = self._counts.get(key, 0) + 1
+        return self._counts[key]
+
+    async def usage(self, user_id: str | None = None) -> list[dict[str, Any]]:
+        rows = [
+            {"user_id": u, "day": d, "turns": n}
+            for (u, d), n in self._counts.items()
+            if user_id is None or u == user_id
+        ]
+        return sorted(
+            rows, key=lambda r: (str(r["user_id"]), str(r["day"])), reverse=True
+        )
+
+
 class InMemoryProfileService(ProfileService):
     """Dict-backed ProfileService so the smoke's PUT/GET /profile and the
     engine's profile.read tool share one offline store (PR-DX2)."""
