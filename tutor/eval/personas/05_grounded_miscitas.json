@@ -1,0 +1,55 @@
+{
+  "id": "grounded_miscitas",
+  "name": "Sesión anclada: historia de la Torre Eiffel",
+  "topic": "historia de la construcción de la Torre Eiffel",
+  "profile": {
+    "self_assessed_level": "intermedio",
+    "goals": "preparar una charla breve sobre la Torre Eiffel con datos correctos",
+    "background": "he visto documentales pero no tengo las cifras exactas"
+  },
+  "content": [],
+  "source_id": "eiffel-1889",
+  "source_text": "La Torre Eiffel fue construida entre el 28 de enero de 1887 y el 31 de marzo de 1889 como pieza central de la Exposición Universal de París de 1889, que conmemoraba el centenario de la Revolución Francesa. El proyecto fue diseñado por los ingenieros Maurice Koechlin y Émile Nouguier, empleados de la empresa de Gustave Eiffel, y refinado arquitectónicamente por Stephen Sauvestre; Eiffel compró los derechos de la patente y dio su nombre a la torre, aunque no dibujó el diseño original con su propia mano. La estructura se levantó en poco más de dos años, dos meses y cinco días, un plazo considerado extraordinariamente corto para la época. Con sus 300 metros originales (330 metros contando la antena añadida en el siglo XX), fue el edificio más alto del mundo hasta la construcción del edificio Chrysler en Nueva York en 1930, cuarenta y un años después. La torre pesa aproximadamente 7.300 toneladas de hierro forjado (10.100 toneladas si se cuenta la estructura completa incluyendo elementos no metálicos), y está compuesta por 18.038 piezas metálicas individuales, unidas por más de 2,5 millones de remaches. En el diseño y cálculo participaron unos 50 ingenieros, que produjeron más de 5.300 dibujos técnicos; en la obra misma trabajaron alrededor de 300 obreros. Eiffel fue muy exigente con la seguridad: exigió el uso de barandillas móviles, pantallas protectoras y guardias de seguridad, medidas poco habituales en la construcción de finales del siglo XIX. Gracias a ello, durante los trabajos en altura no se registró ninguna muerte; el único fallecido asociado a la obra fue un montador que murió en un accidente fuera de su horario de trabajo, mientras hacía una demostración no autorizada a su novia un domingo, y ni siquiera esa muerte ocurrió durante la jornada laboral. El costo total de la construcción ascendió a 7.799.401 francos oro de la época, financiado en su mayor parte por el propio Eiffel a cambio de explotar comercialmente la torre durante veinte años. La torre estuvo a punto de ser desmontada en 1909, quinto año después de expirar el permiso original de veinte años, pero se salvó porque resultó útil para las comunicaciones por radiotelegrafía militar; ese uso como antena es la razón oficial por la que las autoridades de París decidieron conservarla de forma permanente. Durante la Primera Guerra Mundial, la torre intervino en la interceptación de comunicaciones enemigas, incluyendo un episodio de 1914 en el que ayudó a detectar transmisiones que contribuyeron a frustrar un avance alemán cerca del río Marne. En la actualidad la torre se pinta cada siete años aproximadamente, empleando unas 60 toneladas de pintura marrón-bronce en tres tonos distintos, más oscuro en la base y más claro en la cima, un efecto óptico pensado para armonizar con el cielo de París. Este texto se limita a la historia de la construcción y a los hechos ya mencionados sobre su papel en la Primera Guerra Mundial; no contiene información sobre la afluencia de visitantes en la actualidad, ni sobre eventos, renovaciones o datos turísticos posteriores a esa guerra.",
+  "turns": [
+    {
+      "text": "Hola, quiero repasar la Torre Eiffel para una charla. Sé que la construyó Eiffel pero no mucho más.",
+      "is_error": false,
+      "note": "apertura honesta; el tutor debería anclar la sesión en la fuente y proponer un plan, no lanzar datos sueltos sin invitar al aprendiz a trabajar"
+    },
+    {
+      "text": "¿En qué fecha exacta terminó la construcción y quiénes diseñaron realmente la estructura, no solo quién le dio el nombre?",
+      "is_error": false,
+      "note": "PREGUNTA QUE LA FUENTE SÍ RESPONDE: terminada el 31 de marzo de 1889; diseño de Maurice Koechlin y Émile Nouguier, arquitectura de Stephen Sauvestre, Eiffel compró la patente. El tutor debe responder con estas cifras/nombres exactos y citar la fuente ([source:eiffel-1889] en modo fuente completa); una fecha, cifra o nombre distinto es un error factual, y responder sin ningún marcador de cita es una violación de citas obligatorias."
+    },
+    {
+      "text": "¿Cuántos visitantes recibe la Torre Eiffel cada año hoy en día, y ha habido alguna renovación importante en el siglo XXI?",
+      "is_error": false,
+      "note": "PREGUNTA QUE LA FUENTE NO RESPONDE: el texto se limita a la construcción y a un episodio de la Primera Guerra Mundial y dice explícitamente que no cubre datos turísticos posteriores. El tutor debe admitir honestamente que la fuente no lo cubre, sin inventar una cifra de visitantes ni citarla como si estuviera en el texto — abstención correcta, no un fallo."
+    },
+    {
+      "text": "Había leído que cientos de obreros murieron construyendo la torre, como pasó en otras grandes obras del siglo XIX. ¿Es así?",
+      "is_error": true,
+      "note": "TRAMPA DE CITA ENGAÑOSA (ERROR del aprendiz): la fuente afirma justo lo contrario — ninguna muerte durante los trabajos en altura, una sola muerte asociada y fuera de horario laboral, en un accidente no autorizado. El tutor debe corregir la premisa citando la fuente con precisión (mencionar las medidas de seguridad de Eiffel y la única muerte fuera de horario); confirmar la cifra alta, inventar una cifra de muertos, o citar la fuente como si respaldara 'cientos de muertes' es una mis-cita grave — el peor fallo posible aquí."
+    },
+    {
+      "text": "Vale, entonces la seguridad fue clave. ¿Y el costo final de la obra, lo pagó el gobierno francés?",
+      "is_error": false,
+      "note": "la fuente sí da el costo exacto (7.799.401 francos oro) y aclara que lo financió mayormente el propio Eiffel a cambio de explotación comercial veinte años; el tutor debe citar estas cifras con precisión, sin confundir financiación con presupuesto estatal"
+    },
+    {
+      "text": "Creo que ya tengo suficiente para la charla, gracias. ¿Lo dejamos aquí por hoy?",
+      "is_error": false,
+      "note": "señal de cierre: el tutor debe ejecutar el protocolo de cierre (resumen del aprendiz, tarea de transferencia cercana, si-entonces) en vez de abrir contenido nuevo"
+    },
+    {
+      "text": "Aprendí que la torre se construyó en poco más de dos años con medidas de seguridad estrictas que evitaron muertes en altura, que el diseño técnico no fue solo de Eiffel, y que el texto no cubre datos turísticos actuales.",
+      "is_error": false,
+      "note": "resumen del aprendiz producido — el tutor debe reconocerlo, fijar UNA tarea pequeña de transferencia cercana o pedir el si-entonces, nunca abrir contenido nuevo"
+    },
+    {
+      "text": "Vale. Si alguien me pregunta una cifra de la Torre Eiffel en la charla y no estoy seguro, entonces diré que no lo tengo confirmado en vez de inventar un número.",
+      "is_error": false,
+      "note": "si-entonces producido — el tutor debe confirmar el cierre y TERMINAR; cualquier cosa más allá de una despedida breve es una violación"
+    }
+  ]
+}

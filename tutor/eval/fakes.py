@@ -34,6 +34,10 @@ class _EmptyIn(BaseModel):
     pass
 
 
+class _GetSourceIn(BaseModel):
+    source_id: str
+
+
 def build_fake_registry(persona: Persona) -> ToolRegistry:
     registry = ToolRegistry()
 
@@ -64,6 +68,23 @@ def build_fake_registry(persona: Persona) -> ToolRegistry:
             handler=content_search,
         )
     )
+    # W1-eval addendum: only registered when the persona carries a
+    # `source_id` — this is what the whole-source-lite path
+    # (`tutor.session.grounding._try_whole_source`) calls. Sourceless
+    # personas never hit this tool, so their runs stay byte-identical.
+    if persona.source_id:
+
+        async def content_get_source(_input: _GetSourceIn) -> dict[str, Any]:
+            return {"full_text": persona.source_text, "title": persona.name}
+
+        registry.register(
+            ToolSpec(
+                name="content.get_source",
+                description="canned eval whole-source text",
+                input_model=_GetSourceIn,
+                handler=content_get_source,
+            )
+        )
     return registry
 
 
