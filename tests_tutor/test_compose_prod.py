@@ -22,6 +22,12 @@ raises ``ConstructorError`` on it — asserted below), so this test registers
 one purely to make the file loadable for assertions; it mirrors what
 Compose itself does (reset the tagged attribute to its default), it does
 not change real merge behavior.
+
+PR-BT4b extends this file (same pure-YAML/file-assertion pattern, no
+Docker) to also guard the ``backup`` service: present, correct image,
+``deploy/backup.sh`` + ``./backups`` mounted, no published ports, and the
+two new env var names (``TUTOR_BACKUP_INTERVAL_HOURS``,
+``TUTOR_BACKUP_KEEP``) referenced in ``.env.production.example``.
 """
 
 from pathlib import Path
@@ -34,6 +40,8 @@ _ROOT = Path(__file__).resolve().parent.parent
 _BASE_PATH = _ROOT / "docker-compose.yml"
 _PROD_PATH = _ROOT / "docker-compose.prod.yml"
 _CADDYFILE_PATH = _ROOT / "Caddyfile"
+_BACKUP_SCRIPT_PATH = _ROOT / "deploy" / "backup.sh"
+_ENV_PROD_EXAMPLE_PATH = _ROOT / ".env.production.example"
 
 _CLEARED_SERVICES = ("surrealdb", "open_notebook", "tutor")
 
@@ -181,3 +189,88 @@ def test_overlay_does_not_republish_any_on_or_db_port() -> None:
     text = _PROD_PATH.read_text(encoding="utf-8")
     for leaked_port in ("8502:8502", "5055:5055", "8000:8000"):
         assert leaked_port not in text
+
+
+def test_backup_service_present_and_uses_surrealdb_image() -> None:
+    # Contract: "uses the same SurrealDB image (has the surreal CLI)" — the
+    # backup service reuses the exact image tag the base `surrealdb`
+    # service pins, so it always ships the same `/surreal` CLI version.
+    prod = _prod_services()
+    base = _base_services()
+    assert "backup" in prod
+    assert prod["backup"]["image"] == base["surrealdb"]["image"]
+
+
+def test_backup_service_publishes_no_ports() -> None:
+    backup = _prod_services()["backup"]
+    # The service never appears in the base compose file, so unlike
+    # surrealdb/open_notebook/tutor it has no inherited ports to `!reset` —
+    # it simply must never declare a `ports:` key of its own.
+    assert "ports" not in backup
+
+
+def test_backup_mounts_the_script_and_the_backups_directory() -> None:
+    backup = _prod_services()["backup"]
+    volumes_text = " ".join(str(v) for v in backup["volumes"])
+    assert "deploy/backup.sh" in volumes_text
+    assert "/backup.sh" in volumes_text
+    assert "./backups" in volumes_text or "backups:/backups" in volumes_text
+    assert _BACKUP_SCRIPT_PATH.is_file()
+
+
+def test_backup_script_is_executable_posix_sh_with_lf_endings() -> None:
+    import os
+    import stat
+
+    content = _BACKUP_SCRIPT_PATH.read_bytes()
+    assert content.startswith(b"#!/bin/sh")
+    assert b"\r\n" not in content, "backup.sh must use LF line endings"
+    mode = os.stat(_BACKUP_SCRIPT_PATH).st_mode
+    assert mode & stat.S_IXUSR, (
+        "backup.sh should be executable (docker exec backup /backup.sh)"
+    )
+
+
+def test_backup_script_supports_on_demand_single_pass_and_loop_mode() -> None:
+    text = _BACKUP_SCRIPT_PATH.read_text(encoding="utf-8")
+    # On-demand path (contract + deploy guide): `docker compose ... exec
+    # backup /backup.sh` with no arguments must NOT loop forever — it has
+    # to be a single pass that returns control to the caller.
+    assert "--loop" in text
+    assert "run_once" in text
+
+
+def test_backup_service_entrypoint_runs_the_script_in_loop_mode() -> None:
+    backup = _prod_services()["backup"]
+    entrypoint = backup.get("entrypoint")
+    assert entrypoint is not None
+    entrypoint_text = " ".join(str(part) for part in entrypoint)
+    assert "/backup.sh" in entrypoint_text
+    assert "--loop" in entrypoint_text
+
+
+def test_backup_script_exports_both_databases_and_rotates() -> None:
+    text = _BACKUP_SCRIPT_PATH.read_text(encoding="utf-8")
+    # Both databases the stack uses (PR-C1: OpenNotebook's own +
+    # tutor's `atenea`, same namespace, different database).
+    assert "SURREAL_DATABASE" in text
+    assert "TUTOR_SURREAL_DATABASE" in text
+    assert "surreal export" in text
+    assert "TUTOR_BACKUP_KEEP" in text
+    assert "TUTOR_BACKUP_INTERVAL_HOURS" in text
+
+
+def test_backup_service_depends_on_surrealdb() -> None:
+    backup = _prod_services()["backup"]
+    assert "surrealdb" in backup.get("depends_on", [])
+
+
+def test_env_production_example_documents_backup_env_defaults() -> None:
+    content = _ENV_PROD_EXAMPLE_PATH.read_text(encoding="utf-8")
+    assert "TUTOR_BACKUP_INTERVAL_HOURS=" in content
+    assert "TUTOR_BACKUP_KEEP=" in content
+    # Names-only: contract forbids real values in this file (never secrets,
+    # and these aren't secrets either, but the convention is names/defaults
+    # in comments, blank `=`).
+    assert "TUTOR_BACKUP_INTERVAL_HOURS=24" not in content
+    assert "TUTOR_BACKUP_KEEP=14" not in content
