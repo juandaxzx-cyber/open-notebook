@@ -57,3 +57,17 @@ Format:
   agents iterate the pedagogy prompts against measurements without the
   developer's machine. Needs repo secret DEEPSEEK_API_KEY (or another provider).
 - **Upstream-merge risk:** none — new file, no upstream counterpart.
+
+### Update (2026-07-19 — PR-W1-eval addendum, `feature/w/verify-turn`)
+- **Files:** `.github/workflows/tutor-eval.yml` only (edited, not new).
+- **Why:** the DX3 merge gate was vacuous for PR-W1 — the 4 scripted personas
+  ran ungrounded with verification off, so the workflow never exercised the
+  closed-world prompt or the verification gate it was meant to check. Added
+  four `workflow_dispatch` inputs (`verify_turns` default `grounded`,
+  `verify_profile` default `high`, `verifier_provider`/`verifier_model`
+  passthrough, empty default = unset) mapped to `TUTOR_VERIFY_TURNS` /
+  `TUTOR_VERIFY_PROFILE` / `TUTOR_VERIFIER_PROVIDER` / `TUTOR_VERIFIER_MODEL`
+  env vars in the "Run eval" step. All tutor-side logic (the new grounded
+  persona, the grounding/verification wiring in `tutor/eval/runner.py`) lives
+  under `tutor/`; this is only the CI passthrough.
+- **Upstream-merge risk:** none — same as above, no upstream counterpart.
