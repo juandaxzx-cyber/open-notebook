@@ -89,6 +89,43 @@
     background: var(--bg1); align-self: flex-start;
   }
 
+  /* ---- subtle outcome chip: corrected/escalated (PR-F4) ----------
+     Distinct from the danger-colored flagged/limits notice above — this
+     is the gate visibly WORKING, not a warning to act on. */
+  .verify-outcome {
+    max-width: 88%; margin: -6px 0 0; padding: 6px 14px; font-size: 12.5px;
+    color: var(--sage); border: 1px dashed var(--border); border-radius: var(--radius-sm);
+    background: var(--bg1); align-self: flex-start; opacity: .85;
+  }
+
+  /* ---- typing indicator: verification-wait phase (PR-F4) ---------
+     Grounded + gated turns can take a few extra seconds (retry/escalation);
+     naming it reads as care, not a hang. */
+  .typing { align-items: center; }
+  .typing-phase { margin-left: 4px; font-size: 12.5px; color: var(--faint); white-space: nowrap; }
+
+  /* ---- daily cap notice (PR-F4/BT2): distinct from a generic error --- */
+  .cap-notice {
+    max-width: 88%; margin: 4px 0; padding: 12px 16px; font-size: 13.5px;
+    color: var(--text); border: 1px solid var(--gold-soft); border-radius: var(--radius);
+    background: var(--bg1); align-self: center; text-align: center;
+  }
+
+  /* ---- empty-state hints (PR-F4): one line instead of a blank panel -- */
+  .empty-hint { color: var(--faint); font-size: 13px; margin: 8px 0 0; }
+
+  /* ---- welcome panel (PR-F4): magic-link landing / fresh account ----- */
+  #welcome {
+    max-width: 560px; margin: 6vh auto 0; padding: 26px 28px; text-align: left;
+    background: var(--bg1); border: 1px solid var(--border-strong); border-radius: var(--radius);
+  }
+  #welcome h2 { font-family: var(--font-brand); font-weight: 500; font-size: 22px; margin: 0 0 8px; }
+  #welcome p { color: var(--muted); font-size: 14.5px; margin: 0 0 14px; }
+  #welcome ol { margin: 0 0 18px; padding-left: 1.3em; color: var(--muted); font-size: 14.5px; }
+  #welcome ol li { margin: 5px 0; }
+  #welcome ol li b { color: var(--text); }
+  #welcome .row { display: flex; justify-content: flex-end; }
+
   main { flex: 1; max-width: var(--content-width); width: 100%; margin: 0 auto; padding: 24px 20px 0; }
   .hidden { display: none !important; }
 
@@ -117,7 +154,7 @@
   .history-list { list-style: none; padding: 0; margin: 0; }
   .history-item { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--line, #2a3140); border-radius: 8px; margin-bottom: 6px; cursor: pointer; }
   .history-item:hover { border-color: var(--gold); }
-  .history-topic { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-topic { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .history-meta { color: var(--faint); font-size: 13px; flex-shrink: 0; }
   .review-btn { margin-top: 12px; width: 100%; padding: 10px 12px; background: var(--gold, #d3b673); color: #1a1a1a; border: none; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; }
   .review-btn:hover { filter: brightness(1.06); }
@@ -158,7 +195,7 @@
   #profile-form input {
     padding: 12px 14px; border-radius: var(--radius-sm);
     border: 1px solid var(--border-strong); background: var(--bg2);
-    color: var(--text); font-size: 15px; outline: none; font-family: inherit;
+    color: var(--text); font-size: 16px; outline: none; font-family: inherit;
   }
   #profile-form input:focus { border-color: var(--gold-soft); }
   #profile-form .form-hint { color: var(--faint); font-size: 12px; }
@@ -173,7 +210,7 @@
   }
   .resume-primary:hover { border-color: var(--gold); filter: none; }
   .resume-primary .resume-label { font-weight: 600; color: var(--gold); flex-shrink: 0; }
-  .resume-primary .resume-topic { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .resume-primary .resume-topic { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .resume-primary .resume-time { color: var(--faint); font-size: 13px; flex-shrink: 0; }
   #sessions-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
   #sessions-list li {
@@ -185,7 +222,7 @@
   .session-badge { font-size: 11px; padding: 1px 8px; border-radius: 999px; flex-shrink: 0; border: 1px solid var(--border); }
   .session-badge.open { color: var(--sage); border-color: var(--sage); }
   .session-badge.closed { color: var(--faint); }
-  .session-item-topic { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  .session-item-topic { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
   .session-item-time { color: var(--faint); font-size: 12px; flex-shrink: 0; }
 
   button {
@@ -273,9 +310,17 @@
   @media (max-width: 640px) {
     header { padding: 10px 14px; flex-wrap: wrap; }
     .badges { order: 3; width: 100%; margin-left: 0; }
+    nav { flex-wrap: wrap; row-gap: 6px; justify-content: flex-end; }
     #setup { margin-top: 8vh; }
     #setup .row { flex-direction: column; }
     .msg { max-width: 100%; }
+    #welcome { margin: 4vh 4px 0; padding: 20px 18px; }
+    /* touch targets >=44px (Apple HIG) for controls testers actually tap */
+    nav a, .navlink { min-height: 44px; padding: 10px 14px; display: inline-flex; align-items: center; }
+    button { min-height: 44px; }
+    #composer .inner button { padding: 12px 16px; }
+    #sessions-list li, .history-item { min-height: 44px; }
+    .source-select { min-height: 44px; }
   }
 </style>
 </head>
@@ -303,10 +348,23 @@
     <a id="profile-link" class="navlink" href="#">Perfil</a>
     <a id="history-link" class="navlink" href="#">Historial</a>
     <a id="progress-link" class="navlink" href="#">Tu progreso</a>
+    <a id="help-link" class="navlink" href="#">Ayuda</a>
     <a id="notebooks-link" class="hidden" target="_blank" rel="noopener">Notebooks ↗</a>
   </nav>
 </header>
 <main>
+  <div id="welcome" class="hidden">
+    <h2>Bienvenido a Atenea</h2>
+    <p>Atenea es tu tutor personal: te ayuda a aprender de verdad, no solo a leer resúmenes — trabajando siempre desde tu propio material.</p>
+    <ol>
+      <li><b>Perfil</b> — cuéntanos qué quieres aprender y cómo prefieres estudiar.</li>
+      <li><b>Material</b> — sube o elige la fuente sobre la que quieres trabajar.</li>
+      <li><b>Sesión</b> — conversa con el tutor: te hace pensar, corrige y verifica lo que responde con tu fuente.</li>
+    </ol>
+    <div class="row">
+      <button id="welcome-dismiss" type="button">Entendido, empezar</button>
+    </div>
+  </div>
   <div id="setup">
     <h2>¿Qué trabajamos hoy?</h2>
     <p class="hint">Abre una sesión sobre cualquier tema de tus fuentes.</p>
@@ -318,6 +376,7 @@
     <select id="source" class="source-select hidden" aria-label="Fuente (opcional)">
       <option value="">Sin fuente — buscar en todo el material</option>
     </select>
+    <p id="source-hint" class="empty-hint hidden"></p>
     <!-- PR-BT3: upload affordance — testers add material through the tutor -->
     <button id="upload-toggle" class="upload-toggle hidden" type="button">+ Subir material</button>
     <div id="upload-panel" class="hidden">
@@ -339,6 +398,7 @@
       <div id="resume-card"></div>
       <ul id="sessions-list"></ul>
     </div>
+    <p id="sessions-hint" class="empty-hint hidden"></p>
   </div>
   <div id="chat" class="hidden">
     <div id="messages"></div>
@@ -395,6 +455,12 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
 let sessionId = null;
+let sessionGrounded = false; // PR-F4: tracks whether the open session was
+                              // grounded in a source (drives the verify-wait
+                              // typing phase); set on open/resume, read-only
+                              // elsewhere.
+let uiConfig = null; // PR-F4: last /config payload, kept around so turn
+                      // sending can read verify_turns without a re-fetch.
 
 /* ---- per-request identity (PR-BT1): magic-link token -------------------
    R1's "no localStorage" rule was about SESSION state (server-derived by
@@ -496,13 +562,39 @@ const VERIFY_NOTICE = {
   "limits-admitted": "⚠ El material no permite confirmar todo esto con certeza; el tutor lo reconoce arriba.",
 };
 
+// PR-F4: subtle, non-alarming chips for corrected/escalated -- visible
+// proof the verification gate is working, not a warning to act on.
+const VERIFY_OUTCOME_CHIP = {
+  corrected: "✓ Verificado — el tutor corrigió esta respuesta antes de enviarla.",
+  escalated: "✓ Verificado con un modelo más exigente antes de enviarla.",
+};
+
 function addVerificationNotice(outcome) {
   const text = VERIFY_NOTICE[outcome];
-  if (!text) return;
+  if (text) {
+    const p = document.createElement("p");
+    p.className = "verify-notice";
+    p.textContent = text;
+    $("messages").appendChild(p);
+    return;
+  }
+  const subtle = VERIFY_OUTCOME_CHIP[outcome];
+  if (!subtle) return;
   const p = document.createElement("p");
-  p.className = "verify-notice";
-  p.textContent = text;
+  p.className = "verify-outcome";
+  p.textContent = subtle;
   $("messages").appendChild(p);
+}
+
+// PR-F4: the daily cap (BT2) is expected, not broken -- a distinct,
+// friendly standalone state instead of the generic red error line. Reuses
+// the server's own Spanish copy (already invites a return tomorrow).
+function addCapNotice(text) {
+  const p = document.createElement("p");
+  p.className = "cap-notice";
+  p.textContent = "🕐 " + (text || "Límite diario alcanzado.");
+  $("messages").appendChild(p);
+  p.scrollIntoView({ behavior: "smooth", block: "end" });
 }
 
 function addStatus(text) {
@@ -514,13 +606,29 @@ function addStatus(text) {
   $("messages").appendChild(p);
 }
 
-function addTyping() {
+function addTyping(showVerifyPhase) {
   const div = document.createElement("div");
   div.className = "msg tutor typing";
   div.innerHTML = "<i></i><i></i><i></i>";
   $("messages").appendChild(div);
   div.scrollIntoView({ behavior: "smooth", block: "end" });
+  // PR-F4: gated grounded turns can take a few extra seconds (retry /
+  // escalation) -- after a short delay, name what is happening so it
+  // reads as care, not a hang.
+  if (showVerifyPhase) {
+    const label = document.createElement("span");
+    label.className = "typing-phase";
+    div.appendChild(label);
+    div._verifyTimer = setTimeout(() => {
+      label.textContent = "Verificando con tu fuente…";
+    }, 1200);
+  }
   return div;
+}
+
+function removeTyping(div) {
+  if (div._verifyTimer) clearTimeout(div._verifyTimer);
+  div.remove();
 }
 
 function setError(text) {
@@ -589,6 +697,7 @@ async function startSession() {
       body: JSON.stringify({ topic, source_id: $("source").value || null }),
     });
     sessionId = data.session_id;
+    sessionGrounded = Boolean(data.source_id);
     const t = data.traits, plan = data.technique;
     $("badges").innerHTML = "";
     [t.production, t.verifiability, t.structure, plan.primary].forEach((label) => {
@@ -597,6 +706,7 @@ async function startSession() {
       span.textContent = label;
       $("badges").appendChild(span);
     });
+    show($("welcome"), false);
     show($("setup"), false);
     show($("chat"));
     show($("composer"));
@@ -622,6 +732,7 @@ async function startReview() {
       headers: { "Content-Type": "application/json" },
     });
     sessionId = data.session_id;
+    sessionGrounded = Boolean(data.source_id);
     const t = data.traits, plan = data.technique;
     $("badges").innerHTML = "";
     [t.production, t.verifiability, t.structure, plan.primary].forEach((label) => {
@@ -630,6 +741,7 @@ async function startReview() {
       span.textContent = label;
       $("badges").appendChild(span);
     });
+    show($("welcome"), false);
     show($("setup"), false);
     show($("chat"));
     show($("composer"));
@@ -664,22 +776,28 @@ async function sendMessage() {
   addMsg("learner", text);
   $("input").value = "";
   $("send").disabled = true;
-  const typing = addTyping();
+  // PR-F4: the "Verificando..." phase only makes sense for a grounded
+  // session that is actually gated (verify_turns != "off" per /config).
+  const showVerifyPhase = sessionGrounded && Boolean(uiConfig) && uiConfig.verify_turns !== "off";
+  const typing = addTyping(showVerifyPhase);
   try {
     const data = await api(`/session/${encodeURIComponent(sessionId)}/message`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     });
-    typing.remove();
+    removeTyping(typing);
     addMsg("tutor", data.reply);
     addVerificationNotice(data.verification_outcome);
     if (data.task_index > 0 || data.help_level > 0 || data.attempts > 0) {
       addStatus(taskStatus(data.task_index, data.task_label, data.attempts, data.help_level));
     }
   } catch (err) {
-    typing.remove();
-    setError(err.message);
+    removeTyping(typing);
+    // PR-F4: the daily cap (429) is an expected, friendly state -- not a
+    // generic error line.
+    if (err.status === 429) addCapNotice(err.message);
+    else setError(err.message);
   } finally {
     $("send").disabled = false;
     $("input").focus();
@@ -743,8 +861,15 @@ function renderSessionsPanel(sessions) {
   const resumeEl = $("resume");
   const cardEl = $("resume-card");
   const listEl = $("sessions-list");
+  const hintEl = $("sessions-hint");
   cardEl.innerHTML = "";
   listEl.innerHTML = "";
+  // PR-F4: fresh account -- nothing to resume yet, one-line hint instead of
+  // the panel simply staying invisible.
+  if (!sessions.length) {
+    hintEl.textContent = "Aquí aparecerán tus sesiones — abre la primera arriba.";
+  }
+  show(hintEl, sessions.length === 0);
   const openSessions = sessions.filter((s) => s.status === "open");
   if (!openSessions.length) { show(resumeEl, false); return; }
 
@@ -847,6 +972,7 @@ async function loadProgress() {
 }
 
 function showProgress() {
+  show($("welcome"), false);
   show($("setup"), false);
   show($("chat"), false);
   show($("profile"), false);
@@ -903,11 +1029,36 @@ async function loadHistory() {
 }
 
 function showHistory() {
+  show($("welcome"), false);
   show($("setup"), false); show($("chat"), false); show($("profile"), false); show($("progress"), false); show($("history"), true);
   loadHistory();
 }
 
+/* ---- welcome panel (PR-F4): magic-link landing / fresh account -----
+   Shown once per browser (localStorage flag) on first contact -- either a
+   fresh `?t=` magic-link landing or any account that has not dismissed it
+   yet; reopenable anytime via the "Ayuda" nav item. Never interrupts a
+   direct session resume (`#s=<id>` in the URL). */
+const WELCOME_SEEN_KEY = "atenea_welcome_seen";
+
+function showWelcome() {
+  show($("setup"), false); show($("chat"), false); show($("history"), false);
+  show($("progress"), false); show($("profile"), false);
+  show($("welcome"), true);
+}
+
+function dismissWelcome() {
+  localStorage.setItem(WELCOME_SEEN_KEY, "1");
+  show($("welcome"), false);
+  showSetup();
+}
+
+function maybeShowWelcome() {
+  if (!localStorage.getItem(WELCOME_SEEN_KEY)) showWelcome();
+}
+
 function showSetup() {
+  show($("welcome"), false);
   show($("history"), false); show($("chat"), false); show($("profile"), false); show($("progress"), false); show($("setup"), true);
 }
 
@@ -928,6 +1079,7 @@ function fillProfileForm(profile) {
 }
 
 function showProfileView() {
+  show($("welcome"), false);
   show($("setup"), false); show($("chat"), false); show($("history"), false); show($("progress"), false);
   show($("profile"), true);
   $("profile-error").classList.add("hidden");
@@ -1023,7 +1175,9 @@ async function openSessionById(id) {
   try {
     const record = await api(`/session/${encodeURIComponent(id)}`);
     const resolvedId = record.id || id;
+    sessionGrounded = Boolean(record.source_id);
     renderTranscript(record);
+    show($("welcome"), false);
     show($("setup"), false);
     show($("chat"), true);
     if (record.status === "closed") {
@@ -1080,6 +1234,7 @@ async function loadUiConfig() {
       show(link);
     }
   } catch (e) { /* nav link is optional — never block the session flow */ }
+  uiConfig = cfg; // PR-F4: read by sendMessage for the verify-wait phase gate
   renderLlmChip(cfg);
   // PR-W1: standing "cheaper ⇒ more errors" caveat — visible whenever
   // verification is on AND running the cheap profile (never for "off" or
@@ -1112,6 +1267,15 @@ async function loadSources() {
       opt.textContent = (s.title || s.id) + (s.private ? " · privado" : "");
       sel.appendChild(opt);
     }
+    // PR-F4: fresh account with grounding on but nothing indexed yet --
+    // guide toward "+ Subir material" instead of an unexplained empty list.
+    const hint = $("source-hint");
+    if (!sources.length) {
+      hint.textContent = "Aún no hay material disponible — sube el tuyo con “+ Subir material”.";
+      show(hint, true);
+    } else {
+      show(hint, false);
+    }
   } catch (e) { /* the picker is optional — a source is never required */ }
 }
 
@@ -1127,11 +1291,37 @@ async function loadSources() {
       for (const pane of document.querySelectorAll("[data-upane]")) show(pane, pane.dataset.upane === mode);
     });
   }
+  // PR-F4: bounded polling while ON processes the upload asynchronously --
+  // stop as soon as the new source is visible, never poll forever.
+  async function pollForNewSource(sourceId, attempts, intervalMs) {
+    for (let i = 0; i < attempts; i++) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      try {
+        const sources = await (await fetch("/sources", { headers: authHeaders() })).json();
+        if (Array.isArray(sources) && sources.some((s) => s.id === sourceId)) {
+          await loadSources();
+          return true;
+        }
+      } catch (e) { /* transient failure -- keep polling until attempts run out */ }
+    }
+    return false;
+  }
+
+  function resetUploadFields() {
+    $("upload-title").value = "";
+    $("upload-file").value = "";
+    $("upload-url").value = "";
+    $("upload-text").value = "";
+  }
+
   $("upload-send").addEventListener("click", async () => {
     const status = $("upload-status");
     const say = (msg) => { status.textContent = msg; show(status, true); };
+    const sendBtn = $("upload-send");
+    sendBtn.disabled = true;
     try {
       const title = $("upload-title").value.trim() || null;
+      let created = null;
       if (mode === "file") {
         const file = $("upload-file").files[0];
         if (!file) { say("Elige un archivo primero."); return; }
@@ -1139,7 +1329,15 @@ async function loadSources() {
         body.append("file", file);
         if (title) body.append("title", title);
         const r = await fetch("/sources/upload", { method: "POST", headers: authHeaders(), body });
-        if (!r.ok) throw new Error((FRIENDLY[r.status]) || "No se pudo subir el archivo.");
+        if (!r.ok) {
+          let detail = FRIENDLY[r.status];
+          if (!detail) {
+            try { detail = formatApiDetail(await r.json(), "No se pudo subir el archivo."); }
+            catch (e) { detail = "No se pudo subir el archivo."; }
+          }
+          throw new Error(detail);
+        }
+        created = await r.json();
       } else {
         const payload = { title };
         if (mode === "url") {
@@ -1149,23 +1347,42 @@ async function loadSources() {
           payload.text = $("upload-text").value.trim();
           if (!payload.text) { say("Pega algún texto primero."); return; }
         }
-        await api("/sources/create", {
+        created = await api("/sources/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
       }
-      say("Material enviado — se está procesando y aparecerá en la lista en un momento (solo tú puedes verlo).");
-      setTimeout(loadSources, 3000);
-    } catch (e) { say(e.message || "No se pudo subir el material."); }
+      // Panel resets after success (PR-F4): clear the inputs right away so
+      // a second upload doesn't accidentally resend stale fields, while the
+      // status line keeps tracking progress.
+      resetUploadFields();
+      say("Material enviado — procesando…");
+      const sourceId = created && created.id;
+      const found = sourceId ? await pollForNewSource(sourceId, 4, 3000) : false;
+      if (found) {
+        say("Listo — ya aparece en la lista de fuentes.");
+      } else {
+        await loadSources();
+        say("Sigue procesándose — recarga en un momento.");
+      }
+    } catch (e) {
+      say(e.message || "No se pudo subir el material.");
+    } finally {
+      sendBtn.disabled = false;
+    }
   });
 })();
 
 /* ---- boot: resume from the URL hash, otherwise offer recent sessions */
 (function initResume() {
   const hashId = sessionIdFromHash();
-  if (hashId) openSessionById(hashId);
-  else loadSessionsPanel();
+  if (hashId) {
+    openSessionById(hashId);
+  } else {
+    loadSessionsPanel();
+    maybeShowWelcome();
+  }
 })();
 
 $("start").addEventListener("click", startSession);
@@ -1173,6 +1390,8 @@ $("review-btn").addEventListener("click", startReview);
 loadDue();
 $("history-link").addEventListener("click", (e) => { e.preventDefault(); showHistory(); });
 $("history-back").addEventListener("click", showSetup);
+$("help-link").addEventListener("click", (e) => { e.preventDefault(); showWelcome(); });
+$("welcome-dismiss").addEventListener("click", dismissWelcome);
 $("progress-link").addEventListener("click", (e) => { e.preventDefault(); showProgress(); });
 $("progress-back").addEventListener("click", showSetup);
 $("profile-link").addEventListener("click", (e) => { e.preventDefault(); openProfileEditor(); });

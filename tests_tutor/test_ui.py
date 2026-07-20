@@ -132,3 +132,91 @@ def test_chat_page_has_upload_affordance_and_privado_badge() -> None:
     assert "/sources/upload" in body
     assert "/sources/create" in body
     assert "privado" in body  # badge suffix in loadSources
+
+
+def test_chat_page_has_welcome_panel() -> None:
+    # PR-F4: brief Spanish welcome on first contact (magic-link landing or a
+    # fresh, undismissed browser) -- dismissible, shown once via a
+    # localStorage flag, reopenable through the "Ayuda" nav item.
+    body = TestClient(create_app(settings=TutorSettings())).get("/").text
+    assert 'id="welcome"' in body
+    assert 'id="welcome-dismiss"' in body
+    assert 'id="help-link"' in body
+    assert "atenea_welcome_seen" in body
+    assert "maybeShowWelcome" in body
+    assert (
+        "perfil" in body.lower()
+        and "material" in body.lower()
+        and "sesi" in body.lower()
+    )
+
+
+def test_chat_page_has_empty_state_hints() -> None:
+    # PR-F4: fresh account -- sessions list and source picker get a one-line
+    # guiding hint instead of a blank panel (Historial/Tu progreso already
+    # carried hints from F3/G2; locked here too for completeness).
+    body = TestClient(create_app(settings=TutorSettings())).get("/").text
+    assert 'id="source-hint"' in body
+    assert 'id="sessions-hint"' in body
+    assert "Aún no hay sesiones." in body  # Historial empty state (pre-existing)
+    assert (
+        "Aún no hay progreso registrado" in body
+    )  # Tu progreso empty state (pre-existing)
+
+
+def test_chat_page_has_verification_wait_phase() -> None:
+    # PR-F4: the typing indicator gains a "Verificando..." phase during a
+    # gated grounded turn, so latency reads as care, not a hang. Gated on
+    # session grounded-ness (client state) + /config's verify_turns.
+    body = TestClient(create_app(settings=TutorSettings())).get("/").text
+    assert "Verificando con tu fuente" in body
+    assert "sessionGrounded" in body
+    assert "showVerifyPhase" in body
+
+
+def test_chat_page_has_subtle_outcome_chips() -> None:
+    # PR-F4: corrected/escalated verification outcomes get a subtle,
+    # non-alarming chip alongside the existing flagged/limits-admitted
+    # notices -- honest visibility that the gate is working.
+    body = TestClient(create_app(settings=TutorSettings())).get("/").text
+    assert "VERIFY_OUTCOME_CHIP" in body
+    assert "verify-outcome" in body
+    assert "corrected" in body
+    assert "escalated" in body
+
+
+def test_chat_page_has_upload_polling_and_reset() -> None:
+    # PR-F4: after a successful upload, poll the picker a few bounded times
+    # while OpenNotebook processes it async, then a "still processing" state
+    # if it never shows up; fields reset after a successful submit.
+    body = TestClient(create_app(settings=TutorSettings())).get("/").text
+    assert "pollForNewSource" in body
+    assert "resetUploadFields" in body
+    assert "Sigue procesándose" in body
+
+
+def test_chat_page_has_distinct_cap_state() -> None:
+    # PR-F4: the daily cap (429, PR-BT2) renders as its own friendly state,
+    # not the generic red error line.
+    body = TestClient(create_app(settings=TutorSettings())).get("/").text
+    assert "addCapNotice" in body
+    assert "cap-notice" in body
+    assert "429" in body
+
+
+def test_chat_page_has_viewport_meta() -> None:
+    # PR-F4: mobile pass precondition -- the viewport meta tag must exist
+    # (it already did; locked here so a future edit can't silently drop it).
+    body = TestClient(create_app(settings=TutorSettings())).get("/").text
+    assert (
+        '<meta name="viewport" content="width=device-width, initial-scale=1">' in body
+    )
+
+
+def test_chat_page_has_mobile_touch_targets() -> None:
+    # PR-F4: mobile pass -- interactive controls (nav links, buttons, tabs,
+    # list rows, the source select) get a >=44px touch target at narrow
+    # viewports (Apple HIG), reasoned via CSS since this sandbox can't
+    # render pages.
+    body = TestClient(create_app(settings=TutorSettings())).get("/").text
+    assert "min-height: 44px" in body
