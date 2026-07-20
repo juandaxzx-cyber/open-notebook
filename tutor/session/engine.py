@@ -7,13 +7,14 @@ prompts. LLM-driven function calling over list_specs() is a later enhancement.
 
 import json
 import re
+from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
 from tutor.llm.interface import ChatMessage, LLMProvider
-from tutor.session import policy
-from tutor.session.grounding import retrieve_grounding
+from tutor.session import policy, verification
+from tutor.session.grounding import DEFAULT_BUDGET_TOKENS, retrieve_grounding
 from tutor.session.markers import parse_task_marker
 from tutor.session.memory import LearnerMemoryContext, consolidate, recall
 from tutor.session.models import (
@@ -60,6 +61,29 @@ def _extract_json(text: str) -> dict[str, Any]:
     return result
 
 
+def _closed_world_section(content: str) -> str:
+    """PR-W1: closed-world + mandatory-citations section, injected only for
+    GROUNDED sessions (same "GROUNDED SOURCE" detection the template's own
+    static instruction already uses). "" for ungrounded sessions — combined
+    with the `{{closed_world_section}}` placeholder sitting inline (not on
+    its own line) in session_system.md, this keeps ungrounded/no-grounding
+    prompts byte-identical to pre-W1 output (backward-compat lock, M1-style).
+    """
+    if not content.startswith("GROUNDED SOURCE"):
+        return ""
+    return (
+        "\n\n## Closed-world contract (grounded session)\n"
+        "Teach ONLY from the GROUNDED SOURCE above, or say explicitly that "
+        "something is outside it — never state a fact as settled when the "
+        "source does not cover it. Cite every factual claim: use the exact "
+        "[n] passage marker (or [source:id] in whole-source mode) given "
+        "above, right next to the claim it supports. Never invent a marker "
+        "or record id, and never attach a citation to a claim the cited "
+        "passage does not actually support — a wrong citation is the single "
+        "worst mistake you can make here."
+    )
+
+
 def _format_review_memory(items: list[dict[str, Any]]) -> str:
     """Compact memory of prior sessions being revisited (PR-G1)."""
     if not items:
@@ -90,6 +114,9 @@ class TutorEngine:
         memory_enabled: bool = False,
         verifier_llm: LLMProvider | None = None,
         review_horizon_days: float = DEFAULT_HORIZON_DAYS,
+        verify_turns: str = "off",
+        verify_profile: str = "high",
+        grounding_budget_tokens: int = DEFAULT_BUDGET_TOKENS,
     ) -> None:
         self._llm = llm
         self._registry = registry
@@ -104,6 +131,13 @@ class TutorEngine:
         # SM-2 forgetting horizon (PR-G3): TUTOR_REVIEW_HORIZON_DAYS, resolved
         # by app.py from settings; a safe default for direct construction.
         self._review_horizon_days = review_horizon_days
+        # PR-W1: per-turn verification scope/profile default to "off"/"high"
+        # here (safe for direct/test construction, same pattern as
+        # grounding_enabled/memory_enabled above) — app.py wires the
+        # config's "grounded"/"high" defaults through for the real service.
+        self._verify_turns = verify_turns
+        self._verify_profile = verify_profile
+        self._grounding_budget_tokens = grounding_budget_tokens
 
     async def open(
         self, topic: str, source_id: str | None = None
@@ -118,6 +152,7 @@ class TutorEngine:
             topic=topic,
             source_id=source_id,
             enabled=self._grounding_enabled,
+            budget_tokens=self._grounding_budget_tokens,
         )
         content = grounding.content
         traits = await self._classify(topic, content)
@@ -133,26 +168,30 @@ class TutorEngine:
             source_id=grounding.source_id,
         )
         system = self._system_prompt(state, profile, content, memory)
-        response = await self._llm.complete(
-            [
-                ChatMessage(role="system", content=system),
-                ChatMessage(
-                    role="user",
-                    content=(
-                        "Open the session: greet me briefly, state the plan for "
-                        "this topic in 2-3 sentences, and give me the first task."
-                    ),
+        messages = [
+            ChatMessage(role="system", content=system),
+            ChatMessage(
+                role="user",
+                content=(
+                    "Open the session: greet me briefly, state the plan for "
+                    "this topic in 2-3 sentences, and give me the first task."
                 ),
-            ]
+            ),
+        ]
+        raw_opening, trace = await self._complete_verified(
+            messages, evidence=content, grounded=grounding.grounded
         )
-        raw_opening = response.content
         opening = self._advance_task(state, raw_opening)
-        state.transcript.append(Turn(role="tutor", content=raw_opening))
+        state.transcript.append(
+            Turn(role="tutor", content=raw_opening, verification=trace)
+        )
+        state.last_verification_outcome = trace["outcome"] if trace else None
         state.session_id = await self._store.create(state)
         # keep profile/content/memory for the prompt on later turns
         self._profile_cache = profile
         self._content_cache = content
         self._memory_cache = memory
+        self._grounded_cache = grounding.grounded
         return state, opening
 
     async def due_reviews(self) -> list[dict[str, Any]]:
@@ -196,26 +235,34 @@ class TutorEngine:
             self._store, self._user_id, state.topic, self._memory_enabled
         )
         system = self._system_prompt(state, profile, review_memory_text, learner_memory)
-        response = await self._llm.complete(
-            [
-                ChatMessage(role="system", content=system),
-                ChatMessage(
-                    role="user",
-                    content=(
-                        "Open the review: greet me briefly, say we are revisiting "
-                        "prior material, and start by asking me to recall the first "
-                        "item before re-teaching. Open the first task."
-                    ),
+        messages = [
+            ChatMessage(role="system", content=system),
+            ChatMessage(
+                role="user",
+                content=(
+                    "Open the review: greet me briefly, say we are revisiting "
+                    "prior material, and start by asking me to recall the first "
+                    "item before re-teaching. Open the first task."
                 ),
-            ]
+            ),
+        ]
+        # Review sessions are out of PR-M grounding scope (no `source_id`,
+        # no `retrieve_grounding` call) — W1 treats them as ungrounded:
+        # verified only under `TUTOR_VERIFY_TURNS=all`, with the
+        # abstention-only check (smallest-reading decision, see PR report).
+        raw_opening, trace = await self._complete_verified(
+            messages, evidence=review_memory_text, grounded=False
         )
-        raw_opening = response.content
         opening = self._advance_task(state, raw_opening)
-        state.transcript.append(Turn(role="tutor", content=raw_opening))
+        state.transcript.append(
+            Turn(role="tutor", content=raw_opening, verification=trace)
+        )
+        state.last_verification_outcome = trace["outcome"] if trace else None
         state.session_id = await self._store.create(state)
         self._profile_cache = profile
         self._content_cache = review_memory_text
         self._memory_cache = learner_memory
+        self._grounded_cache = False
         return state, opening
 
     async def message(self, session_id: str, text: str) -> tuple[SessionState, str]:
@@ -227,6 +274,7 @@ class TutorEngine:
         if profile is None:
             profile = await self._registry.call("profile.read", {}) or {}
         content = getattr(self, "_content_cache", None)
+        grounded = getattr(self, "_grounded_cache", False)
         if content is None:
             # Resumed/restarted engine (PR-R1 + M1): re-derive grounding from
             # the anchor persisted on the session so material survives resume.
@@ -235,8 +283,10 @@ class TutorEngine:
                 topic=state.topic,
                 source_id=state.source_id,
                 enabled=self._grounding_enabled,
+                budget_tokens=self._grounding_budget_tokens,
             )
             content = grounding.content
+            grounded = grounding.grounded
         # Memory is recalled once, at open/open_review (PR-G2 contract); a
         # resumed engine with no cache simply carries no memory section here
         # rather than issuing a second recall call from this seam.
@@ -254,10 +304,14 @@ class TutorEngine:
             )
             messages.append(ChatMessage(role=role, content=turn.content))
 
-        response = await self._llm.complete(messages)
-        raw_reply = response.content
+        raw_reply, trace = await self._complete_verified(
+            messages, evidence=content, grounded=grounded
+        )
         reply = self._advance_task(state, raw_reply)
-        state.transcript.append(Turn(role="tutor", content=raw_reply))
+        state.transcript.append(
+            Turn(role="tutor", content=raw_reply, verification=trace)
+        )
+        state.last_verification_outcome = trace["outcome"] if trace else None
         await self._store.save_progress(state)
         return state, reply
 
@@ -363,6 +417,40 @@ class TutorEngine:
             state.help = HelpState()
         return cleaned
 
+    async def _complete_verified(
+        self,
+        messages: list[ChatMessage],
+        *,
+        evidence: str,
+        grounded: bool,
+    ) -> tuple[str, dict[str, Any] | None]:
+        """THE integration point (PR-W1): every outgoing tutor reply is
+        produced through this one method (called from `open`, `open_review`
+        and `message`). Removing the `verification.escalate(...)` call below
+        reverts the feature to a plain, unverified `self._llm.complete(...)`.
+
+        Returns (text-to-ship, persisted-trace-or-None). The trace is None
+        when the turn was never gated (`TUTOR_VERIFY_TURNS=off`, or an
+        ungrounded turn under the default "grounded" scope) — that is also
+        exactly the condition under which `text-to-ship` is the raw,
+        unmodified `self._llm.complete(...)` output (byte-identical lock).
+        """
+        response = await self._llm.complete(messages)
+        raw_reply = response.content
+        if not verification.applies(self._verify_turns, grounded):
+            return raw_reply, None
+        result = await verification.escalate(
+            generator_llm=self._llm,
+            verifier_llm=self._verifier_llm,
+            messages=messages,
+            reply=raw_reply,
+            evidence=evidence,
+            grounded=grounded,
+            profile=self._verify_profile,
+        )
+        trace = asdict(result.trace) if result.trace else None
+        return result.text, trace
+
     async def _classify(self, topic: str, content: str) -> ContentTraits:
         prompt = _render("classify_traits.md", {"topic": topic, "content": content})
         try:
@@ -406,6 +494,12 @@ class TutorEngine:
                 # PR-G2: "" when disabled/no note — keeps the prompt
                 # byte-identical to pre-G2 output (backward-compat lock).
                 "memory_section": (memory or LearnerMemoryContext()).content,
+                # PR-W1: "" for ungrounded content — keeps the prompt
+                # byte-identical to pre-W1 output for ungrounded sessions
+                # (backward-compat lock, M1-style). review_system.md has no
+                # `{{closed_world_section}}` placeholder, so this key is
+                # simply unused there (`_render`'s replace is a no-op).
+                "closed_world_section": _closed_world_section(content),
             },
         )
 

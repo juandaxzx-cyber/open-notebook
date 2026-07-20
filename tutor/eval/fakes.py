@@ -95,7 +95,7 @@ class InMemorySessionStore(SessionStore):
             "technique": state.technique.model_dump(),
             "help": state.help.model_dump(),
             "task": state.task.model_dump(),
-            "transcript": [t.model_dump() for t in state.transcript],
+            "transcript": [t.model_dump(exclude_none=True) for t in state.transcript],
             "reviewed_ids": list(state.reviewed_ids),
             "review_count": 0,
             "updated_at": self._stamp(),
@@ -112,7 +112,9 @@ class InMemorySessionStore(SessionStore):
         record = self._records[state.session_id]
         record["help"] = state.help.model_dump()
         record["task"] = state.task.model_dump()
-        record["transcript"] = [t.model_dump() for t in state.transcript]
+        record["transcript"] = [
+            t.model_dump(exclude_none=True) for t in state.transcript
+        ]
         record["updated_at"] = self._stamp()
 
     async def close(

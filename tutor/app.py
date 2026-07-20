@@ -38,7 +38,8 @@ class HealthResponse(BaseModel):
 
 
 class UiConfigResponse(BaseModel):
-    """Client-side configuration for the chat page (PR-F2, extended PR-F3).
+    """Client-side configuration for the chat page (PR-F2, extended PR-F3,
+    PR-W1).
 
     llm_provider/llm_model are surfaced for visibility only (never secrets —
     no API keys ever cross this endpoint)."""
@@ -47,6 +48,10 @@ class UiConfigResponse(BaseModel):
     grounding_enabled: bool = False
     llm_provider: str | None = None
     llm_model: str | None = None
+    # PR-W1: lets the UI show the standing "cheaper ⇒ more errors" caveat
+    # exactly when verification is on AND running the cheap profile.
+    verify_turns: str = "off"
+    verify_profile: str = "high"
 
 
 def _verifier_from_env(settings: TutorSettings, tutor_llm: LLMProvider) -> LLMProvider:
@@ -80,7 +85,12 @@ def _build_engine(settings: TutorSettings) -> TutorEngine | None:
         llm = provider_from_env(settings)
     except MissingLLMConfigError:
         return None
-    verifier_llm = _verifier_from_env(settings, llm) if settings.memory_enabled else llm
+    # PR-W1: the verifier is also the escalation generator for per-turn
+    # verification, not just G2's memory consolidation — resolve it whenever
+    # EITHER feature needs one, so disabling memory alone never silently
+    # drops W1 down to a same-family (self-preferential) verifier.
+    needs_verifier = settings.memory_enabled or settings.verify_turns != "off"
+    verifier_llm = _verifier_from_env(settings, llm) if needs_verifier else llm
     return TutorEngine(
         llm=llm,
         registry=build_default_registry(settings),
@@ -90,6 +100,9 @@ def _build_engine(settings: TutorSettings) -> TutorEngine | None:
         memory_enabled=settings.memory_enabled,
         verifier_llm=verifier_llm,
         review_horizon_days=settings.review_horizon_days,
+        verify_turns=settings.verify_turns,
+        verify_profile=settings.verify_profile,
+        grounding_budget_tokens=settings.grounding_budget_tokens,
     )
 
 
@@ -124,6 +137,8 @@ def create_app(
             grounding_enabled=resolved.grounding_enabled,
             llm_provider=resolved.llm_provider,
             llm_model=resolved.llm_model,
+            verify_turns=resolved.verify_turns,
+            verify_profile=resolved.verify_profile,
         )
 
     @app.get("/sources")
