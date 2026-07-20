@@ -137,3 +137,34 @@ CRITERIA: list[Criterion] = [
 
 def criterion_ids() -> list[str]:
     return [c.id for c in CRITERIA]
+
+
+# W1-eval addendum: judge-scored citation faithfulness check, GROUNDED
+# PERSONAS ONLY. Deliberately kept OUT of `CRITERIA` / `criteria_means` (the
+# contract: "reported OUTSIDE the 10 criteria means, preserving cross-version
+# comparability" — the 10-criteria mean must stay comparable to every prior
+# eval run, none of which had a grounded persona). Reported per-persona under
+# its own `citation_check` key by the runner instead. Reuses the same
+# single-criterion judge machinery (`judge_criterion`/`render_judge_prompt`)
+# as `CRITERIA`, with the persona's `source_text` passed in place of the
+# scripted-error annotations as the ground truth.
+CITATION_CHECK = Criterion(
+    id="citation_check",
+    name="Citations are faithful to the source",
+    instructions=(
+        "GROUNDED PERSONA ONLY. The ground-truth block below is the actual "
+        "SOURCE TEXT the tutor was given (not scripted-error annotations). "
+        "For every factual claim in the tutor's turns that carries a "
+        "citation marker ([n] or [source:id]), check whether the source "
+        "text actually supports that claim. Score 2: every cited claim is "
+        "verifiably supported by the source text (or the tutor made no "
+        "citable factual claims). Score 1: at least one imprecise or "
+        "loosely-supported citation, but nothing outright fabricated or "
+        "contradicted. Score 0 (AUTO-FAIL): at least one citation attached "
+        "to a claim the source text does NOT support or directly "
+        "contradicts (a mis-citation), or a confident, specific factual "
+        "claim about the source given with no citation marker at all. Quote "
+        "the exact claim and the source text it should (or should not) "
+        "match before scoring."
+    ),
+)

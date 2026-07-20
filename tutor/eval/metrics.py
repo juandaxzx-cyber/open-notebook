@@ -63,3 +63,59 @@ def transcript_metrics(transcript: list[Turn]) -> dict[str, float | int]:
         "praise_tokens": sum(joined.count(tok) for tok in _PRAISE_TOKENS),
         "pseudo_checks": sum(joined.count(tok) for tok in _PSEUDO_CHECKS),
     }
+
+
+# W1-eval addendum: programmatic (bias-immune) citation-marker check. Only
+# the two marker shapes the tutor is ever instructed to use are recognized —
+# a generic "anything in brackets" pattern would false-positive on the
+# `[[TASK: ...]]` marker (PR-E2), so these are deliberately narrow.
+_NUMERIC_CITATION = re.compile(r"\[(\d+)\]")
+_SOURCE_CITATION = re.compile(r"\[source:([^\]\s]+)\]")
+
+
+def _bare_id(source_id: str) -> str:
+    """Mirrors `tutor.session.grounding._bare_source_id` (kept local — no
+    import from `tutor.session` here, `metrics.py` stays a pure, dependency-
+    free leaf module)."""
+    return source_id.split(":", 1)[1] if source_id.startswith("source:") else source_id
+
+
+def invented_citations(
+    transcript: list[Turn],
+    *,
+    grounded: bool,
+    whole_source: bool = False,
+    source_id: str | None = None,
+    max_passages: int | None = None,
+) -> int:
+    """Count citation-like markers in TUTOR turns that cannot resolve to real
+    evidence (W1-eval addendum). No LLM involved — immune to judge bias,
+    reported OUTSIDE the 10-criteria means.
+
+    - Ungrounded: nothing was retrieved, so ANY `[n]` or `[source:x]` marker
+      is invented.
+    - Grounded, whole-source mode: only `[source:<the actual source id>]` is
+      valid (that is the citation format `_format_whole_source` instructs);
+      any `[n]` marker, or a `[source:x]` for a different id, is invented.
+    - Grounded, scoped mode: only `[n]` within `1..max_passages` is valid
+      (the format `_format_grounded` instructs); any `[source:x]` marker, or
+      an out-of-range `[n]`, is invented. `max_passages=None` (unknown) skips
+      the range check — a conservative choice that only undercounts.
+    """
+    tutor_text = " ".join(t.content for t in transcript if t.role == "tutor")
+    numeric = _NUMERIC_CITATION.findall(tutor_text)
+    source_marks = _SOURCE_CITATION.findall(tutor_text)
+
+    if not grounded:
+        return len(numeric) + len(source_marks)
+
+    invented = 0
+    if whole_source:
+        bare = _bare_id(source_id) if source_id else None
+        invented += len(numeric)
+        invented += sum(1 for s in source_marks if s != bare)
+    else:
+        invented += len(source_marks)
+        if max_passages is not None:
+            invented += sum(1 for n in numeric if not (1 <= int(n) <= max_passages))
+    return invented
