@@ -83,7 +83,7 @@ class FakeMemoryStore(SessionStore):
             "technique": state.technique.model_dump(),
             "help": state.help.model_dump(),
             "task": state.task.model_dump(),
-            "transcript": [t.model_dump() for t in state.transcript],
+            "transcript": [t.model_dump(exclude_none=True) for t in state.transcript],
             "reviewed_ids": list(state.reviewed_ids),
         }
         return sid
@@ -98,7 +98,7 @@ class FakeMemoryStore(SessionStore):
         rec = self.records[state.session_id]
         rec["help"] = state.help.model_dump()
         rec["task"] = state.task.model_dump()
-        rec["transcript"] = [t.model_dump() for t in state.transcript]
+        rec["transcript"] = [t.model_dump(exclude_none=True) for t in state.transcript]
 
     async def close(
         self,

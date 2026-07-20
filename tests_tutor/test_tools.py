@@ -181,7 +181,13 @@ def test_profile_tools_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
     assert read_back["learning_goal"] == "surrealql"
 
 
-def test_default_registry_lists_all_three_entries() -> None:
+def test_default_registry_lists_all_default_entries() -> None:
     registry = build_default_registry(TutorSettings())
     names = [s["name"] for s in registry.list_specs()]
-    assert names == ["content.search", "profile.read", "profile.write"]
+    # PR-W1 adds content.get_source (whole-source-lite grounding).
+    assert names == [
+        "content.search",
+        "content.get_source",
+        "profile.read",
+        "profile.write",
+    ]

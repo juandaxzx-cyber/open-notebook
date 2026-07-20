@@ -44,7 +44,7 @@ class FakeStore(SessionStore):
             "technique": state.technique.model_dump(),
             "help": state.help.model_dump(),
             "task": state.task.model_dump(),
-            "transcript": [t.model_dump() for t in state.transcript],
+            "transcript": [t.model_dump(exclude_none=True) for t in state.transcript],
         }
         return sid
 
@@ -58,7 +58,7 @@ class FakeStore(SessionStore):
         r = self.records[state.session_id]
         r["help"] = state.help.model_dump()
         r["task"] = state.task.model_dump()
-        r["transcript"] = [t.model_dump() for t in state.transcript]
+        r["transcript"] = [t.model_dump(exclude_none=True) for t in state.transcript]
 
     async def close(self, *a: Any, **k: Any) -> None:  # unused here
         raise NotImplementedError
