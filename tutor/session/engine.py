@@ -26,7 +26,7 @@ from tutor.session.models import (
     Turn,
 )
 from tutor.session.scheduling import DEFAULT_HORIZON_DAYS, parse_quality
-from tutor.session.store import SessionStore
+from tutor.session.store import SessionStore, UnknownSessionError
 from tutor.session.techniques import select_technique
 from tutor.tools.registry import ToolRegistry
 
@@ -138,11 +138,26 @@ class TutorEngine:
         self._verify_turns = verify_turns
         self._verify_profile = verify_profile
         self._grounding_budget_tokens = grounding_budget_tokens
+        # PR-BT1 cache privacy fix (audit finding 2026-07-20): these were
+        # engine-global scalars, so under concurrent users user B could be
+        # served user A's cached profile/content/memory/grounding. Re-keyed
+        # per session_id, evicted in `close` — never read across sessions.
+        self._profile_cache: dict[str, dict[str, Any]] = {}
+        self._content_cache: dict[str, str] = {}
+        self._memory_cache: dict[str, LearnerMemoryContext] = {}
+        self._grounded_cache: dict[str, bool] = {}
 
     async def open(
-        self, topic: str, source_id: str | None = None
+        self,
+        topic: str,
+        source_id: str | None = None,
+        user_id: str | None = None,
     ) -> tuple[SessionState, str]:
-        profile = await self._registry.call("profile.read", {})
+        # PR-BT1: `user_id` is threaded from `Depends(resolve_user)` in the
+        # router; `self._user_id` is only the default for direct/test
+        # construction and the auth-off path (identical every time then).
+        requester = user_id or self._user_id
+        profile = await self._registry.call("profile.read", {"user_id": requester})
         if profile is None:
             raise NoProfileError(
                 "Complete the questionnaire first: uv run python -m tutor.profile"
@@ -157,11 +172,11 @@ class TutorEngine:
         content = grounding.content
         traits = await self._classify(topic, content)
         technique = select_technique(traits, str(profile["self_assessed_level"]))
-        memory = await recall(self._store, self._user_id, topic, self._memory_enabled)
+        memory = await recall(self._store, requester, topic, self._memory_enabled)
 
         state = SessionState(
             session_id="",  # assigned by the store
-            user_id=self._user_id,
+            user_id=requester,
             topic=topic,
             traits=traits,
             technique=technique,
@@ -187,26 +202,31 @@ class TutorEngine:
         )
         state.last_verification_outcome = trace["outcome"] if trace else None
         state.session_id = await self._store.create(state)
-        # keep profile/content/memory for the prompt on later turns
-        self._profile_cache = profile
-        self._content_cache = content
-        self._memory_cache = memory
-        self._grounded_cache = grounding.grounded
+        # keep profile/content/memory for the prompt on later turns, keyed by
+        # this session's id (PR-BT1 cache privacy fix — see __init__).
+        self._profile_cache[state.session_id] = profile
+        self._content_cache[state.session_id] = content
+        self._memory_cache[state.session_id] = memory
+        self._grounded_cache[state.session_id] = grounding.grounded
         return state, opening
 
-    async def due_reviews(self) -> list[dict[str, Any]]:
+    async def due_reviews(self, user_id: str | None = None) -> list[dict[str, Any]]:
         """This user's sessions due for review (PR-G1)."""
-        return await self._store.due_items(self._user_id, datetime.now(timezone.utc))
+        requester = user_id or self._user_id
+        return await self._store.due_items(requester, datetime.now(timezone.utc))
 
-    async def open_review(self, max_items: int = 3) -> tuple[SessionState, str]:
+    async def open_review(
+        self, max_items: int = 3, user_id: str | None = None
+    ) -> tuple[SessionState, str]:
         """Open a review session over due prior sessions (PR-G1): inject their
         memory, interleave up to `max_items`, run retrieval-first relearning."""
-        profile = await self._registry.call("profile.read", {})
+        requester = user_id or self._user_id
+        profile = await self._registry.call("profile.read", {"user_id": requester})
         if profile is None:
             raise NoProfileError(
                 "Complete the questionnaire first: uv run python -m tutor.profile"
             )
-        due = await self.due_reviews()
+        due = await self.due_reviews(requester)
         if not due:
             raise NoDueReviewError("Nothing is due for review yet.")
         items = due[:max_items]
@@ -225,14 +245,14 @@ class TutorEngine:
         )
         state = SessionState(
             session_id="",
-            user_id=self._user_id,
+            user_id=requester,
             topic=f"Repaso: {labels}",
             traits=traits,
             technique=technique,
             reviewed_ids=[str(i.get("id")) for i in items],
         )
         learner_memory = await recall(
-            self._store, self._user_id, state.topic, self._memory_enabled
+            self._store, requester, state.topic, self._memory_enabled
         )
         system = self._system_prompt(state, profile, review_memory_text, learner_memory)
         messages = [
@@ -259,22 +279,32 @@ class TutorEngine:
         )
         state.last_verification_outcome = trace["outcome"] if trace else None
         state.session_id = await self._store.create(state)
-        self._profile_cache = profile
-        self._content_cache = review_memory_text
-        self._memory_cache = learner_memory
-        self._grounded_cache = False
+        self._profile_cache[state.session_id] = profile
+        self._content_cache[state.session_id] = review_memory_text
+        self._memory_cache[state.session_id] = learner_memory
+        self._grounded_cache[state.session_id] = False
         return state, opening
 
-    async def message(self, session_id: str, text: str) -> tuple[SessionState, str]:
-        state = self._state_from_record(await self._store.load(session_id))
+    async def message(
+        self, session_id: str, text: str, user_id: str | None = None
+    ) -> tuple[SessionState, str]:
+        requester = user_id or self._user_id
+        record = await self._store.load(session_id)
+        # PR-BT1 ownership check: a session belonging to a different user is
+        # 404, indistinguishable from a nonexistent one.
+        if str(record.get("user_id")) != requester:
+            raise UnknownSessionError(session_id)
+        state = self._state_from_record(record)
         state.help = policy.next_state(state.help, text)
         state.transcript.append(Turn(role="learner", content=text))
 
-        profile = getattr(self, "_profile_cache", None)
+        profile = self._profile_cache.get(session_id)
         if profile is None:
-            profile = await self._registry.call("profile.read", {}) or {}
-        content = getattr(self, "_content_cache", None)
-        grounded = getattr(self, "_grounded_cache", False)
+            profile = (
+                await self._registry.call("profile.read", {"user_id": requester}) or {}
+            )
+        content = self._content_cache.get(session_id)
+        grounded = self._grounded_cache.get(session_id, False)
         if content is None:
             # Resumed/restarted engine (PR-R1 + M1): re-derive grounding from
             # the anchor persisted on the session so material survives resume.
@@ -290,7 +320,7 @@ class TutorEngine:
         # Memory is recalled once, at open/open_review (PR-G2 contract); a
         # resumed engine with no cache simply carries no memory section here
         # rather than issuing a second recall call from this seam.
-        memory = getattr(self, "_memory_cache", None) or LearnerMemoryContext()
+        memory = self._memory_cache.get(session_id) or LearnerMemoryContext()
 
         messages = [
             ChatMessage(
@@ -315,8 +345,14 @@ class TutorEngine:
         await self._store.save_progress(state)
         return state, reply
 
-    async def close(self, session_id: str) -> dict[str, Any]:
-        state = self._state_from_record(await self._store.load(session_id))
+    async def close(
+        self, session_id: str, user_id: str | None = None
+    ) -> dict[str, Any]:
+        requester = user_id or self._user_id
+        loaded = await self._store.load(session_id)
+        if str(loaded.get("user_id")) != requester:
+            raise UnknownSessionError(session_id)
+        state = self._state_from_record(loaded)
         transcript_text = "\n".join(
             f"{turn.role}: {turn.content}" for turn in state.transcript
         )
@@ -390,20 +426,34 @@ class TutorEngine:
             record,
             self._memory_enabled,
         )
+        # PR-BT1 cache privacy fix: evict this session's per-session caches
+        # now that it is closed — nothing is ever read across sessions.
+        self._profile_cache.pop(session_id, None)
+        self._content_cache.pop(session_id, None)
+        self._memory_cache.pop(session_id, None)
+        self._grounded_cache.pop(session_id, None)
         return record
 
-    async def get(self, session_id: str) -> dict[str, Any]:
-        return await self._store.load(session_id)
+    async def get(self, session_id: str, user_id: str | None = None) -> dict[str, Any]:
+        requester = user_id or self._user_id
+        record = await self._store.load(session_id)
+        if str(record.get("user_id")) != requester:
+            raise UnknownSessionError(session_id)
+        return record
 
-    async def list_sessions(self, status: str | None = None) -> list[dict[str, Any]]:
+    async def list_sessions(
+        self, status: str | None = None, user_id: str | None = None
+    ) -> list[dict[str, Any]]:
         """List this user's sessions (PR-R1); user scoping stays here, same
         as every other engine entry point."""
-        return await self._store.list_for_user(self._user_id, status)
+        requester = user_id or self._user_id
+        return await self._store.list_for_user(requester, status)
 
-    async def list_memories(self) -> list[dict[str, Any]]:
+    async def list_memories(self, user_id: str | None = None) -> list[dict[str, Any]]:
         """This user's consolidated memory notes, recency-ordered (PR-G2);
         user scoping stays here, same as every other engine entry point."""
-        return await self._store.list_memories(self._user_id)
+        requester = user_id or self._user_id
+        return await self._store.list_memories(requester)
 
     # --- internals ---
 

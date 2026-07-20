@@ -1,11 +1,13 @@
 """Session endpoints: GET /sessions, POST /session, POST /session/{id}/message,
 POST /session/{id}/close, GET /session/{id}."""
 
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from tutor.auth import default_resolve_user
 from tutor.session.engine import NoDueReviewError, NoProfileError, TutorEngine
 from tutor.session.models import (
     DueItem,
@@ -24,7 +26,14 @@ def _status_of(record: dict[str, Any]) -> Literal["open", "closed"]:
     return "closed" if record.get("ended_at") else "open"
 
 
-def build_session_router(engine: TutorEngine | None) -> APIRouter:
+def build_session_router(
+    engine: TutorEngine | None,
+    resolve_user: Callable[..., Awaitable[str]] | None = None,
+) -> APIRouter:
+    """`resolve_user` (PR-BT1) resolves the requester's user_id per request —
+    `create_app` always builds a real one from settings; the fallback here
+    only matters if this router is ever built standalone (tests)."""
+    resolve = resolve_user or default_resolve_user()
     router = APIRouter()
 
     def _engine() -> TutorEngine:
@@ -45,9 +54,10 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
     @router.get("/sessions", response_model=list[SessionSummary])
     async def list_sessions(
         status: Literal["open", "closed"] | None = None,
+        user_id: str = Depends(resolve),
     ) -> list[SessionSummary]:
         try:
-            records = await _engine().list_sessions(status)
+            records = await _engine().list_sessions(status, user_id)
         except HTTPException:
             raise
         except Exception as exc:  # noqa: BLE001
@@ -77,9 +87,9 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
         return summaries
 
     @router.get("/reviews/due", response_model=list[DueItem])
-    async def due_reviews() -> list[DueItem]:
+    async def due_reviews(user_id: str = Depends(resolve)) -> list[DueItem]:
         try:
-            items = await _engine().due_reviews()
+            items = await _engine().due_reviews(user_id)
         except HTTPException:
             raise
         except Exception as exc:  # noqa: BLE001
@@ -102,11 +112,11 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
         ]
 
     @router.get("/memories", response_model=list[MemoryItem])
-    async def list_memories() -> list[MemoryItem]:
+    async def list_memories(user_id: str = Depends(resolve)) -> list[MemoryItem]:
         """The learner's consolidated memory notes, recency-ordered
         (PR-G2) — "Tu progreso" in the UI."""
         try:
-            records = await _engine().list_memories()
+            records = await _engine().list_memories(user_id)
         except HTTPException:
             raise
         except Exception as exc:  # noqa: BLE001
@@ -147,9 +157,9 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
         return items
 
     @router.post("/review", response_model=SessionOpenResponse)
-    async def open_review() -> SessionOpenResponse:
+    async def open_review(user_id: str = Depends(resolve)) -> SessionOpenResponse:
         try:
-            state, opening = await _engine().open_review()
+            state, opening = await _engine().open_review(user_id=user_id)
         except (NoProfileError, NoDueReviewError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except HTTPException:
@@ -167,9 +177,13 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
         )
 
     @router.post("/session", response_model=SessionOpenResponse)
-    async def open_session(payload: SessionOpenRequest) -> SessionOpenResponse:
+    async def open_session(
+        payload: SessionOpenRequest, user_id: str = Depends(resolve)
+    ) -> SessionOpenResponse:
         try:
-            state, opening = await _engine().open(payload.topic, payload.source_id)
+            state, opening = await _engine().open(
+                payload.topic, payload.source_id, user_id=user_id
+            )
         except NoProfileError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except HTTPException:
@@ -188,9 +202,15 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
         )
 
     @router.post("/session/{session_id}/message", response_model=MessageResponse)
-    async def send_message(session_id: str, payload: MessageRequest) -> MessageResponse:
+    async def send_message(
+        session_id: str,
+        payload: MessageRequest,
+        user_id: str = Depends(resolve),
+    ) -> MessageResponse:
         try:
-            state, reply = await _engine().message(session_id, payload.text)
+            state, reply = await _engine().message(
+                session_id, payload.text, user_id=user_id
+            )
         except UnknownSessionError as exc:
             raise HTTPException(status_code=404, detail="Unknown session") from exc
         except HTTPException:
@@ -207,9 +227,11 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
         )
 
     @router.post("/session/{session_id}/close")
-    async def close_session(session_id: str) -> dict[str, Any]:
+    async def close_session(
+        session_id: str, user_id: str = Depends(resolve)
+    ) -> dict[str, Any]:
         try:
-            record = await _engine().close(session_id)
+            record = await _engine().close(session_id, user_id=user_id)
         except UnknownSessionError as exc:
             raise HTTPException(status_code=404, detail="Unknown session") from exc
         except HTTPException:
@@ -220,13 +242,15 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
         return record
 
     @router.get("/session/{session_id}")
-    async def get_session(session_id: str) -> dict[str, Any]:
+    async def get_session(
+        session_id: str, user_id: str = Depends(resolve)
+    ) -> dict[str, Any]:
         """Returns the stored record as-is (traits, technique, help, task,
         transcript, ...) plus `id` and `status`. Works for open sessions too
         (PR-R1): the transcript is persisted on every turn, so this is enough
         to re-render the whole conversation client-side."""
         try:
-            record = await _engine().get(session_id)
+            record = await _engine().get(session_id, user_id=user_id)
         except UnknownSessionError as exc:
             raise HTTPException(status_code=404, detail="Unknown session") from exc
         except HTTPException:

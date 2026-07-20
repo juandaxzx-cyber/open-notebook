@@ -13,9 +13,19 @@ class EmptyInput(BaseModel):
     pass
 
 
+class ProfileReadInput(BaseModel):
+    # PR-BT1: optional and additive — absent/None keeps the pre-BT1 behavior
+    # (default_user_id(), the TUTOR_USER_ID env tenant) byte-identical for
+    # every existing caller that still invokes this tool with `{}`. The
+    # engine is the only caller that ever sets this, with the per-request
+    # resolved identity (never LLM/user-controlled — this tool is called
+    # deterministically by the engine, not via LLM function calling in V1).
+    user_id: str | None = None
+
+
 def profile_read_tool(service: ProfileService) -> ToolSpec:
-    async def handler(args: EmptyInput) -> dict[str, Any] | None:
-        profile = await service.get_profile(default_user_id())
+    async def handler(args: ProfileReadInput) -> dict[str, Any] | None:
+        profile = await service.get_profile(args.user_id or default_user_id())
         return profile.model_dump(mode="json") if profile else None
 
     return ToolSpec(
@@ -25,7 +35,7 @@ def profile_read_tool(service: ProfileService) -> ToolSpec:
             "weekly availability and format preferences. Returns null if the "
             "initial questionnaire hasn't been completed yet."
         ),
-        input_model=EmptyInput,
+        input_model=ProfileReadInput,
         handler=handler,
     )
 
