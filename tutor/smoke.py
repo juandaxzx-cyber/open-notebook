@@ -96,6 +96,14 @@ def build_in_process_client() -> TestClient:
         user_id=default_user_id(),
         grounding_enabled=True,  # lets the source_id leg run fully offline
         memory_enabled=True,  # PR-G2: consolidate-on-close + recall-at-open
+        # PR-W1: default scope/profile — FakeProvider always verifies "pass"
+        # (self-verifying, since no separate verifier_llm is given here),
+        # so this exercises the real gate end-to-end while staying zero-key
+        # and deterministic. Ungrounded turns (no source_id) are skipped
+        # under the default "grounded" scope, so the rest of the journey's
+        # assertions are unaffected.
+        verify_turns="grounded",
+        verify_profile="high",
     )
     app = create_app(
         settings=TutorSettings(),
@@ -279,6 +287,16 @@ class _Journey:
                 r.status_code == 200 and bool(gbody.get("session_id")),
                 "grounding depends on the running stack",
             )
+
+        # PR-W1: the grounded opening turn above was gated (scope="grounded"
+        # in build_in_process_client) and FakeProvider always self-verifies
+        # "pass", so the outcome must be "clean" — zero-key, deterministic
+        # proof the verify-before-send gate runs end-to-end.
+        self.check(
+            "POST /session with source_id carries a clean verification outcome (PR-W1)",
+            not self.in_process or gbody.get("verification_outcome") == "clean",
+            f"verification_outcome={gbody.get('verification_outcome')}",
+        )
 
 
 def run(base_url: str | None = None) -> int:

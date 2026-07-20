@@ -100,6 +100,26 @@ _VERIFY_FAIL_JSON = (
     'not show the learner demonstrating"]}'
 )
 
+# PR-W1: same pass verdict shape as G2's memory verifier — the JSON schema
+# is identical ({"verdict": ..., "violations": [...]})  — reused as-is.
+_VERIFY_TURN_PASS_JSON = _VERIFY_PASS_JSON
+
+# A fail verdict naming a mis-citation, the education field's worst failure
+# (PR-W1) — for the fail-then-pass / fail-fail-escalate-pass / all-fail
+# fixtures below.
+_VERIFY_TURN_FAIL_JSON = (
+    '{"verdict": "fail", "violations": ["cites [1] for a claim passage 1 '
+    'does not actually support"]}'
+)
+
+# A revised reply for the PR-W1 gen-retry / escalation step: distinguishable
+# from the original replies above so tests can tell a regeneration happened.
+_REVISED_REPLY = (
+    "Let me correct that: I will stick strictly to what the retrieved "
+    "material actually shows, and fix the citation. What do you make of it "
+    "now?"
+)
+
 
 def _classify_prompt(joined: str) -> bool:
     return "Classify the following study topic" in joined
@@ -122,6 +142,21 @@ def _consolidate_prompt(joined: str) -> bool:
 
 def _verify_prompt(joined: str) -> bool:
     return "Verify this consolidated learner-memory note" in joined
+
+
+def _verify_turn_prompt(joined: str) -> bool:
+    """PR-W1: `verify_turn.md`'s distinguishing marker — checked separately
+    from `_verify_prompt` (G2's memory-note verifier) since the two share the
+    `{"verdict": ..., "violations": [...]}` JSON shape but not the prompt."""
+    return "Verify this tutor reply to the learner" in joined
+
+
+def _retry_prompt(joined: str) -> bool:
+    """PR-W1: the gen-retry / escalation correction instruction
+    (`tutor.session.verification._RETRY_INSTRUCTION`) appended to the
+    original conversation — checked before the open/help/message fallbacks
+    below since a retry conversation is a superset of the original one."""
+    return "A verifier checked your reply above" in joined
 
 
 def _topic_from_prompt(joined: str) -> str:
@@ -164,6 +199,10 @@ class FakeProvider(LLMProvider):
 
     def _reply(self, messages: list[ChatMessage]) -> str:
         joined = "\n".join(m.content for m in messages)
+        if _verify_turn_prompt(joined):
+            return _VERIFY_TURN_PASS_JSON
+        if _retry_prompt(joined):
+            return _REVISED_REPLY
         if _classify_prompt(joined):
             return _TRAITS_JSON
         if _close_prompt(joined):
@@ -185,19 +224,34 @@ class FakeProvider(LLMProvider):
 
 
 class FakeVerifierProvider(LLMProvider):
-    """Deterministic PR-G2 test fixture: fails the first `fail_times`
-    verifications it sees, then passes. Also answers a `consolidate_memory.md`
-    regeneration prompt like a generator would, since a failed verification
-    hands generation to the verifier (see `tutor.session.memory.consolidate`).
+    """Deterministic PR-G2/PR-W1 test fixture: fails the first `fail_times`
+    G2 memory-note verifications it sees, then passes; independently fails
+    the first `turn_fail_times` PR-W1 turn verifications it sees, then
+    passes (separate counters — the two features' verify calls never share
+    state). Also answers `consolidate_memory.md` regeneration and PR-W1
+    gen-retry/escalation prompts like a generator would, since a failed
+    verification hands generation to the verifier in both features.
 
-    `fail_times=1` -> fail-then-pass (the write succeeds on the regenerated
-    note). `fail_times=2` -> double-fail (both verifications fail, so the
-    write is skipped and the close record stays intact)."""
+    G2: `fail_times=1` -> fail-then-pass (write succeeds on the regenerated
+    note); `fail_times=2` -> double-fail (write skipped).
 
-    def __init__(self, model_name: str = "fake-verifier", fail_times: int = 1) -> None:
+    W1 (`turn_fail_times`): `0` -> pass (outcome "clean"); `1` -> fail-then-
+    pass (outcome "corrected"); `2` -> fail-fail-escalate-pass (outcome
+    "escalated", on the FIRST escalation attempt); `>=4` -> all-fail (outcome
+    "limits-admitted" in the high profile, "flagged" in the cheap profile,
+    which only ever reaches 2 verify calls)."""
+
+    def __init__(
+        self,
+        model_name: str = "fake-verifier",
+        fail_times: int = 1,
+        turn_fail_times: int = 1,
+    ) -> None:
         self._model = model_name or "fake-verifier"
         self._fail_times = fail_times
         self._verify_calls = 0
+        self._turn_fail_times = turn_fail_times
+        self._turn_verify_calls = 0
 
     async def complete(self, messages: Sequence[ChatMessage]) -> ChatResponse:
         joined = "\n".join(m.content for m in messages)
@@ -213,4 +267,16 @@ class FakeVerifierProvider(LLMProvider):
                 else _VERIFY_PASS_JSON
             )
             return ChatResponse(content=content, provider="fake", model=self._model)
+        if _verify_turn_prompt(joined):
+            self._turn_verify_calls += 1
+            content = (
+                _VERIFY_TURN_FAIL_JSON
+                if self._turn_verify_calls <= self._turn_fail_times
+                else _VERIFY_TURN_PASS_JSON
+            )
+            return ChatResponse(content=content, provider="fake", model=self._model)
+        if _retry_prompt(joined):
+            return ChatResponse(
+                content=_REVISED_REPLY, provider="fake", model=self._model
+            )
         return ChatResponse(content=_MESSAGE_REPLY, provider="fake", model=self._model)
