@@ -70,3 +70,29 @@ def content_search_tool(client: OpenNotebookClient) -> ToolSpec:
         input_model=ContentSearchInput,
         handler=handler,
     )
+
+
+class GetSourceInput(BaseModel):
+    source_id: str = Field(
+        min_length=1, description="Source id, e.g. 'source:abc123' or 'abc123'."
+    )
+
+
+def content_get_source_tool(client: OpenNotebookClient) -> ToolSpec:
+    """content.get_source — fetch one source's full record, including
+    ``full_text`` (PR-W1 whole-source-lite: ``retrieve_grounding`` calls this
+    to inject the entire chosen source when it fits the token budget)."""
+
+    async def handler(args: GetSourceInput) -> dict[str, Any]:
+        return await client.get_source(args.source_id)
+
+    return ToolSpec(
+        name="content.get_source",
+        description=(
+            "Fetch one source's full record, including its full text. Used "
+            "for whole-source grounding when the source fits the configured "
+            "token budget, instead of scoped passage search."
+        ),
+        input_model=GetSourceInput,
+        handler=handler,
+    )
