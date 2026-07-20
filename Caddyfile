@@ -1,0 +1,18 @@
+# Atenea production reverse proxy (PR-BT4).
+#
+# Loaded by the `caddy` service in docker-compose.prod.yml
+# (docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d).
+# {$TUTOR_DOMAIN} pulls TUTOR_DOMAIN from the environment Caddy runs in
+# (see .env.production.example); Caddy provisions and renews TLS for it
+# automatically (Let's Encrypt / ZeroSSL — no extra config needed as long
+# as the domain's DNS A record already points at this host and 80/443 are
+# reachable from the internet, since ACME's HTTP-01/TLS-ALPN-01 challenges
+# use those ports).
+#
+# Only the tutor is proxied — OpenNotebook's API/UI and SurrealDB are not
+# reachable through this Caddyfile at all (deployment-posture invariant,
+# Feature BT / PR-BT4).
+
+{$TUTOR_DOMAIN} {
+	reverse_proxy tutor:5056
+}
