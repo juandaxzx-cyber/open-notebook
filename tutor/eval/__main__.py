@@ -88,7 +88,7 @@ async def _main() -> int:
     print("\n" + header)
     for cid in ids:
         row = f"{cid:<{width}}  " + "  ".join(
-            f"{r['scores'][cid]['score']:>12}" for r in report["personas"]
+            f"{str(r['scores'][cid]['score']):>12}" for r in report["personas"]
         )
         print(row + f"   mean={report['criteria_means'][cid]}")
     print(f"\noverall mean: {report['overall_mean']}  →  {out_path}")

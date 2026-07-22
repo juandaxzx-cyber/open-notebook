@@ -191,7 +191,11 @@ async def run_eval(
     ]
     means: dict[str, float] = {}
     for criterion in CRITERIA:
-        values = [r["scores"][criterion.id]["score"] for r in results]
+        values = [
+            r["scores"][criterion.id]["score"]
+            for r in results
+            if r["scores"][criterion.id]["score"] is not None  # skip judge failures
+        ]
         means[criterion.id] = round(sum(values) / len(values), 2) if values else 0.0
     return {
         "run_at": datetime.now(timezone.utc).isoformat(),

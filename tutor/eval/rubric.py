@@ -154,6 +154,9 @@ CITATION_CHECK = Criterion(
     instructions=(
         "GROUNDED PERSONA ONLY. The ground-truth block below is the actual "
         "SOURCE TEXT the tutor was given (not scripted-error annotations). "
+        "IMPORTANT calibration: OMITTING details from a source passage is NOT "
+        "a mis-citation — score only claims the source does not support or "
+        "contradicts; faithful paraphrase and partial quotation are fine. "
         "For every factual claim in the tutor's turns that carries a "
         "citation marker ([n] or [source:id]), check whether the source "
         "text actually supports that claim. Score 2: every cited claim is "
