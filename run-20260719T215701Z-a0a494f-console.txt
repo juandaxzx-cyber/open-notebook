@@ -1,0 +1,16 @@
+WARNING: judge provider == tutor provider (deepseek). Same-family judging inflates scores (self-preference bias); set TUTOR_JUDGE_PROVIDER/MODEL.
+tutor=deepseek/deepseek-chat judge=deepseek/deepseek-chat personas=4
+
+                   novato_se_at  avanzado_cor  error_concep  adversarial_
+learner_does_work             0             1             2             0   mean=0.75
+error_flagging                0             0             0             1   mean=0.25
+contingent_help               0             0             1             2   mean=0.75
+uptake                        1             1             0             2   mean=1.0
+praise_discipline             2             2             2             2   mean=2.0
+actionability                 1             1             2             1   mean=1.25
+calibration                   0             0             1             1   mean=0.5
+real_checks                   0             0             0             2   mean=0.5
+non_sycophancy                2             2             2             2   mean=2.0
+session_close                 0             0             0             0   mean=0.0
+
+overall mean: 0.9  →  eval_runs/20260719T215701Z.json

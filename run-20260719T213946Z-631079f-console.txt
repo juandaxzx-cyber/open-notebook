@@ -1,0 +1,32 @@
+WARNING: judge provider == tutor provider (deepseek). Same-family judging inflates scores (self-preference bias); set TUTOR_JUDGE_PROVIDER/MODEL.
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/runner/work/open-notebook/open-notebook/tutor/eval/__main__.py", line 79, in <module>
+    raise SystemExit(asyncio.run(_main()))
+                     ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/_temp/uv-python-dir/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/home/runner/work/_temp/uv-python-dir/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/_temp/uv-python-dir/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/runner/work/open-notebook/open-notebook/tutor/eval/__main__.py", line 49, in _main
+    report = await run_eval(
+             ^^^^^^^^^^^^^^^
+  File "/home/runner/work/open-notebook/open-notebook/tutor/eval/runner.py", line 76, in run_eval
+    results = [await evaluate_persona(p, tutor_llm, judge_llm) for p in personas]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/open-notebook/open-notebook/tutor/eval/runner.py", line 58, in evaluate_persona
+    scores[criterion.id] = await judge_criterion(
+                           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/open-notebook/open-notebook/tutor/eval/judge.py", line 60, in judge_criterion
+    return parse_judge_response(criterion.id, response.content)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/open-notebook/open-notebook/tutor/eval/judge.py", line 46, in parse_judge_response
+    raise ValueError(f"Judge returned no JSON for {criterion_id}: {content[:200]}")
+ValueError: Judge returned no JSON for learner_does_work: 
+tutor=deepseek/deepseek-chat judge=deepseek/deepseek-reasoner personas=4

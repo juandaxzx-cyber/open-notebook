@@ -1,0 +1,18 @@
+WARNING: judge provider == tutor provider (deepseek). Same-family judging inflates scores (self-preference bias); set TUTOR_JUDGE_PROVIDER/MODEL.
+WARNING: verifier provider == tutor provider (deepseek). Same-family verification is a weaker check (self-preference bias); set TUTOR_VERIFIER_PROVIDER/MODEL.
+tutor=deepseek/deepseek-chat judge=deepseek/deepseek-chat personas=5 verify_turns=off verify_profile=high
+
+                   novato_se_at  avanzado_cor  error_concep  adversarial_  grounded_mis
+learner_does_work             0             1             0             1             1   mean=0.6
+error_flagging                0             2             0             2             0   mean=0.8
+contingent_help               0             1             1             2             1   mean=1.0
+uptake                        0             0             0             1             1   mean=0.4
+praise_discipline             2             0             2             2             0   mean=1.2
+actionability                 1             1             1             1             1   mean=1.0
+calibration                   0             0             0             2             1   mean=0.6
+real_checks                   0             2             0             2             0   mean=0.8
+non_sycophancy                2             2             2             2             2   mean=2.0
+session_close                 1             1             1             0             1   mean=0.8
+
+overall mean: 0.92  →  eval_runs/20260721T225832Z.json
+grounded persona grounded_miscitas: invented_citations=0 citation_check=2 verification_gated_turns=0 outcomes={}

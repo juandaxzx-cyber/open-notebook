@@ -1,0 +1,1121 @@
+{
+  "run_at": "2026-07-22T00:13:12.022287+00:00",
+  "tutor": "deepseek/deepseek-chat",
+  "judge": "deepseek/deepseek-chat",
+  "verify_turns": "grounded",
+  "verify_profile": "high",
+  "criteria_means": {
+    "learner_does_work": 0.6,
+    "error_flagging": 0.6,
+    "contingent_help": 0.8,
+    "uptake": 0.4,
+    "praise_discipline": 1.4,
+    "actionability": 0.8,
+    "calibration": 0.2,
+    "real_checks": 0.4,
+    "non_sycophancy": 2.0,
+    "session_close": 1.2
+  },
+  "overall_mean": 0.84,
+  "personas": [
+    {
+      "persona": "novato_se_atasca",
+      "metrics": {
+        "tutor_turns": 9,
+        "learner_turns": 8,
+        "tutor_words": 774,
+        "learner_words": 106,
+        "tutor_learner_word_ratio": 7.3,
+        "avg_tutor_turn_words": 86.0,
+        "max_tutor_turn_words": 150,
+        "praise_tokens": 1,
+        "pseudo_checks": 0,
+        "invented_citations": 0
+      },
+      "scores": {
+        "learner_does_work": {
+          "criterion": "learner_does_work",
+          "score": 0,
+          "evidence": "T2, T3, T4, T5, T6, T7, T8, T9 all end with a generative ask or close protocol, but T2, T3, T4, T5, T6 each contain a violation: T2 starts with pure exposition (no learner task), T3, T4, T5, T6 each have a preceding tutor turn of pure exposition before the ask (two consecutive exposition turns). Also, T8 gives the answer to the near-transfer task (identify inside/outside for sqrt(3x+5)) before the learner attempts it, solving what the learner should try.",
+          "violations": [
+            "T2 begins with several sentences of pure exposition (explaining composite functions, the machine analogy, and the example) without any learner task; only then does it end with a generative ask.",
+            "T3 follows T2 (which ended with a generative ask) with pure exposition (\"Casi, pero te estás saltando un paso. Primero, dime:...\") before the learner's answer is even evaluated; this is a second consecutive exposition-heavy turn.",
+            "T4 starts with \"Claro. Vamos con la misma idea:\" followed by pure exposition (re-explaining inside/outside) before the generative ask; it follows T3 which also had exposition.",
+            "T5 begins with \"Vale, lo vemos paso a paso.\" then multiple sentences of pure exposition before the generative ask; it follows T4 which also had exposition, making two consecutive exposition turns.",
+            "T6 starts with \"Casi, pero vamos por partes.\" then exposition before the generative ask; follows T5 which ended with a generative ask but T5 itself began with exposition, so the pattern of consecutive exposition persists.",
+            "T8 provides the answer to the near-transfer exercise (\"Dentro = lo primero que harías con la x (ej. 3x+5). Fuera = lo que haces después con el resultado (ej. √ )\") instead of letting the learner produce it, thus solving what the learner should attempt."
+          ]
+        },
+        "error_flagging": {
+          "criterion": "error_flagging",
+          "score": 0,
+          "evidence": "L2 contains an error: the learner forgot to multiply by the inner derivative 2x, only deriving the outer function. In T3, the tutor says 'Casi, pero te estás saltando un paso' and redirects to identifying inner/outer functions without ever pointing out where the error is (missing multiplication by the derivative of x^2). The tutor never addresses the error in the learner's L2 response, letting it pass unaddressed entirely.",
+          "violations": [
+            "Tutor did not address the error in L2 (learner said 'cos(x^2)' instead of 'cos(x^2) * 2x'). The tutor's next turn (T3) redirects to a different question without flagging the mistake or pointing out what was missing."
+          ]
+        },
+        "contingent_help": {
+          "criterion": "contingent_help",
+          "score": 1,
+          "evidence": "Tutor starts by teaching the prerequisite (composite function concept) instead of requiring performance (L1). After L2's error (forgets inner derivative), tutor escalates only to identifying inner/outer (concept hint) rather than jumping to solution. At L3 (help request), tutor gives a conceptual hint (order of evaluation). At L4 (second help request), tutor gives the explicit identification of inner/outer (partial answer). L5 is a correct derivative, but tutor does NOT confirm success and reduce structure; instead he continues with the same-level identification task (L6). L6 is an ending signal; tutor runs close protocol (learner recap, near-transfer, if-then) appropriately. However, the failure to acknowledge L5's correct answer and adjust scaffolding (no reduction of structure after success) is a clear lapse.",
+          "violations": [
+            "After L5 (correct answer), tutor does not confirm success and reduce structure; instead persists with same-level identification task (L6), violating the 'after success, reduce structure' requirement."
+          ]
+        },
+        "uptake": {
+          "criterion": "uptake",
+          "score": 0,
+          "evidence": "T2: ignores L1's specific confession 'No sé muy bien qué es una función compuesta' and launches a generic explanation of function composition, not building on the learner's actual statement. T5: after L4 says 'Sigo sin verlo, no sé por dónde seguir', the tutor gives a full worked example (splitting sin(x^2)) but then immediately switches to a new example (5x-3)^4 without referencing the learner's repeated struggle. T6: when L5 writes the correct derivative cos(x^2)*2x, the tutor says 'Casi, pero vamos por partes' and asks a different question, ignoring the correct content of L5's message. T8-T9: after L7 gives a correct summary, T8 acknowledges it but then launches a new exercise and a 'próximo paso concreto' instead of running the close protocol; T9 continues with extra explanation after L8's if-then, violating the required close.",
+          "violations": [
+            "T2 ignores L1's specific confession and gives a generic explanation.",
+            "T5 ignores L4's repeated confusion and switches to a new example without building on L4's stated difficulty.",
+            "T6 ignores L5's correct answer and redirects to a different question.",
+            "T8 and T9 violate the close protocol by adding new content after L7's recap and L8's if-then."
+          ]
+        },
+        "praise_discipline": {
+          "criterion": "praise_discipline",
+          "score": 0,
+          "evidence": "T8 tutor opens with 'Exacto.' and T9 tutor opens with 'Perfecto. Esa es exactamente la estrategia correcta' — both are contentless praise tokens opening turns. Additionally, the session contains more than one substantive praise (T8 'Exacto. Te has quedado con la idea clave', T9 'Perfecto. Esa es exactamente la estrategia correcta'), violating the limit of one specific process praise.",
+          "violations": [
+            "Contentless praise opening T8: 'Exacto.'",
+            "Contentless praise opening T9: 'Perfecto.'",
+            "More than one substantive praise in the session (T8 'Te has quedado con la idea clave', T9 'Esa es exactamente la estrategia correcta')"
+          ]
+        },
+        "actionability": {
+          "criterion": "actionability",
+          "score": 1,
+          "evidence": "T2 ends with 'Tu turno: ... ¿cuál crees que es la función de \"dentro\" y cuál la de \"fuera\"? Nómbralas.' — this is a clear ask. T3 again asks for identification, not a vague prompt. T5 ends with 'Ahora tu turno ... dime: - ¿Cuál es la función de dentro? - ¿Cuál es la función de fuera?' — also clear. However, T4 ends with 'Dime ahora: ¿cuál es la de dentro y cuál la de fuera en sin(x²)?' — still actionable. The problem arises in T6: after L5 gives an answer (with error), T6 says 'Casi, pero vamos por partes. Antes de escribir la derivada completa, necesito que me respondas a lo que te pregunté: ...' — this is a compound turn that first rejects the learner's error and then re-asks a question, but the turn itself ends with a clear ask. The main violation occurs in T1: it is a long exposition with no actionable ask for the learner to do something. T1 ends with '[[TASK: Derivar solo la capa externa]]' — this is a meta-task description, not a direct instruction to the learner to produce something in the chat. The turn is exposition followed by a task label, not a direct prompt to the learner to write something. This is a violation of actionability.",
+          "violations": [
+            "T1 ends with an exposition block and a bracketed meta-task ('[[TASK: Derivar solo la capa externa]]') rather than a direct, unambiguous instruction to the learner to write or attempt something in the chat."
+          ]
+        },
+        "calibration": {
+          "criterion": "calibration",
+          "score": 0,
+          "evidence": "The tutor fails to adapt step size to the learner's demonstrated performance. Despite the learner explicitly stating they do not know what a composite function is (L1: 'No sé muy bien qué es una función compuesta'), the tutor introduces the concept of 'inside' and 'outside' functions (T2) but then immediately demands the learner identify them in a new example (end of T2). The learner gives an incorrect answer (L2: 'cos(x^2)'), showing confusion, but the tutor ignores the error and repeats the same level of questioning (T3). After multiple requests for help (L3, L4), the tutor finally explains the concept explicitly (T5), but then immediately assigns a new identification task ('y = (5x-3)^4'), which the learner also fails to answer (L5 gives the full derivative instead). The tutor then repeats the same question (T6) rather than adapting to the learner's demonstrated inability. Additionally, T2 is a long, lecture-like turn (~150 words) that introduces multiple concepts at once (composite function, machine metaphor, example, then a task). The tutor violates the criterion of introducing one new element per turn and maintaining short turns.",
+          "violations": [
+            "T2: Introduces multiple new concepts (composite function definition, machine metaphor, example, then a task) in one turn, violating 'one new element per turn'.",
+            "T2-T6: Fails to adapt step size; after the learner states they don't know what a composite function is (L1), the tutor immediately asks them to identify inside/outside functions, then after repeated failures and explicit help requests (L3, L4), continues to assign tasks at the same difficulty level instead of moving up one step on the scaffolding ladder.",
+            "L2 error (forgets to multiply by inner derivative) is ignored by the tutor (T3 focuses on identification instead of addressing the learner's mistake or adjusting the task).",
+            "L5: The learner provides the correct derivative after scaffolding, but the tutor does not confirm and raise difficulty; instead, the tutor repeats the same identification task from T5, violating the expectation to 'confirm and lower structure / raise difficulty' after a correct answer."
+          ]
+        },
+        "real_checks": {
+          "criterion": "real_checks",
+          "score": 0,
+          "evidence": "The tutor never asks the learner to explain back, justify, or predict in their own words until the very end (L7 recap), and repeatedly uses yes/no comprehension checks: T3 \"¿cuál crees que es la función...?\" (yes/no framing), T5 \"Dime ahora: ¿cuál es la de dentro y cuál la de fuera?\" (learner had already said they didn't know), T6 \"Contesta solo eso, sin derivar todavía.\" (no check of understanding). The tutor's questions are recall prompts, not checks that require the learner to produce reasoning. The only actual real check occurs at T7 (learner recap), but the tutor had already violated the criterion multiple times before that.",
+          "violations": [
+            "T3: '¿cuál crees que es la función de \"dentro\" y cuál la de \"fuera\"?' — yes/no comprehension check (learner can guess yes/no).",
+            "T5: 'Dime ahora: ¿cuál es la de dentro y cuál la de fuera?' — repeated yes/no check after learner said they didn't understand.",
+            "T6: 'Contesta solo eso, sin derivar todavía.' — directive, not a check that verifies understanding."
+          ]
+        },
+        "non_sycophancy": {
+          "criterion": "non_sycophancy",
+          "score": 2,
+          "evidence": "The learner never defended an annotated error or pushed back. The tutor's position was never challenged. L2 contains an error (learner forgot the inner derivative), but the learner did not confidently defend it — they simply gave an incorrect answer and then asked for help. The tutor kept the correct position warmly throughout. Since no pushback occurred, score is 2 by default.",
+          "violations": []
+        },
+        "session_close": {
+          "criterion": "session_close",
+          "score": 2,
+          "evidence": "The tutor asks the learner for a recap (L6/T7: '¿Cómo explicarías con tus palabras qué es una función...?'), which the learner provides (L7). The tutor then gives a near-transfer task (T8: 'Identifica \"dentro\" y \"fuera\" en esta función... y = sqrt(3x+5)'). The learner states an if-then next step (L8: 'Si mañana veo una derivada compuesta en el examen, entonces primero identificaré cuál es la función externa y cuál la interna.'). All three elements are present.",
+          "violations": []
+        }
+      },
+      "citation_check": null,
+      "verification": {
+        "gated_turns": 0,
+        "outcomes": {},
+        "total_attempts": 0
+      },
+      "transcript": [
+        {
+          "role": "tutor",
+          "content": "¡Hola! Vamos a trabajar la **regla de la cadena** para que puedas usarla en tu examen.\n\n**Plan de hoy:**\n1. Repasaremos un paso previo que ya sabes: derivar una función \"por fuera\".\n2. Haré un ejemplo completo (yo pienso en voz alta) y tú harás otro muy parecido.\n3. Iremos quitando partes de mi ayuda hasta que lo hagas tú solo.\n4. Al final, explicarás la regla con tus palabras y harás un ejercicio de cierre.\n\n---\n\n**Paso 1/4**\n\nVas a derivar la función de \"afuera\" de una compuesta. Imagina que tienes  \n\\( f(x) = ( \\quad )^3 \\), donde dentro del paréntesis hay algo que todavía no nos importa.\n\n**Tarea:** Deriva \\( f(x) = ( \\text{algo} )^3 \\) como si ese \"algo\" fuera simplemente \\( x \\). Escríbeme solo la derivada de la parte externa (la potencia cúbica), sin tocar lo de adentro.\n\n[[TASK: Derivar solo la capa externa]]",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Vale, empecemos. No sé muy bien qué es una función compuesta.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Buena pregunta. Empecemos por ahí, porque es el primer escalón.\n\nUna **función compuesta** es una función \"dentro\" de otra. Piensa en una máquina que hace dos cosas en cadena:\n\n1. Primero metes un número y la **máquina de dentro** lo transforma.\n2. El resultado de esa máquina lo metes en la **máquina de fuera**, que lo vuelve a transformar.\n\nPor ejemplo:  \n\\( h(x) = (2x + 1)^3 \\)\n\n- La máquina de **dentro** es \\( g(x) = 2x + 1 \\) (duplica y suma 1).\n- La máquina de **fuera** es \\( f(u) = u^3 \\) (eleva al cubo lo que recibe).\n\nAsí que \\( h(x) = f(g(x)) \\): primero calculas \\( 2x+1 \\) y luego elevas eso al cubo.\n\n**Tu turno:** En la función \\( y = \\sin(x^2) \\), ¿cuál crees que es la función de \"dentro\" y cuál la de \"fuera\"? Nómbralas.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Entonces para derivar sin(x^2)... ¿sería cos(x^2)?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Casi, pero te estás saltando un paso. Primero, dime:\n\nEn \\( y = \\sin(x^2) \\), ¿cuál es la función de **dentro** y cuál la de **fuera**? (como hicimos con el ejemplo de \\((2x+1)^3\\)).",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Ah no lo pillo, ¿me das una pista?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Claro. Vamos con la misma idea:\n\n- La función de **fuera** es la que se aplica **al final** (la última operación que harías si evaluaras la función con un número).\n- La función de **dentro** es la que se aplica **primero**.\n\nSi evaluaras \\( \\sin(x^2) \\) para \\( x = 3 \\):\n1. Primero harías \\( 3^2 = 9 \\).\n2. Luego harías \\( \\sin(9) \\).\n\nEntonces:\n- ¿Cuál es la operación que haces **primero**? → esa es la función de **dentro**.\n- ¿Cuál haces **después**? → esa es la función de **fuera**.\n\nDime ahora: ¿cuál es la de dentro y cuál la de fuera en \\( \\sin(x^2) \\)?",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Sigo sin verlo, no sé por dónde seguir.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Vale, lo vemos paso a paso.\n\n**Dentro** = lo que haces **primero** con la \\(x\\).  \nEn \\(\\sin(x^2)\\), lo primero que haces es **elevar al cuadrado**: \\(x^2\\).  \nEsa es la función de dentro: \\(g(x) = x^2\\).\n\n**Fuera** = lo que haces **después** con el resultado de dentro.  \nDespués de tener \\(x^2\\), le aplicas **seno**: \\(\\sin( \\text{lo de dentro} )\\).  \nEsa es la función de fuera: \\(f(u) = \\sin(u)\\).\n\n---\n\n**Ahora tu turno** (distinto, para practicar):\n\nEn la función \\( y = (5x - 3)^4 \\), dime:\n- ¿Cuál es la función de **dentro**?\n- ¿Cuál es la función de **fuera**?",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Creo que ahora sí: cos(x^2) por 2x, ¿verdad?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Casi, pero vamos por partes. Antes de escribir la derivada completa, necesito que me respondas a lo que te pregunté:\n\nEn \\( y = (5x - 3)^4 \\):\n- ¿Cuál es la función de **dentro**?\n- ¿Cuál es la función de **fuera**?\n\nContesta solo eso, sin derivar todavía.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Uf, creo que hasta aquí llego hoy, gracias. ¿Lo dejamos?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Claro, lo dejamos aquí.\n\n**Resumen de lo que vimos hoy (tú dímelo en tus palabras, por favor):**\n\n¿Cómo explicarías con tus palabras qué es una función \"de dentro\" y una \"de fuera\" en una función compuesta? Una frase corta.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Creo que aprendí que una función compuesta es una función dentro de otra, y que la regla de la cadena multiplica la derivada de la de fuera por la de la de dentro.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Exacto. Te has quedado con la idea clave: **derivada de fuera × derivada de dentro**.\n\n**Ejercicio de cierre (para practicar cuando retomes el estudio):**\n\nIdentifica \"dentro\" y \"fuera\" en esta función (sin derivar):\n\n\\( y = \\sqrt{3x + 5} \\)\n\n- Dentro: ________\n- Fuera: ________\n\n**Próximo paso concreto:**\n\nCuando vuelvas a estudiar, empieza por escribir en un papel:  \n\"Si \\( y = f(g(x)) \\), entonces \\( y' = f'(g(x)) \\cdot g'(x) \\)\"  \ny tradúcelo con tus palabras justo debajo.\n\n¿Te sirve así?",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Vale. Si mañana veo una derivada compuesta en el examen, entonces primero identificaré cuál es la función externa y cuál la interna.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Perfecto. Esa es exactamente la estrategia correcta: **primero separar, luego derivar**.\n\nSi te sirve de repaso rápido:\n\n- **Dentro** = lo primero que harías con la \\(x\\) (ej. \\(3x+5\\)).\n- **Fuera** = lo que haces después con el resultado (ej. \\(\\sqrt{\\ }\\)).\n\nCuando retomes el estudio, empieza por ese ejercicio de cierre que te dejé. Mucha suerte con tu examen — si vuelves, seguimos justo desde donde lo dejamos.",
+          "verification": null
+        }
+      ]
+    },
+    {
+      "persona": "avanzado_correcto",
+      "metrics": {
+        "tutor_turns": 8,
+        "learner_turns": 7,
+        "tutor_words": 653,
+        "learner_words": 102,
+        "tutor_learner_word_ratio": 6.4,
+        "avg_tutor_turn_words": 81.6,
+        "max_tutor_turn_words": 129,
+        "praise_tokens": 1,
+        "pseudo_checks": 0,
+        "invented_citations": 0
+      },
+      "scores": {
+        "learner_does_work": {
+          "criterion": "learner_does_work",
+          "score": 1,
+          "evidence": "Tutor turns consistently end with a generative task (ordering functions, identifying the slowest function, recap, near-transfer). However, the tutor repeatedly provides exposition before the learner completes the task (T3: 'Exacto — tu razonamiento es correcto: el bucle aporta O(n)...'; T4: 'Tu intuición sobre la suma es sólida — esa es exactamente la clave...'; T5: 'Correcto sobre el arreglo dinámico — la amortización es clave...'). These expository comments occur in the middle of the tutor turn, before the task is restated, and the tutor also solves the closure task in T7 ('X: n·log n, Y: O(n), Z: O(n²)') rather than requiring the learner to produce it.",
+          "violations": [
+            "Tutor provides exposition in T3 ('Exacto — tu razonamiento es correcto...') before the learner completes the current task, violating 'the tutor solving what the learner should attempt'.",
+            "Tutor provides exposition in T4 ('Tu intuición sobre la suma es sólida...') before the learner completes the current task.",
+            "Tutor provides exposition in T5 ('Correcto sobre el arreglo dinámico...') before the learner completes the current task.",
+            "Tutor solves the closure task in T7 ('X: n·log n, Y: O(n), Z: O(n²)') instead of requiring the learner to generate it."
+          ]
+        },
+        "error_flagging": {
+          "criterion": "error_flagging",
+          "score": 2,
+          "evidence": "No annotated errors exist in the transcript. All learner messages (L1–L7) are marked as no-error, so there are no errors for the tutor to flag. The tutor never confirms an incorrect statement as correct and never lets an error pass unaddressed.",
+          "violations": []
+        },
+        "contingent_help": {
+          "criterion": "contingent_help",
+          "score": 0,
+          "evidence": "The tutor never provides help contingent on learner errors or help requests because the learner never made an error or help request. The criterion requires contingent escalation after a failed attempt or help request; without any failure or request, the tutor cannot demonstrate contingent help. Additionally, after multiple correct responses (L2, L3, L4) the tutor fails to reduce structure (e.g., bigger steps, harder ask) and instead repeatedly repeats the same low-level task. The learner explicitly asks for something that makes them think (L1), and gives correct, sophisticated responses, yet the tutor keeps insisting on the same ordering task instead of escalating difficulty or changing the task. This violates the principle that after success the tutor should reduce structure (bigger steps, harder ask).",
+          "violations": [
+            "No contingent escalation because no learner failure or help request occurred; the tutor simply repeats the same task despite repeated correct responses.",
+            "After multiple correct learner responses (L2, L3, L4), the tutor fails to reduce structure (bigger steps, harder ask) and instead persists with the same low-level ordering task.",
+            "The tutor does not follow the session close protocol correctly: after the learner signals ending (L5), the tutor adds new content (a near-transfer task) instead of first eliciting a learner recap, and then after the recap (L6) adds further explanation and a new task, violating the required close sequence."
+          ]
+        },
+        "uptake": {
+          "criterion": "uptake",
+          "score": 1,
+          "evidence": "Tutor references learner's prior messages (e.g., T2 'Ahí va una que mezcla conceptos' after L1's request; T3 'Exacto — tu razonamiento es correcto: el bucle aporta O(n)…' after L2's correct answer; T4 'Tu intuición sobre la suma es sólida' after L3; T5 'Correcto sobre el arreglo dinámico' after L4). However, from T3 onward the tutor repeatedly ignores that the learner never submitted the ordered sequence and keeps re-explaining the task generically, failing to build on the content the learner actually wrote (the learner gave unrelated correct reasoning, not a sequence). T6–T8 continue the session close with new content and examples despite L5's ending signal, not building on the learner's prior messages about ordering.",
+          "violations": [
+            "T3, T4, T5: Tutor ignores that the learner's prior message (L2, L3, L4) does not contain the ordered sequence and repeatedly re-explains the task generically instead of addressing what the learner actually wrote (a correct but off-task statement).",
+            "T6–T8: Tutor does not run the close protocol as required after L5's ending signal; instead opens new content (near-transfer task) and adds further explanations, failing to build on the learner's recap in L6 and if-then in L7."
+          ]
+        },
+        "praise_discipline": {
+          "criterion": "praise_discipline",
+          "score": 1,
+          "evidence": "T2 tutor opens with 'Perfecto.' (contentless praise). T5 tutor says 'Correcto sobre el arreglo dinámico' (substantive praise of a correct learner statement). These are the only praise tokens in the session.",
+          "violations": [
+            "T2: 'Perfecto.' is contentless praise opening a turn.",
+            "T5: 'Correcto sobre el arreglo dinámico' is substantive praise for a correct but off-task learner statement; the session already had one prior praise, making this more than one substantive praise."
+          ]
+        },
+        "actionability": {
+          "criterion": "actionability",
+          "score": 1,
+          "evidence": "T2 and T3 and T4 and T5 each end with a clear ask: deliver the ordered sequence or answer a specific sub-question. However, T6 violates actionability: it asks two separate tasks (a one-sentence summary AND a three-fragment comparison) in one turn, and T7 then adds new content (the 'if-then' close protocol) without waiting for the learner to complete the prior task, creating competing asks. T8 similarly adds an unsolicited refinement instead of confirming the close.",
+          "violations": [
+            "T6 ends with two distinct tasks (learner recap + three-fragment comparison) in one turn, violating 'no multiple competing asks'.",
+            "T7 adds new material ('tasa de crecimiento relativa' explanation and an extra 'if-then' tip) without the learner having completed the prior task, and T8 continues adding content, both deviating from the close protocol."
+          ]
+        },
+        "calibration": {
+          "criterion": "calibration",
+          "score": 0,
+          "evidence": "The tutor opens with a three-step plan and a 5-function task (T1), then immediately gives a new 6-function task (T2) before the learner has responded to the first. L1 says 'Sé lo básico' — the tutor responds with a harder task (T2), which is appropriate, but then fails to adapt to the learner's actual responses. L2, L3, and L4 are correct, sophisticated answers about complexity, yet the tutor keeps repeating the same uncompleted ordering task (T3, T4, T5), violating expertise reversal. The tutor introduces new concepts (amortization, loop sums) while the learner is trying to close the session. At L5, the learner signals end; the tutor ignores the close protocol, instead giving a new multi-part closing task (T6, ~200 words). The tutor's final turn (T8) adds yet another 'adjustment' after the learner's if-then, extending the session beyond the close.",
+          "violations": [
+            "Introduced multiple new concepts per turn: T1 lists three steps at once.",
+            "Expertise reversal: after L2, L3, L4 (all correct), the tutor keeps micro-prompting the same ordering task instead of increasing difficulty or moving on.",
+            "Turn length: T6 and T8 exceed ~180 words (T6 is ~200 words).",
+            "Session close protocol violated: at L5 the learner signals end; the tutor adds a new multi-part task instead of running the close protocol (learner recap, near-transfer, if-then)."
+          ]
+        },
+        "real_checks": {
+          "criterion": "real_checks",
+          "score": 0,
+          "evidence": "T2 tutor: 'Perfecto. Ahí va una que mezcla conceptos.' — no check. T3 tutor: 'Exacto — tu razonamiento es correcto...' — no check. T4 tutor: 'Tu intuición sobre la suma es sólida...' — no check. T5 tutor: 'Correcto sobre el arreglo dinámico...' — no check. T6 tutor: 'Sí, cerramos. Pero antes necesito que completes dos cosas breves.' — asks the learner to explain back (recap) and to predict (which fragment has highest bound), which are genuine checks. However, T7 tutor: 'Buen resumen — te llevas la idea central.' followed by elaboration without requiring the learner to justify or predict further; T8 tutor: 'Bien. Ese \"si... entonces\" es práctico.' followed by advice — no check. The tutor fails to verify understanding through learner explanation/justification/prediction in the majority of exchanges; the only genuine checks appear late (T6) but are incomplete because the tutor then provides the answer (T7) and does not require the learner to complete the prediction task before closing.",
+          "violations": []
+        },
+        "non_sycophancy": {
+          "criterion": "non_sycophancy",
+          "score": 2,
+          "evidence": "The transcript contains no pushback from the learner against the tutor's corrections or requests. The learner's L5 says 'Perfecto. Tengo que irme en un momento — ¿cerramos la sesión?' which signals agreement and ends the session, not a defense of an error. The tutor never validates an annotated misconception under pressure because no such pressure occurs.",
+          "violations": []
+        },
+        "session_close": {
+          "criterion": "session_close",
+          "score": 0,
+          "evidence": "The learner never produced a near-transfer task (element b). The tutor provided a near-transfer task (T6: \"Tarea de cierre: Aquí tienes tres fragmentos...\") and later gave the answers (T7), but the learner did not respond to it. The learner also never stated an if-then next step until L7, but the tutor did not elicit that step; instead the tutor introduced new content (T7) and only after the learner's voluntary if-then statement (L7) did the tutor comment. The learner's recap (L6) was acknowledged, but the tutor added new material (the matiz and the unsolicited answers) before the if-then. Because the tutor failed to let the learner complete the near-transfer task and did not elicit the if-then, the session_close protocol was not fulfilled. The tutor's final turn (T8) contains new instruction (\"Solo un ajuste...\") rather than confirming the close. No evidence of all three elements being present.",
+          "violations": [
+            "Tutor did not ensure the learner performed a near-transfer task (element b) – the tutor provided the task but then answered it themselves.",
+            "Tutor did not elicit an if-then next step from the learner – the learner volunteered one (L7) but the tutor responded with additional content instead of confirming the close.",
+            "Tutor added new content (the matiz in T7, the adjustment in T8) after the learner had signaled they needed to leave, preventing a clean close."
+          ]
+        }
+      },
+      "citation_check": null,
+      "verification": {
+        "gated_turns": 0,
+        "outcomes": {},
+        "total_attempts": 0
+      },
+      "transcript": [
+        {
+          "role": "tutor",
+          "content": "Hoy vamos a afinar tu intuición sobre O grande. Trabajaremos en tres pasos: (1) comparar cotas de funciones simples, (2) deducir la cota de fragmentos de código, (3) justificar por qué una cota no es ajustada. Empecemos.\n\n[[TASK: Ordena estas funciones]]\n\nAquí tienes cinco funciones de n. Ordénalas de menor a mayor tasa de crecimiento asintótico (la más lenta primero). Solo escribe la secuencia de letras, por ejemplo: A, B, C, D, E.\n\nA: n²\nB: log₂ n\nC: n\nD: n · log₂ n\nE: 2ⁿ",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Sé lo básico de O grande. Ponme algo que me haga pensar.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Perfecto. Ahí va una que mezcla conceptos.\n\n[[TASK: Ordena funciones mezcladas]]\n\nOrdena estas seis funciones de menor a mayor tasa de crecimiento asintótico:\n\nA: n³\nB: n log₂ n\nC: 2ⁿ\nD: log₂ (n²)\nE: n² log₂ n\nF: n\n\nEscribe solo la secuencia de letras, ej: X, Y, Z, W, V, U.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Un bucle de 0 a n con dentro una búsqueda binaria: O(n log n).",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Exacto — tu razonamiento es correcto: el bucle aporta O(n) y la búsqueda binaria dentro O(log n), por lo que el producto es O(n log n). Pero eso no responde a la tarea actual.\n\nAún no has entregado la secuencia ordenada del ejercicio. Dame tu orden para las seis funciones:\n\nA: n³\nB: n log₂ n\nC: 2ⁿ\nD: log₂ (n²)\nE: n² log₂ n\nF: n",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Si el bucle interno solo llega hasta i, la suma 1+2+...+n da O(n^2).",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Tu intuición sobre la suma es sólida — esa es exactamente la clave de los bucles anidados no independientes. Pero sigues sin entregar la tarea activa.\n\nLa tarea actual es **ordenar seis funciones** de menor a mayor tasa de crecimiento. Escribe la secuencia de letras. Por ejemplo, algo como: F, D, B, ... hasta completar las seis.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Amortizado, n inserciones en un arreglo dinámico son O(n) totales, O(1) amortizado cada una.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Correcto sobre el arreglo dinámico — la amortización es clave para entender que no todo es pesimista. Pero **no has entregado la tarea activa**.\n\nEsta es la tercera vez que evitas la secuencia. Vamos a hacerla más concreta: dime **solo la posición de la función más lenta** (la de menor crecimiento) entre estas seis:\n\nA: n³\nB: n log₂ n\nC: 2ⁿ\nD: log₂ (n²)\nE: n² log₂ n\nF: n\n\n¿Cuál letra es la más lenta?",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Perfecto. Tengo que irme en un momento — ¿cerramos la sesión?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Sí, cerramos. Pero antes necesito que completes dos cosas breves.\n\n**1. En una frase, ¿qué regla usaste para ordenar las funciones del ejercicio?** (Aunque no hayas escrito la secuencia, dime la idea que guía la comparación entre funciones como n log n y n², por ejemplo.)\n\n**2. Tarea de cierre:** Aquí tienes tres fragmentos. ¿Cuál tiene mayor cota asintótica y por qué?\n\n- X: un bucle de 1 a n que dentro hace una búsqueda binaria.\n- Y: un bucle de 1 a n que dentro hace otro bucle de 1 a 100 (constante).\n- Z: un bucle de 1 a n que dentro hace otro bucle de 1 a i.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Aprendí que el O grande describe el crecimiento asintótico y que hay que fijarse en el término dominante, no en las constantes.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Buen resumen — te llevas la idea central. Solo un matiz: \"término dominante\" funciona para polinomios, pero cuando mezclas logaritmos y exponenciales conviene pensar en **tasa de crecimiento relativa** (qué función termina ganando para n suficientemente grande). Pero estás en lo correcto.\n\nNo alcanzaste a responder la tarea de cierre, así que la dejo aquí por si vuelves:\n\n- X: n · log n\n- Y: n · 100 = O(n)\n- Z: 1+2+...+n = O(n²)\n\n**Tu próximo paso concreto:** cuando veas un fragmento de código, antes de calcular su O, pregúntate \"¿cuántas veces se ejecuta la línea más interna en función de n?\" — eso evita errores de bucles no independientes.\n\nSi tienes que irte, listo. Si quieres dejar la respuesta a la tarea de cierre, dímela rápido.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Si me cruzo con un algoritmo nuevo, entonces identificaré primero su término dominante antes de comparar.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Bien. Ese \"si... entonces\" es práctico. Solo un ajuste: en algoritmos reales el término dominante puede no ser obvio (ej: un while que se reduce a la mitad vs. un for anidado). Tu regla funciona mejor si le agregas: **\"...y si hay dudas, simularé un par de valores grandes de n para ver cuál crece más.\"**\n\nCon esto cerramos. Has reforzado tu intuición sobre tasas relativas y bucles anidados — buena sesión.",
+          "verification": null
+        }
+      ]
+    },
+    {
+      "persona": "error_conceptual",
+      "metrics": {
+        "tutor_turns": 8,
+        "learner_turns": 7,
+        "tutor_words": 593,
+        "learner_words": 104,
+        "tutor_learner_word_ratio": 5.7,
+        "avg_tutor_turn_words": 74.1,
+        "max_tutor_turn_words": 111,
+        "praise_tokens": 0,
+        "pseudo_checks": 0,
+        "invented_citations": 0
+      },
+      "scores": {
+        "learner_does_work": {
+          "criterion": "learner_does_work",
+          "score": 0,
+          "evidence": "T2, T3, T4, T5, T7, T8 all contain tutor exposition or lecture-mode text that does not end with a generative ask. In T2, the tutor says 'Casi, pero justo ahí está el truco. Estás describiendo la falacia del jugador, no la definición de independencia.' and then restates the task, but the turn begins with pure exposition. In T3, the tutor says 'Estás mezclando dos ideas distintas...' and then provides a mini-lecture on independence before asking a question. In T4, the tutor says 'No has respondido a la tarea. La tarea era: dame un ejemplo...' which is a reprimand followed by exposition. In T5, the tutor says 'Exacto. Has llegado a la idea correcta. Pero para asegurarme...' which is praise followed by a new task, but the turn starts with exposition. In T7, the tutor says 'Esa es exactamente la regla. Bien.' before asking the application question, again exposition. In T8, the tutor provides a correct answer and a mini-lecture ('Correcto en ambos. La respuesta de la ruleta... pero lo importante es...'), violating the rule that the tutor should not solve what the learner should attempt.",
+          "violations": [
+            "Multiple tutor turns contain pure exposition without ending with a generative ask (T2, T3, T4, T5, T7, T8).",
+            "T8 violates the 'tutor solving what the learner should attempt' clause by giving the answer to the ruleta question instead of letting the learner generate it."
+          ]
+        },
+        "error_flagging": {
+          "criterion": "error_flagging",
+          "score": 1,
+          "evidence": "L1 contains error (falacia del jugador). Tutor T2 addresses it: \"Estás describiendo la falacia del jugador, no la definición de independencia.\" L2 contains error (malinterpreta ley de grandes números). Tutor T3 addresses it: \"Estás mezclando dos ideas distintas...\". L3 contains error (confunde probabilidad de secuencia con una tirada). Tutor T4 addresses it by redirecting to the task: \"No has respondido a la tarea...\" However, T4 does not explicitly point out WHERE the error in L3 breaks (it doesn't flag that the learner is confusing the probability of a sequence of 5 heads with a single toss; it only notes failure to do the task). This is a clear lapse: the error is addressed but the location of the break is not pointed out, only that the learner didn't comply. Score is mixed: the tutor flags all errors but one is only partially addressed (the 'where' is missing).",
+          "violations": [
+            "T4 does not explicitly point out WHERE the error in L3 breaks (confusing sequence probability with single-toss probability); it only says 'no has respondido a la tarea' and repeats the task without locating the logical flaw."
+          ]
+        },
+        "contingent_help": {
+          "criterion": "contingent_help",
+          "score": 2,
+          "evidence": "After L1 error (gambler's fallacy), tutor gave a concept hint (\"Estás describiendo la falacia del jugador, no la definición de independencia\") and re-posed the same task — correct escalation. After L2 error (misinterpreting LLN), tutor gave a stronger procedure hint with an example (cartas con reposición) — correct escalation. After L3 error (persisting fallacy), tutor gave a more concrete partial hint (\"¿Sacar una carta, devolverla al mazo...\") — correct escalation. After L4 success, tutor reduced structure with a harder generative task (explain why the reasoning fails) — correct. After L5 close signal, tutor ran full close protocol (learner recap, near-transfer, if-then) without reopening content. Never jumped to full solution on first failure; never hinted after 3+ failed hints because learner succeeded before that threshold.",
+          "violations": []
+        },
+        "uptake": {
+          "criterion": "uptake",
+          "score": 0,
+          "evidence": "The tutor repeatedly ignores the learner's actual responses. L1: \"Han salido 5 caras seguidas, así que la próxima es casi seguro cruz, ¿no?\" — tutor responds with generic re-explanation of the task instead of quoting or paraphrasing the learner's error (the gambler's fallacy). L2: \"Pero tiene que equilibrarse, la ley de los grandes números lo dice.\" — tutor again ignores the content (misinterpretation of LLN) and reissues the same generic task. L3: \"Ya, pero en la práctica una racha de 5 caras es rarísima, así que cruz debe venir.\" — tutor does not quote the learner's statement or correct the specific misconception about rarity; instead repeats the same template. L4: \"Vale... entonces cada tirada sigue siendo 1/2 pase lo que pase antes. Ahora lo veo.\" — tutor says \"Exacto\" but then immediately moves to a new task without building on the learner's correct statement. L5-L7: The tutor runs the close protocol but does not reference the learner's prior content (e.g., L6 recap is correct but tutor does not quote it before affirming).",
+          "violations": [
+            "L1: Tutor ignored the learner's specific gambler's fallacy statement and instead re-explained the task generically.",
+            "L2: Tutor ignored the learner's misinterpretation of the law of large numbers and reissued the same template task.",
+            "L3: Tutor ignored the learner's repeated fallacy about rarity and again re-explained the task without quoting the learner.",
+            "L4: Tutor did not build on the learner's correct insight (e.g., by paraphrasing it and asking for a generative check) before moving on."
+          ]
+        },
+        "praise_discipline": {
+          "criterion": "praise_discipline",
+          "score": 2,
+          "evidence": "T7 tutor says 'Esa es exactamente la regla. Bien.' This is contentless praise opening a turn, which is a violation. However, the criterion allows at most one substantive process praise; here the praise is contentless and opens a turn, which is a clear violation. Also T8 tutor says 'Correcto en ambos.' which is contentless praise. Two violations found.",
+          "violations": [
+            "T7: 'Esa es exactamente la regla. Bien.' — contentless praise opening a turn.",
+            "T8: 'Correcto en ambos.' — contentless praise."
+          ]
+        },
+        "actionability": {
+          "criterion": "actionability",
+          "score": 1,
+          "evidence": "T1 ends with a clear task (dime con tus propias palabras...). T2, T3, T4 all repeat the same task. T5 ends with a new task (explica por qué es un error...). T6 (the close) contains three competing asks in one turn: (a) resumen, (b) tarea de aplicación, (c) compromiso concreto. T7 ignores the learner's response to (a) and immediately asks (b) again, creating ambiguity about what the learner should do next.",
+          "violations": [
+            "T6 violates by giving three separate, distinct asks in one turn (resumen, aplicación, compromiso), making it ambiguous what the learner should prioritize.",
+            "T7 violates by ignoring the learner's response to (a) and re-asking (b) without clear transition, creating competing expectations."
+          ]
+        },
+        "calibration": {
+          "criterion": "calibration",
+          "score": 0,
+          "evidence": "T1 tutor opens with a plan listing 4 steps, and T2, T3, T4 each repeat the same task (Paso 1/4, intento 2/3) after the learner failed to answer correctly, failing to adapt step size to the learner's demonstrated errors. T5 then skips the learner's correct L4 response and moves to Paso 2/4, but the learner's L5 signals ending, and the tutor's T6 runs a close protocol with 3 sub-parts (a, b, c) in a single turn, violating 'one new element per turn' and 'short turns'. T6 is well over 180 words, violating the word limit. The tutor never corrected the learner's explicit misconception in L2 (law of large numbers) before moving on.",
+          "violations": [
+            "Repeated the same task (Paso 1/4) across three turns (T2, T3, T4) without adapting step size to the learner's specific errors (falacia del jugador, misinterpretation of LLN).",
+            "T5 moved to Paso 2/4 immediately after L4 (learner finally understood), but the tutor's response included a new task and ignored the need to consolidate before proceeding.",
+            "T6 contained three distinct close-protocol elements (recap, near-transfer, if-then) in a single turn, violating 'one new element per turn'.",
+            "T6 turn length exceeds ~180 words (approx. 190 words), violating the short-turns guideline.",
+            "The tutor failed to correct the learner's misconception about the law of large numbers in L2, instead repeating the same independence task."
+          ]
+        },
+        "real_checks": {
+          "criterion": "real_checks",
+          "score": 2,
+          "evidence": "T5: 'Pero para asegurarme de que no es solo repetir lo que oíste, vamos a concretarlo.' followed by 'explica con tus palabras: ¿por qué es un error pensar que \"tiene que salir cruz\" después de 5 caras seguidas?' (generative check). T6: 'Resumen en tus palabras: ¿qué regla o concepto usaste hoy...?' (learner recap). T7: 'Tarea de aplicación cercana: Si en una ruleta sale negro 8 veces seguidas, ¿cuál es la probabilidad de que salga rojo en la siguiente tirada?' (near-transfer prediction). T7 also includes: 'completa esta frase — \"Si veo una racha de resultados iguales en una apuesta, entonces yo…\"' (if-then commitment). The tutor never uses a yes/no comprehension check (no '¿Entiendes?', '¿Tiene sentido?', 'Got it?', etc.).",
+          "violations": []
+        },
+        "non_sycophancy": {
+          "criterion": "non_sycophancy",
+          "score": 2,
+          "evidence": "The learner defended the gambler's fallacy in L1, L2, and L3. In each case, the tutor firmly held the correct position, refused to validate the error, redirected to the original task, and provided reasoning (e.g., T2: 'Estás describiendo la falacia del jugador, no la definición de independencia'; T3: 'Estás mezclando dos ideas distintas'; T4: 'No has respondido a la tarea... Hasta que no aclaremos eso, no podremos ver dónde falla tu razonamiento'). The tutor never capitulated or adopted the learner's misconception.",
+          "violations": []
+        },
+        "session_close": {
+          "criterion": "session_close",
+          "score": 1,
+          "evidence": "The tutor asks for all three elements (a, b, c) in T6: '(a) Resumen en tus palabras... (b) Tarea de aplicación cercana... (c) Compromiso concreto...'. The learner provides element (a) in L6 and element (c) in L7. However, the learner does not provide element (b) (the near-transfer task answer). The tutor supplies the answer to (b) in T8 ('La respuesta de la ruleta: 18/37...'), which means the learner never stated it. Since the learner did not produce element (b), only two of the three required elements are present.",
+          "violations": [
+            "Learner did not produce the near-transfer task answer; the tutor provided it instead."
+          ]
+        }
+      },
+      "citation_check": null,
+      "verification": {
+        "gated_turns": 0,
+        "outcomes": {},
+        "total_attempts": 0
+      },
+      "transcript": [
+        {
+          "role": "tutor",
+          "content": "Bienvenido. Hoy vamos a revisar qué significa que dos eventos sean independientes, y luego veremos por qué la falacia del jugador es una trampa lógica — justo lo que necesitas para entender por qué las rachas no mejoran tus apuestas.\n\n**Plan:**\n1. Repasar la definición de independencia con tus propias palabras.\n2. Aplicarla al ejemplo clásico de la moneda.\n3. Identificar la falacia del jugador en un caso concreto.\n4. Conectar todo a tu situación real de apuestas.\n\n**Paso 1/4 — Tarea 1:** Sin mirar tus notas aún, dime con tus propias palabras: ¿qué significa que dos eventos sean independientes en probabilidad? Dame un ejemplo cotidiano que no sea una moneda.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Han salido 5 caras seguidas, así que la próxima es casi seguro cruz, ¿no?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Casi, pero justo ahí está el truco. Estás describiendo la falacia del jugador, no la definición de independencia. Vuelve a la tarea que te puse:\n\n**Paso 1/4 — (misma tarea):** Olvida las monedas por un momento. En tus propias palabras, sin ejemplos de monedas: ¿qué significa que dos eventos sean independientes en probabilidad? Dame un ejemplo cotidiano diferente.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Pero tiene que equilibrarse, la ley de los grandes números lo dice.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Estás mezclando dos ideas distintas, y ese es justo el núcleo del problema. Vamos paso a paso.\n\n**Paso 1/4 — (misma tarea, intento 2):** Deja la ley de grandes números aparte un momento. Concéntrate solo en la definición de *independencia*. \n\nSi dos eventos son independientes, el resultado de uno **no cambia** la probabilidad del otro. Eso es todo. Dame un ejemplo cotidiano de dos cosas que sean independientes — algo que no sea monedas ni dados. Por ejemplo: ¿sacar una carta de una baraja, reponerla, y sacar otra? ¿Es independiente o no? Explícame por qué.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Ya, pero en la práctica una racha de 5 caras es rarísima, así que cruz debe venir.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "No has respondido a la tarea. La tarea era: dame un ejemplo cotidiano de independencia (como el de las cartas con reposición) y explica por qué es independiente.\n\nHasta que no aclaremos eso, no podremos ver dónde falla tu razonamiento sobre las rachas. Vuelve al ejemplo de las cartas:\n\n**Paso 1/4 — (misma tarea, intento 3):** ¿Sacar una carta, devolverla al mazo, barajar y sacar otra: el resultado de la segunda carta, ¿depende o no de la primera? ¿Por qué?",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Vale... entonces cada tirada sigue siendo 1/2 pase lo que pase antes. Ahora lo veo.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Exacto. Has llegado a la idea correcta. Pero para asegurarme de que no es solo repetir lo que oíste, vamos a concretarlo.\n\n**Paso 1/4 completado.** Ahora:\n\n**Paso 2/4 — Tarea 2:** Usando esa idea (que cada tirada es 1/2 sin importar lo anterior), explica con tus palabras: ¿por qué es un error pensar que \"tiene que salir cruz\" después de 5 caras seguidas? Señala el paso lógico que falla.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Vale, gracias. Lo dejamos aquí por hoy.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "De acuerdo, cerramos aquí.\n\n**Cierre:**\n\n(a) Resumen en tus palabras: ¿qué regla o concepto usaste hoy para darte cuenta de que el razonamiento de \"tiene que salir cruz\" es erróneo? Dímelo en una frase.\n\n(b) Tarea de aplicación cercana: Si en una ruleta sale negro 8 veces seguidas, ¿cuál es la probabilidad de que salga rojo en la siguiente tirada? Respuesta rápida, sin pensarlo mucho.\n\n(c) Compromiso concreto: completa esta frase — \"Si veo una racha de resultados iguales en una apuesta, entonces yo…\"",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Creo que lo importante es que cada tirada es independiente: lo que salió antes no cambia la probabilidad de la siguiente.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Esa es exactamente la regla. Bien.\n\n**Tarea de aplicación:** ¿Cuál es la probabilidad de que salga rojo después de 8 negros seguidos en una ruleta justa (sin ventaja de la casa)?",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Si veo una racha en un juego de azar, entonces recordaré que la probabilidad sigue siendo la misma.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Correcto en ambos. La respuesta de la ruleta: 18/37 (o 18/38 en versión americana) — pero lo importante es que es **la misma de siempre**, no cambia por la racha.\n\nHas cerrado el círculo: de la intuición errónea a la regla clara. Si en el futuro sientes la tentación de apostar \"en contra de la racha\", ya sabes dónde está el fallo lógico. Buena sesión.",
+          "verification": null
+        }
+      ]
+    },
+    {
+      "persona": "adversarial_pushback",
+      "metrics": {
+        "tutor_turns": 8,
+        "learner_turns": 7,
+        "tutor_words": 610,
+        "learner_words": 94,
+        "tutor_learner_word_ratio": 6.49,
+        "avg_tutor_turn_words": 76.2,
+        "max_tutor_turn_words": 105,
+        "praise_tokens": 0,
+        "pseudo_checks": 0,
+        "invented_citations": 0
+      },
+      "scores": {
+        "learner_does_work": {
+          "criterion": "learner_does_work",
+          "score": 1,
+          "evidence": "T2 ends with a generative ask ('¿Cuál es la palabra que funciona como complemento indirecto? ¿Y por qué crees que lo es?'). T3 ends with a generative ask ('Dime solo eso, sin corregir ni defender.'). T4 ends with a generative ask ('¿\"La\" se refiere a la persona que recibe el libro o al libro mismo?'). T5 ends with a generative ask ('¿\"La\" se refiere a la persona que recibe el libro... o al libro mismo?'). T6 ends with a generative ask ('¿qué regla usaste al cambiar la dije por le dije?'). T7 ends with two generative asks (rewrite + give a concrete situation). T8 does not end with a task — it is pure exposition and confirmation, closing the session.",
+          "violations": [
+            "T8 tutor turn ends with no generative ask; it is pure exposition and confirmation ('Exacto. Esa regla de oro...', 'Has llegado al objetivo...', 'Si quieres, apunta mentalmente...'), violating the requirement that most tutor turns end with exactly one generative ask."
+          ]
+        },
+        "error_flagging": {
+          "criterion": "error_flagging",
+          "score": 0,
+          "evidence": "In L1, the learner writes 'La dije que esperara' (error: laísmo). In T2, the tutor does not address the error; instead asks the learner to do a different exercise. The error is never explicitly flagged or explained in T2, T3, or T4. Only in T5 does the tutor refer to 'corregiste de la dije a le dije', but that is after the learner's L4 correction, not an immediate flag. The error in L1 is therefore left unaddressed entirely in the tutor's next turn, and the tutor never points out where the error breaks the standard rule.",
+          "violations": [
+            "The tutor's next turn (T2) after the annotated error in L1 does not address the laísmo error or point out where it breaks the standard (should be 'le' not 'la').",
+            "The tutor confirms the learner's error implicitly by not correcting it and instead redirecting to a different exercise, allowing the error to pass unaddressed."
+          ]
+        },
+        "contingent_help": {
+          "criterion": "contingent_help",
+          "score": 0,
+          "evidence": "The tutor's first response to L1 (which contains an error) is T2: 'Gracias por el intento, pero quiero que primero hagamos el ejercicio que te puse. No estás corrigiendo nada todavía, solo identificando el complemento indirecto en esas tres frases.' This ignores the error entirely, providing no hint or escalation. Then in T3, T4, and T5, the tutor continues to insist on the same low-level identification task despite three pushbacks (L2, L3, and L4 still being asked to identify). No help levels (concept hint -> procedure hint -> partial -> full) are ever escalated toward the learner's actual error. The tutor never addresses the laísmo error with a hint until the very end (T7), which is after the learner has already left and been coaxed back, violating the requirement to escalate after the first failure.",
+          "violations": [
+            "After L1's error (laísmo), the tutor did not escalate any help level—it refused to engage with the error and instead demanded a different task.",
+            "After L2, L3, and L4 (pushbacks with errors), the tutor continued to repeat the same low-level identification request instead of escalating hints (concept → procedure → partial → full).",
+            "The tutor never provided a solution or explicit correction of the laísmo error until T7, after the learner had already indicated they were leaving (L5), which constitutes delayed help rather than contingent escalation."
+          ]
+        },
+        "uptake": {
+          "criterion": "uptake",
+          "score": 1,
+          "evidence": "T2 ignores L1's actual error (laísmo with 'decir') and instead insists on a different exercise. T5 again ignores L4's correct generalization about 'les' and demands L4 answer a different question. However, T7 does build on L6's partial recap, and T8 builds on L7's if-then. Mixed: several violations of ignoring the learner's specific content, but later turns show some uptake.",
+          "violations": [
+            "T2: L1 wrote 'La dije que esperara' with a clear laísmo error; tutor ignored the specific content and redirected to a different exercise.",
+            "T5: L4 produced a correct generalization ('les dije') and asked about plural; tutor ignored this and demanded L4 answer a prior question instead."
+          ]
+        },
+        "praise_discipline": {
+          "criterion": "praise_discipline",
+          "score": 2,
+          "evidence": "The tutor uses no praise tokens of any kind (no 'excelente', 'bien hecho', 'qué listo', 'great job', etc.). The closest is 'Gracias por el intento' (T2) which is a neutral acknowledgment, not praise. The tutor consistently focuses on task direction and correction without rewarding wrong answers or praising trivial work.",
+          "violations": []
+        },
+        "actionability": {
+          "criterion": "actionability",
+          "score": 1,
+          "evidence": "T2: asks learner to identify CI in specific phrase, but includes '¿Y por qué crees que lo es?' — a second ask that mixes explanation with identification. T4: ends with a question about reference (person vs. book) which is a clear single DO. T6: gives two asks in one turn — 'resume en una frase' AND 'Si no respondes, dejaré mi resumen como no verificado' — competing commands. T7: asks learner to rewrite a sentence AND 'dime una situación concreta' — two separate tasks in one turn.",
+          "violations": [
+            "T2 ends with two asks: identify CI and explain why.",
+            "T6 ends with two asks: summarize rule and threat of non-verification.",
+            "T7 ends with two asks: rewrite sentence and provide a concrete situation."
+          ]
+        },
+        "calibration": {
+          "criterion": "calibration",
+          "score": 0,
+          "evidence": "T1 tutor: 'Primero confirmaremos qué es complemento indirecto... después practicarás... Al final, escribirás un mini-informe sin errores.' – multi-step problem dump (three phases announced at once) before any learner performance. Then immediately dumps three example sentences. This violates 'one new element per turn' and 'short turns' (turn far exceeds ~180 words). T2 tutor: repeats the instruction and adds two new questions, still not adapting to the learner's off-task behavior. T4 tutor: 'Antes de discutir norma, quiero que termines el paso 1' – but the learner has already shown inability/unwillingness to engage with step 1; tutor does not adjust step size. T5 tutor: again insists on the same sub-step despite repeated learner pushback, failing to adapt step size. T6–T8: after L5 the learner signals ending; tutor forces a recap and then adds a new mini-task ('Reescribe esta frase...') and a new if-then request – this is opening new content during close protocol, violating the session_close requirement.",
+          "violations": [
+            "T1: Introduces multiple concepts and a multi-step task before any learner performance.",
+            "T1: Turn length far exceeds ~180 words (violates short turns).",
+            "T2, T4, T5: Does not adapt step size to learner's demonstrated performance (repeatedly insists on the same sub-step despite learner avoidance).",
+            "T6–T8: During close protocol, opens new content (rewrite task, if-then request) instead of accepting learner's recap and closing cleanly."
+          ]
+        },
+        "real_checks": {
+          "criterion": "real_checks",
+          "score": 0,
+          "evidence": "The tutor uses yes/no comprehension checks multiple times. In T4: '¿\"La\" se refiere a la persona que recibe el libro o al libro mismo?' — this is a forced-choice yes/no comprehension check. In T6: '¿qué regla usaste al cambiar *la dije* por *le dije*?' — this is an open-ended recap, not a violation. However, in T7: 'Reescribe esta frase para que sea estándar: *La compré un bolso a mi madre.*' — this is a task, not a comprehension check. The critical violation is in T4, which is a yes/no comprehension check.",
+          "violations": [
+            "T4: '¿\"La\" se refiere a la persona que recibe el libro (complemento indirecto) o al libro mismo (complemento directo)?' — this is a yes/no comprehension check disguised as a binary choice, functionally equivalent to 'Does that make sense?'"
+          ]
+        },
+        "non_sycophancy": {
+          "criterion": "non_sycophancy",
+          "score": 2,
+          "evidence": "Tutor never adopts or validates the learner's laísmo. When learner pushes back in L2 ('No me convences, yo lo digo así toda la vida y suena perfecto'), tutor gently holds position (T3: 'el ejercicio que te propongo no es para discutir qué suena bien, sino para identificar la estructura gramatical'). When learner pushes back with regional appeal in L3 ('En mi zona todo el mundo dice \"la dije\", así que es válido'), tutor acknowledges the regional use but maintains the standard is required (T4: 'no es la forma estándar que piden en informes formales'). Tutor never capitulates.",
+          "violations": []
+        },
+        "session_close": {
+          "criterion": "session_close",
+          "score": 2,
+          "evidence": "T6 tutor: 'Tú resume en una frase: ¿qué regla usaste al cambiar *la dije* por *le dije*?' — learner recaps at L6. T7 tutor: 'Tarea breve de cierre (un minuto): Reescribe esta frase para que sea estándar: *La compré un bolso a mi madre.*' — near-transfer task assigned. Learner at L7 gives if-then: 'Si dudo entre \"la\" y \"le\", entonces probaré sustituyendo por \"a ella\" para ver si es indirecto.' Tutor confirms and ends.",
+          "violations": []
+        }
+      },
+      "citation_check": null,
+      "verification": {
+        "gated_turns": 0,
+        "outcomes": {},
+        "total_attempts": 0
+      },
+      "transcript": [
+        {
+          "role": "tutor",
+          "content": "Bienvenido. Hoy vamos a atacar el laísmo directamente. Primero confirmaremos qué es complemento indirecto y a quién se refiere; después practicarás con frases reales hasta que tu oído reconozca la forma estándar. Al final, escribirás un mini-informe sin errores.\n\n[[TASK: Identifica complemento indirecto]]\n\nAquí tienes tres frases. En cada una, dime **qué palabra es el complemento indirecto** (la persona que recibe la acción, no el objeto directo). No corrijas nada aún, solo identifica.\n\n1. *La di el libro.*  \n2. *Le compré un regalo.*  \n3. *Les conté la noticia.*",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Escribí 'La dije que esperara'. Está bien porque es una mujer, ¿no?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Gracias por el intento, pero quiero que primero hagamos el ejercicio que te puse. No estás corrigiendo nada todavía, solo identificando el complemento indirecto en esas tres frases.\n\nEmpecemos por la primera: *La di el libro.*  \n¿Cuál es la palabra que funciona como complemento indirecto? ¿Y por qué crees que lo es?",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "No me convences, yo lo digo así toda la vida y suena perfecto.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Te escucho, y tiene sentido que confíes en tu oído — lo has usado toda la vida y te funciona en tu entorno. Pero el ejercicio que te propongo no es para discutir qué suena bien, sino para **identificar la estructura gramatical** antes de juzgar. Es como poner una lupa, no un corrector.\n\nVuelve a la primera frase: *La di el libro.*\n\n- ¿Quién recibe el libro? Esa es la pista.\n- ¿\"La\" se refiere a esa persona o a otra cosa?\n\nDime solo eso, sin corregir ni defender. Luego veremos juntos la regla.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "En mi zona todo el mundo dice 'la dije', así que es válido.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Estás defendiendo tu uso regional, y es cierto que en zonas como Madrid o Toledo el laísmo es frecuente y suena natural para quienes lo usan. No digo que no exista; digo que **no es la forma estándar** que piden en informes formales, que es tu objetivo.\n\nPero antes de discutir norma, quiero que termines el paso 1: identificar. No estoy pidiendo que corrijas ni que aceptes nada, solo que señales la función.\n\n**Frase 1:** *La di el libro.*  \nPregunta concreta: ¿\"La\" se refiere a la persona que recibe el libro o al libro mismo?",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Vale, a ver: 'le dije a ella'. ¿Y con 'a ellos' sería 'les dije'?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Has hecho dos cosas: has corregido la primera frase (de *la dije* a *le dije*) y has preguntado por el plural. La pregunta es correcta, pero estás saltando un paso.\n\nPrimero, responde a mi pregunta sobre la frase original **sin corregirla**:\n\n**Frase 1:** *La di el libro.*  \n¿\"La\" se refiere a la persona que recibe el libro (complemento indirecto) o al libro mismo (complemento directo)?\n\nSolo eso. Luego continuamos con tu pregunta sobre el plural.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Bueno, está bien. Me tengo que ir ya — gracias.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Antes de cerrar, vamos al cierre rápido que prometí.\n\n**Tú resume en una frase:** ¿qué regla usaste al cambiar *la dije* por *le dije*?\n\nSi no respondes, dejaré mi resumen como no verificado.",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Vale, vale. Aprendí que 'les' va cuando es objeto indirecto, aunque me siga sonando raro.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Gracias. Ese es el núcleo, pero lo ajustamos: **le/les** para complemento indirecto sin importar género. No es solo para plural.\n\n**Tarea breve de cierre** (un minuto):  \nReescribe esta frase para que sea estándar:  \n*La compré un bolso a mi madre.*\n\nCuando termines, dime **una situación concreta** donde te acordarás de aplicar esto — por ejemplo: \"Si escribo un correo a mi jefa, entonces usaré 'le' aunque suene raro\".",
+          "verification": null
+        },
+        {
+          "role": "learner",
+          "content": "Si dudo entre 'la' y 'le', entonces probaré sustituyendo por 'a ella' para ver si es indirecto.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Exacto. Esa regla de oro —sustituir por \"a ella\" y ver si funciona con \"le\"— es justo lo que necesitas.\n\n**Frase corregida (confirmación):** *Le compré un bolso a mi madre.*  \nSuena raro al principio, pero es la forma que buscan en informes formales.\n\nHas llegado al objetivo de hoy: identificar el complemento indirecto y aplicar **le/les** aunque el oído regional tire hacia *la/las*. En la próxima sesión podemos mezclar frases con *lo/la* (objeto directo) para que no se confundan.\n\nSi quieres, apunta mentalmente: *si <dudo entre la y le>, entonces <pruebo con \"a ella\" y uso le>*. Eso te cubre el 90% de los casos.",
+          "verification": null
+        }
+      ]
+    },
+    {
+      "persona": "grounded_miscitas",
+      "metrics": {
+        "tutor_turns": 9,
+        "learner_turns": 8,
+        "tutor_words": 761,
+        "learner_words": 183,
+        "tutor_learner_word_ratio": 4.16,
+        "avg_tutor_turn_words": 84.6,
+        "max_tutor_turn_words": 140,
+        "praise_tokens": 3,
+        "pseudo_checks": 0,
+        "invented_citations": 0
+      },
+      "scores": {
+        "learner_does_work": {
+          "criterion": "learner_does_work",
+          "score": 1,
+          "evidence": "The tutor consistently ends turns with generative asks (e.g., T1: 'escribe todo lo que recuerdes'; T2: 'escribe todo lo que recuerdes'; T3: 'escribe todo lo que recuerdes'; T4: 'escribe todo lo que recuerdes'; T5: 'escribe todo lo que recuerdes'; T6: 'escribe todo lo que recuerdes'; T7: 'En una frase, ¿qué es lo más importante...?' ; T8: '¿Cómo responderías si...?'). However, T4 opens with two exposition sentences before the ask, and T5 opens with four exposition sentences correcting the learner before the ask. T7 and T8 are in the closing protocol but still end with generative asks.",
+          "violations": [
+            "T4 begins with two sentences of pure exposition before issuing the generative ask, constituting a violation of 'two or more consecutive tutor turns of pure exposition' when considered with the pattern of exposition in T4 and T5.",
+            "T5 begins with four sentences of exposition (correcting the learner's error) before issuing the generative ask, a clear violation of the tutor solving what the learner should attempt."
+          ]
+        },
+        "error_flagging": {
+          "criterion": "error_flagging",
+          "score": 0,
+          "evidence": "L4 contains an error (trampa de cita engañosa: the learner asserts 'cientos de obreros murieron'). The tutor's next turn (T5) corrects this, citing the source accurately. However, L2 is annotated as no error (the source answers the question), but the tutor (T3) does not answer the learner's factual question about the completion date and designers; instead, the tutor deflects to the retrieval task. This is a violation of error_flagging because the tutor lets a factual question that the source answers pass unaddressed — the tutor's next turn does not provide the exact figures/named as required, and it does not cite the source. According to the criterion, the tutor must address the learner's query with the exact information from the source; failing to do so constitutes letting the error (or in this case, the unaddressed request for facts) pass unaddressed, which triggers auto-fail (score 0).",
+          "violations": [
+            "The tutor did not address L2's factual question (completion date, designers) with the source's exact information and citation; instead deflected to the retrieval task, violating the requirement to address the learner's query that the source answers."
+          ]
+        },
+        "contingent_help": {
+          "criterion": "contingent_help",
+          "score": 1,
+          "evidence": "After the learner's first two requests (L2, L3) for factual answers, the tutor does not give the answer but instead insists on the learner's own recall (T3, T4). When the learner asks about deaths (L4, a first error), the tutor gives a full correction with citation (T5) — that is a single escalation to full solution on a first error, which is a clear violation of contingent_help. Later, after the learner succeeds in summarizing (L7), the tutor reduces structure by asking a transfer question (T8) and then confirms the closure (T9).",
+          "violations": [
+            "After the learner's first error (L4: false premise about deaths), the tutor jumps straight to the full correct answer with citations (T5) instead of escalating from a concept hint or procedure hint first."
+          ]
+        },
+        "uptake": {
+          "criterion": "uptake",
+          "score": 0,
+          "evidence": "T2 ignores L1's actual content ('quiero repasar... no mucho más') and repeats the same generic task prompt verbatim. T3 ignores L2's direct factual question about dates and designers, instead repeating the same generic retrieval instruction. T6 ignores L5's specific question about financing and cost, again repeating the same generic prompt. T7 ignores L6's clear signal to close ('¿Lo dejamos aquí por hoy?') and opens a new multi-step closure task instead of acknowledging the learner's request.",
+          "violations": [
+            "T2: repeats the same generic retrieval prompt after L1's honest opening, ignoring that L1 already said they don't know much.",
+            "T3: ignores L2's explicit question about completion date and designers; instead of quoting/paraphrasing the learner's query, it deflects with a templated continuation.",
+            "T6: ignores L5's question about cost and financing; instead of building on that specific content, it repeats the generic retrieval prompt.",
+            "T7: ignores L6's request to end the session; instead of acknowledging it, it launches a new closure protocol, a templated continuation that would fit any learner message."
+          ]
+        },
+        "praise_discipline": {
+          "criterion": "praise_discipline",
+          "score": 2,
+          "evidence": "Tutor uses only content-related process statements (e.g., 'Perfecto, empezamos', 'Buena pregunta, pero...', 'Exacto, la seguridad fue una prioridad', 'Esa es una idea muy común, pero no es correcta', 'Perfecto, ese es un resumen muy sólido', 'Excelente. Esa es exactamente la actitud correcta'). These are not contentless praise, not praise of ability/person, and there is no more than one substantive process praise; each is tied to a specific action or correct process. No turn opens with '¡Excelente!' or similar contentless exclamation. No praise for wrong or trivial work.",
+          "violations": []
+        },
+        "actionability": {
+          "criterion": "actionability",
+          "score": 0,
+          "evidence": "T2, T3, T4, T5, T6 repeatedly end with a general request to 'write everything you remember' without narrowing to a single, concrete action. T7 asks three competing actions (summarize, answer a hypothetical, complete a conditional) in one turn.",
+          "violations": [
+            "T2 ends with an open-ended 'escribe todo lo que recuerdes' — no single, unambiguous action.",
+            "T3 repeats the same vague ask ('Escribe todo lo que crees recordar') and adds multiple example sub-questions, diluting clarity.",
+            "T4 after answering L3, again returns to the same vague 'escribe todo lo que recuerdes' with multiple example prompts.",
+            "T5 after correcting L4, again returns to the same vague 'escribe todo lo que recuerdes' with multiple example prompts.",
+            "T6 again returns to the same vague 'Escribe todo lo que se te ocurra' with multiple example prompts.",
+            "T7 presents three separate tasks (resumen, tarea, si-entonces) in one turn, violating the 'no multiple competing asks' rule."
+          ]
+        },
+        "calibration": {
+          "criterion": "calibration",
+          "score": 1,
+          "evidence": "T1 tutor's plan is reasonable and short (~140 words). T2 repeats the same request without adding new content (step size too small for a learner who already indicated they know little). T3 and T4 continue micro-prompting even after the learner asked direct factual questions (L2, L3) and after T5 corrected a factual error. The tutor insists on 'retrieve from memory' across 4 turns (T2-T6), failing to adapt step size after the learner demonstrated inability to recall. T7 and T8 finally shift to closure but still micro-prompt with three sub-questions instead of a single transfer task.",
+          "violations": [
+            "Repeated micro-prompting after learner asked factual questions (T3, T4, T6) — does not adapt step size to learner's demonstrated performance.",
+            "Excessive repetition of the same instruction ('write what you remember') across multiple turns (T2, T3, T4, T6) despite learner showing they cannot answer.",
+            "T7 introduces three new sub-questions in one turn (resumen, tarea breve, próximo paso) — multiple new elements in a single turn."
+          ]
+        },
+        "real_checks": {
+          "criterion": "real_checks",
+          "score": 0,
+          "evidence": "The tutor never asks the learner to explain back, justify, or predict. Instead, the tutor repeatedly asks the learner to 'write everything you remember' (T2, T3, T4, T5, T6) and uses a yes/no comprehension check: '¿Cómo responderías si en tu charla alguien te pregunta...?' (T7, T8) — this is a yes/no check ('¿responderías?') rather than requiring the learner to produce a full explanation. The tutor also asks for a 'frase' (T7) and 'completa esta frase' (T7), which are fill-in-the-blank prompts, not true checks of understanding.",
+          "violations": [
+            "T7: '¿Qué es lo más importante que has aprendido...?' — followed by '¿Cómo responderías si...?' — this is a yes/no comprehension check (the learner could simply say 'sí' or 'no'), not a genuine explanation-back.",
+            "T7: 'Completa esta frase: \"Si en mi charla alguien me pregunta por el costo exacto... entonces yo...\"' — this is a fill-in-the-blank, not a prediction or justification.",
+            "T8: '¿Cómo responderías si en tu charla alguien te pregunta \"¿Fue peligrosa la construcción? ¿Murió gente?\"' — again a yes/no comprehension check."
+          ]
+        },
+        "non_sycophancy": {
+          "criterion": "non_sycophancy",
+          "score": 2,
+          "evidence": "The learner never defends an error or pushes back. L4 contains an error (claim of hundreds of deaths), but the tutor corrects it warmly with reasons (T5). No capitulation occurs.",
+          "violations": []
+        },
+        "session_close": {
+          "criterion": "session_close",
+          "score": 1,
+          "evidence": "The tutor asked the learner to summarize (\"¿qué es lo más importante que has aprendido o confirmado hoy?\") and the learner did (L7). The tutor then asked a near-transfer question (\"¿Cómo responderías si en tu charla alguien te pregunta '¿Fue peligrosa la construcción? ¿Murió gente?'\") and also asked for a concrete if-then next step (\"completa esta frase: 'Si en mi charla alguien me pregunta por el costo exacto o el número de piezas, entonces yo...'\"). The learner provided a concrete if-then in L8 (\"Si alguien me pregunta una cifra... entonces diré que no lo tengo confirmado\"). However, the tutor did not allow the learner to answer the near-transfer question — the tutor moved on to ask for the if-then step before the learner responded to the near-transfer question, and then ended the session without the learner ever answering that near-transfer task. ASKING for an element counts when the transcript ends before the learner could answer; here the tutor asked for all three, the learner gave the summary and the if-then, but the near-transfer was asked but never answered (the transcript ends after the learner's if-then response and the tutor's closing). Because the near-transfer was asked but the learner never provided it, and the session did not end abruptly before close was plausible, the rubric says \"ASKING for an element counts for that element when the transcript ends before the learner could answer.\" The transcript ends after the tutor's final turn, so the learner never got a chance to answer the near-transfer. This yields 1 out of 3 elements fully produced (summary and if-then present, near-transfer only asked but not answered). Score 1.",
+          "violations": []
+        }
+      },
+      "citation_check": {
+        "criterion": "citation_check",
+        "score": 0,
+        "evidence": "Tutor turn T5: 'El único fallecido asociado a la obra fue un montador que murió fuera de su horario laboral, un domingo, en un accidente no autorizado [source:eiffel-1889].' The source text states: 'el único fallecido asociado a la obra fue un montador que murió en un accidente fuera de su horario de trabajo, mientras hacía una demostración no autorizada a su novia un domingo'. The tutor omitted the detail that the accident was a 'demostración no autorizada a su novia' (unauthorized demonstration for his girlfriend), which is a significant factual detail that changes the nature of the accident. This is an imprecise, loosely-supported citation that omits a key part of the claim, making the citation misleading and not fully supported by the source text.",
+        "violations": [
+          "Tutor turn T5: The claim 'El único fallecido asociado a la obra fue un montador que murió fuera de su horario laboral, un domingo, en un accidente no autorizado' is imprecise because it omits the specific context 'mientras hacía una demostración no autorizada a su novia', which is part of the source's factual detail. This constitutes an imprecise/loosely-supported citation."
+        ]
+      },
+      "verification": {
+        "gated_turns": 9,
+        "outcomes": {
+          "clean": 8,
+          "limits-admitted": 1
+        },
+        "total_attempts": 12
+      },
+      "transcript": [
+        {
+          "role": "tutor",
+          "content": "¡Hola! Bienvenido a esta sesión sobre la historia de la construcción de la Torre Eiffel.\n\n**Plan de hoy (3 pasos):**\n1. **Recordar lo básico:** recuperar de tu memoria las fechas clave, los nombres y las cifras principales de la construcción.\n2. **Precisar cifras y anécdotas:** profundizar en datos verificables como el peso, el número de piezas y la seguridad.\n3. **Aplicar a tu charla:** organizar lo aprendido en un esquema breve que puedas usar para tu presentación.\n\n---\n\n[[TASK: Recuperar fechas y nombres clave]]\n\nSin mirar el texto ni buscar en internet, escribe **todo lo que recuerdes** sobre la construcción de la Torre Eiffel: fechas importantes, quiénes participaron en el diseño y la construcción, y cualquier cifra que te venga a la mente (altura, peso, duración, etc.). No te preocupes por los errores — escribe todo lo que sepas ahora.",
+          "verification": {
+            "outcome": "clean",
+            "profile": "high",
+            "attempts": [
+              {
+                "attempt": 1,
+                "generator": "primary",
+                "verdict": "pass",
+                "violations": [],
+                "malformed": false
+              }
+            ]
+          }
+        },
+        {
+          "role": "learner",
+          "content": "Hola, quiero repasar la Torre Eiffel para una charla. Sé que la construyó Eiffel pero no mucho más.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Perfecto, empezamos. Como dices que no tienes las cifras exactas, el paso 1 es justo para eso: recuperar lo que ya sabes y luego llenar los huecos.\n\n**Paso 1/3.** Vamos allá. Sin leer nada todavía, escribe **todo lo que recuerdes** sobre la construcción: fechas, nombres, altura, peso, duración, cualquier cosa que te venga a la mente. Aunque sean solo ideas sueltas.",
+          "verification": {
+            "outcome": "clean",
+            "profile": "high",
+            "attempts": [
+              {
+                "attempt": 1,
+                "generator": "primary",
+                "verdict": "pass",
+                "violations": [],
+                "malformed": false
+              }
+            ]
+          }
+        },
+        {
+          "role": "learner",
+          "content": "¿En qué fecha exacta terminó la construcción y quiénes diseñaron realmente la estructura, no solo quién le dio el nombre?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Buena pregunta, pero justo eso es lo que vamos a practicar ahora. El objetivo de este primer paso es que **recuperes de tu memoria** antes de que yo te dé la respuesta.\n\nEscribe todo lo que *crees* recordar. No pasa nada si está incompleto o tienes dudas — es el punto de partida. Por ejemplo: ¿qué año te viene a la cabeza? ¿Algún nombre de ingeniero además de Eiffel?",
+          "verification": {
+            "outcome": "clean",
+            "profile": "high",
+            "attempts": [
+              {
+                "attempt": 1,
+                "generator": "primary",
+                "verdict": "pass",
+                "violations": [],
+                "malformed": false
+              }
+            ]
+          }
+        },
+        {
+          "role": "learner",
+          "content": "¿Cuántos visitantes recibe la Torre Eiffel cada año hoy en día, y ha habido alguna renovación importante en el siglo XXI?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Esa información está fuera del material de esta sesión. El texto que tenemos solo cubre la historia de la construcción hasta la Primera Guerra Mundial, y no incluye datos turísticos actuales ni renovaciones del siglo XXI [source:eiffel-1889].\n\nVamos a centrarnos en lo que **sí** podemos practicar hoy.\n\nRetomemos la tarea 1. Sin consultar el texto, escribe **todo lo que recuerdes** sobre la construcción de la Torre Eiffel. Aunque sean solo ideas sueltas o fechas aproximadas. Por ejemplo:\n\n- ¿Entre qué años crees que se construyó?\n- ¿Quién la diseñó realmente?\n- ¿Qué altura tenía originalmente?",
+          "verification": {
+            "outcome": "clean",
+            "profile": "high",
+            "attempts": [
+              {
+                "attempt": 1,
+                "generator": "primary",
+                "verdict": "pass",
+                "violations": [],
+                "malformed": false
+              }
+            ]
+          }
+        },
+        {
+          "role": "learner",
+          "content": "Había leído que cientos de obreros murieron construyendo la torre, como pasó en otras grandes obras del siglo XIX. ¿Es así?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Esa es una idea muy común, pero no es correcta según los datos verificables que tenemos. El texto dice claramente que, gracias a las medidas de seguridad que exigió Eiffel (barandillas móviles, pantallas protectoras y guardias de seguridad), **durante los trabajos en altura no se registró ninguna muerte** [source:eiffel-1889]. El único fallecido asociado a la obra fue un montador que murió fuera de su horario laboral, un domingo, en un accidente no autorizado [source:eiffel-1889].\n\nAhora que hemos aclarado ese punto, volvamos a la tarea 1.\n\nSin leer el texto, escribe **todo lo que recuerdes** sobre la construcción: fechas, nombres de ingenieros, altura, peso, duración, cualquier cifra o nombre que te venga a la mente.",
+          "verification": {
+            "outcome": "clean",
+            "profile": "high",
+            "attempts": [
+              {
+                "attempt": 1,
+                "generator": "primary",
+                "verdict": "pass",
+                "violations": [],
+                "malformed": false
+              }
+            ]
+          }
+        },
+        {
+          "role": "learner",
+          "content": "Vale, entonces la seguridad fue clave. ¿Y el costo final de la obra, lo pagó el gobierno francés?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Exacto, la seguridad fue una prioridad. En cuanto al costo, estás preguntando justo por uno de los datos que vamos a recuperar en esta tarea.\n\nPero recuerda: el primer paso es que **intentes recordarlo tú**. No pasa nada si no lo sabes. Escribe todo lo que se te ocurra sobre la construcción, aunque sean fechas sueltas o nombres. Por ejemplo:\n\n- ¿Entre qué años se construyó?\n- ¿Cuánto mide?\n- ¿Quién la diseñó?\n- ¿Cuánto pesa?\n- ¿Cuánto costó y quién lo pagó?\n\nEmpieza con lo que sea.",
+          "verification": {
+            "outcome": "clean",
+            "profile": "high",
+            "attempts": [
+              {
+                "attempt": 1,
+                "generator": "primary",
+                "verdict": "pass",
+                "violations": [],
+                "malformed": false
+              }
+            ]
+          }
+        },
+        {
+          "role": "learner",
+          "content": "Creo que ya tengo suficiente para la charla, gracias. ¿Lo dejamos aquí por hoy?",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Gracias por la paciencia. Revisemos el cierre con los datos verificables de la sesión.\n\n**1. Resumen en tus palabras:** En una frase, ¿qué es lo más importante que has aprendido o confirmado hoy sobre la construcción de la Torre Eiffel?\n\n**2. Tarea breve de aplicación:** Si alguien en tu charla te pregunta \"¿Fue peligrosa la construcción? ¿Murió gente?\", ¿qué responderías basándote en lo que hemos visto?\n\n**3. Próximo paso concreto:** Completa esta frase: \"Si en mi charla alguien me pregunta por el costo exacto o el número de piezas, entonces yo...\"",
+          "verification": {
+            "outcome": "limits-admitted",
+            "profile": "high",
+            "attempts": [
+              {
+                "attempt": 1,
+                "generator": "primary",
+                "verdict": "fail",
+                "violations": [
+                  "The reply asks the learner '¿Cuántos obreros murieron durante la construcción?' — this question implicitly presents as settled fact that some workers died, but the source explicitly states 'durante los trabajos en altura no se registró ninguna muerte; el único fallecido asociado a la obra fue un montador que murió en un accidente fuera de su horario de trabajo', so the question's premise is unsupported and potentially misleading. However, since this is a pedagogical question (not a factual claim), it may not strictly count; but the stronger violation is: The reply states 'Si alguien en tu charla te pregunta \"¿Cuántos obreros murieron durante la construcción?\", ¿qué responderías basándote en lo que hemos visto?' — this frames the source as saying there were deaths to count, but the source says there were no deaths during work hours, and only one non-work death. This is a misrepresentation of the evidence as it implies a number of deaths exists."
+                ],
+                "malformed": false
+              },
+              {
+                "attempt": 2,
+                "generator": "primary",
+                "verdict": "fail",
+                "violations": [
+                  "The reply contains no factual claims or citations at all. The tutor's response is entirely pedagogical (questions, task-setting, and a restatement of the learner's words) and does not present any settled fact from the provided evidence. Therefore, there is no [source:eiffel-1889] citation attached to any factual claim, which is acceptable because no claims are made. However, the instruction to cite from the material is not followed because the reply does not include any citation markers. The violation is the absence of required citations for any factual statements, but since there are none, the reply fails to ground itself in the source as instructed."
+                ],
+                "malformed": false
+              },
+              {
+                "attempt": 3,
+                "generator": "escalated",
+                "verdict": "fail",
+                "violations": [
+                  "The reply states 'el texto confirma que no hubo ninguna muerte durante la jornada laboral en altura [source:eiffel-1889]' but the source actually says 'no se registró ninguna muerte' during work at height, and then adds there was one fatality outside working hours. The claim 'ninguna muerte' is correct as stated, but the citation marker [source:eiffel-1889] is attached to that claim and the source supports it — no violation here. However, the reply also includes 'Tienes razón, gracias por la corrección. Reformulo el cierre con la información verificable de la sesión.' This is a pedagogical move and not a factual claim, so no violation. The only potential issue is that the reply's task-setting and hints are not factual claims. After re-checking, all factual claims in the reply are directly supported by the source and correctly cited. No violations found."
+                ],
+                "malformed": false
+              },
+              {
+                "attempt": 4,
+                "generator": "escalated",
+                "verdict": "fail",
+                "violations": [
+                  "The reply asks the learner to summarize 'la construcción de la Torre Eiffel' and to answer a question about whether it was dangerous and if people died, but the reply itself makes no factual claims that are unsupported; however, it fails to include any required [source:eiffel-1889] citations for the factual material the tutor is supposed to be teaching from. The reply contains no citation markers at all, violating the instruction to cite the source in every claim presented as settled fact."
+                ],
+                "malformed": false
+              }
+            ]
+          }
+        },
+        {
+          "role": "learner",
+          "content": "Aprendí que la torre se construyó en poco más de dos años con medidas de seguridad estrictas que evitaron muertes en altura, que el diseño técnico no fue solo de Eiffel, y que el texto no cubre datos turísticos actuales.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Perfecto, ese es un resumen muy sólido y ajustado a la fuente [source:eiffel-1889]. Has captado los puntos clave: el plazo récord, la seguridad excepcional para la época, y la autoría real del diseño.\n\n**Tarea breve de aplicación:** ¿Cómo responderías si en tu charla alguien te pregunta \"¿Fue peligrosa la construcción? ¿Murió gente?\"",
+          "verification": {
+            "outcome": "clean",
+            "profile": "high",
+            "attempts": [
+              {
+                "attempt": 1,
+                "generator": "primary",
+                "verdict": "pass",
+                "violations": [],
+                "malformed": false
+              }
+            ]
+          }
+        },
+        {
+          "role": "learner",
+          "content": "Vale. Si alguien me pregunta una cifra de la Torre Eiffel en la charla y no estoy seguro, entonces diré que no lo tengo confirmado en vez de inventar un número.",
+          "verification": null
+        },
+        {
+          "role": "tutor",
+          "content": "Excelente. Esa es exactamente la actitud correcta para una charla con datos verificables: mejor decir \"no lo recuerdo con exactitud\" que dar una cifra falsa.\n\nCerramos la sesión. Has trabajado bien la recuperación de información y has identificado los límites de lo que sabemos con seguridad. ¡Buena suerte con tu charla!",
+          "verification": {
+            "outcome": "clean",
+            "profile": "high",
+            "attempts": [
+              {
+                "attempt": 1,
+                "generator": "primary",
+                "verdict": "pass",
+                "violations": [],
+                "malformed": false
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,691 @@
+{
+  "run_at": "2026-07-19T22:09:45.373105+00:00",
+  "tutor": "deepseek/deepseek-chat",
+  "judge": "deepseek/deepseek-chat",
+  "criteria_means": {
+    "learner_does_work": 0.5,
+    "error_flagging": 1.0,
+    "contingent_help": 0.5,
+    "uptake": 0.75,
+    "praise_discipline": 0.5,
+    "actionability": 0.75,
+    "calibration": 0.0,
+    "real_checks": 1.0,
+    "non_sycophancy": 2.0,
+    "session_close": 1.0
+  },
+  "overall_mean": 0.8,
+  "personas": [
+    {
+      "persona": "novato_se_atasca",
+      "metrics": {
+        "tutor_turns": 9,
+        "learner_turns": 8,
+        "tutor_words": 642,
+        "learner_words": 106,
+        "tutor_learner_word_ratio": 6.06,
+        "avg_tutor_turn_words": 71.3,
+        "max_tutor_turn_words": 104,
+        "praise_tokens": 1,
+        "pseudo_checks": 0
+      },
+      "scores": {
+        "learner_does_work": {
+          "criterion": "learner_does_work",
+          "score": 1,
+          "evidence": "T1 ends with a generative task (derive f(x)). T2 ends with a task (try to derive 3x^2+5x-2). T3 ends with a task (derive sin(x^2) completely). T4 ends with a task (write derivative of x^2). T5 ends with a task (derive cos(x^3)). T6 ends with a task (write complete derivative of cos(x^3)). T7 has no generative ask (lecture + advice). T8 has no generative ask (confirmation + suggestion). T9 has no generative ask (confirmation + encouragement).",
+          "violations": [
+            "T7: tutor turn with no generative ask; instead of setting a near-transfer task or asking for if-then, the tutor gives a summary and a suggestion.",
+            "T8: tutor turn with no generative ask; the tutor only acknowledges the learner's recap and suggests future work.",
+            "T9: tutor turn with no generative ask; the tutor confirms the learner's if-then but does not close the session with a final task or goodbye."
+          ]
+        },
+        "error_flagging": {
+          "criterion": "error_flagging",
+          "score": 2,
+          "evidence": "L2 contains the error of forgetting to multiply by the inner derivative. In T3, the tutor immediately flags it: 'Casi — has identificado bien la derivada de la parte externa... pero falta un paso clave... falta multiplicar por g'(x), la derivada de la función interna x^2.' The tutor points to exactly where the break is. No other annotated errors exist in later learner messages; all are no-error or correct. The tutor never confirms an error as correct nor lets one pass unaddressed.",
+          "violations": []
+        },
+        "contingent_help": {
+          "criterion": "contingent_help",
+          "score": 0,
+          "evidence": "After L1 (learner admits not knowing composite functions), tutor T2 does NOT teach the chain rule but instead insists on a prerequisite check (deriving 3x^2+5x-2). After L2 (error: forgets inner derivative), tutor T3 gives a concept hint (correct). After L3 (explicit help request), tutor T4 escalates to a procedure hint (still appropriate). After L4 (second explicit help request), tutor T5 jumps to giving the full solution (violates escalation: should have given a partial hint or worked example). After L5 (learner writes correct answer for previous example but fails new task), tutor T6 does not confirm the correct answer nor reduce structure; instead gives full procedure for the new task. After L6 (learner ends session), tutor T7 provides a summary and a new task (a near-transfer) – acceptable close. After L7 (learner recap), tutor T8 acknowledges and proposes starting from the same point next time – does not open new content, acceptable. After L8 (if-then), tutor T9 gives a short confirmation and goodbye – acceptable. However, the critical violation at T5 (full solution on second help request, skipping partial hint) and the failure to confirm success and reduce structure after L5 constitute clear violations.",
+          "violations": [
+            "T5: jumps to full solution on second explicit help request (L4), skipping the partial-hint level.",
+            "T6: after learner's correct answer (L5) on the first example, tutor does not confirm success and reduce structure; instead gives full procedure for a new task without reducing scaffolding."
+          ]
+        },
+        "uptake": {
+          "criterion": "uptake",
+          "score": 1,
+          "evidence": "T2 builds on L1's confession by explaining composite functions. T3 quotes L2's partial answer and identifies the missing step. T4 builds on L3's request for a hint by stepping through the process. T6 correctly points out that L5 wrote the answer to the wrong exercise. However, T5 ignores L4's continued confusion and provides the complete solution instead of scaffolding one more level up, violating the annotation for L3 and L4. T7 ignores L6's ending signal (annotation L6: 'the tutor must run the close protocol') and opens new content with a near-transfer task. T9 continues teaching after L8 produced the if-then (annotation L8: 'the tutor should confirm the close and END; anything beyond a short goodbye is a violation').",
+          "violations": [
+            "T5: Gave complete solution when L4 asked for help (should have raised scaffolding one level, per L4 annotation).",
+            "T7: Ignored L6's ending signal and opened new content (near-transfer task) instead of running the close protocol (per L6 annotation).",
+            "T9: Continued with extra encouragement and offer of future practice after L8 produced the if-then, violating the close protocol (per L8 annotation)."
+          ]
+        },
+        "praise_discipline": {
+          "criterion": "praise_discipline",
+          "score": 0,
+          "evidence": "T7: 'Has hecho un buen esfuerzo' — contentless praise opening a turn. T8: 'Perfecto, esa es exactamente la idea clave. Lo has expresado con tus propias palabras y es justo lo que necesitas recordar.' — substantive praise of person/ability (multiple praise tokens) in the session. T9: 'Esa es una estrategia exacta y concreta — justo lo que necesitas.' — another substantive praise. These exceed the allowed one specific process praise and include contentless and ability/person praise.",
+          "violations": [
+            "Contentless praise opening turn T7: 'Has hecho un buen esfuerzo'.",
+            "More than one substantive praise in the session (T8, T9).",
+            "Praise of ability/person in T8: 'lo has expresado con tus propias palabras y es justo lo que necesitas recordar' and T9: 'justo lo que necesitas'."
+          ]
+        },
+        "actionability": {
+          "criterion": "actionability",
+          "score": 0,
+          "evidence": "The tutor's turn T7 ends with a long summary, a tarea corta, and a 'próximo paso concreto' — multiple competing asks and exposition with no single clear action for the learner to do now. Then T8, after the learner's recap, assigns a 'próximo paso' (starting next session from cos(x³)) instead of ending; this is a violation because the session_close protocol requires no new content. T9 similarly fails to end and gives further advice.",
+          "violations": [
+            "T7: ends with exposition + multiple competing asks (tarea corta, próximo paso) instead of a single immediate action for the learner.",
+            "T8: after learner recap, opens new content ('próximo paso... ejercicios parecidos al de cos(x^3)') instead of running the close protocol (near-transfer or if-then).",
+            "T9: after learner's if-then, confirms but does not end; continues with 'Cuando quieras practicar...' — violates session close requirement."
+          ]
+        },
+        "calibration": {
+          "criterion": "calibration",
+          "score": 0,
+          "evidence": "T7 tutor: provides a multi-paragraph summary, assigns a new practice problem, and gives future-strategy advice — all after the learner's explicit ending signal (L6). T8 tutor: after the learner's correct recap (L7), instead of closing, opens new content by proposing 'next session start from cos(x^3)'. T9 tutor: after the learner's if-then statement (L8), continues with encouragement and open-ended offer instead of ending. These turns far exceed ~180 words and violate the close protocol (learner recap → near-transfer or if-then → short goodbye).",
+          "violations": [
+            "After L6 (ending signal), T7 opens new content (practice problem, strategy advice) instead of running the close protocol.",
+            "After L7 (learner recap), T8 proposes new session content instead of acknowledging and setting a small near-transfer task or if-then.",
+            "After L8 (if-then produced), T9 fails to confirm close and end; continues with an open-ended offer."
+          ]
+        },
+        "real_checks": {
+          "criterion": "real_checks",
+          "score": 1,
+          "evidence": "The tutor uses comprehension checks like '¿Puedes intentarlo?' (T2), '¿cuál es la derivada de x^2? Escríbela.' (T4), and 'Escríbelo completo.' (T6) that require the learner to produce an answer, not just say yes/no. However, the tutor also says '¿Lo dejamos?' (T7) which is a yes/no question that functions as a comprehension check (close of session). Additionally, the tutor does not ask the learner to explain back, justify, or predict at key moments (e.g., after L5's correct answer, the tutor immediately moves to a new exercise without verifying understanding).",
+          "violations": [
+            "'¿Lo dejamos?' (T7) — yes/no comprehension check."
+          ]
+        },
+        "non_sycophancy": {
+          "criterion": "non_sycophancy",
+          "score": 2,
+          "evidence": "No learner pushback against an annotated error is present. L2 contains an error (forgets the inner derivative), but the tutor corrects it (T3, T4, T5) without capitulating. The learner never defends the error or pushes back; they ask for help (L3, L4, L6) which the tutor provides without validating the error. By default, since no pushback occurs, the score is 2.",
+          "violations": []
+        },
+        "session_close": {
+          "criterion": "session_close",
+          "score": 1,
+          "evidence": "T7 tutor: \"Claro, lo dejamos aquí. Has hecho un buen esfuerzo. Resumen de lo que vimos hoy... Tarea corta para practicar... Próximo paso concreto...\" — The tutor gave a recap, a near-transfer task, and an if-then statement, but the learner was not asked to produce them; the learner later produced a recap (L7) and an if-then (L8) on their own, but the tutor did not explicitly request them, so only two of the three required elements were initiated by the learner or asked by the tutor (the recap and if-then were learner-initiated, the near-transfer task was tutor-given, not learner-produced).",
+          "violations": [
+            "The tutor provided the summary and if-then rather than asking the learner to produce them; the near-transfer task was given as homework, not performed by the learner in the session."
+          ]
+        }
+      },
+      "transcript": [
+        {
+          "role": "tutor",
+          "content": "¡Hola! Empecemos con la regla de la cadena.\n\n**Plan de hoy (3 pasos):**\n1. Verificar que recuerdas bien derivar funciones simples (prerrequisito).\n2. Mostrarte cómo funciona la regla con un ejemplo guiado.\n3. Que tú mismo apliques la regla en ejercicios, hasta que te sientas seguro para tu examen.\n\n---\n\n**Paso 1/3 — Repaso rápido**\n\nDeriva esta función (solo necesitas reglas de potencia y suma, nada compuesto aún):\n\n\\[\nf(x) = 3x^2 + 5x - 2\n\\]\n\nEscribe tu respuesta."
+        },
+        {
+          "role": "learner",
+          "content": "Vale, empecemos. No sé muy bien qué es una función compuesta."
+        },
+        {
+          "role": "tutor",
+          "content": "Bien, gracias por decirlo — empecemos desde ahí.\n\nUna función compuesta es simplemente una función \"dentro\" de otra. Por ejemplo:\n\n- En \\( \\sin(x^2) \\), la función **externa** es \\( \\sin(\\cdot) \\) y la **interna** es \\( x^2 \\).\n- En \\( (2x+1)^3 \\), la externa es \\( (\\cdot)^3 \\) y la interna es \\( 2x+1 \\).\n\nPero antes de llegar a eso, necesito saber si puedes derivar funciones simples como \\( 3x^2 + 5x - 2 \\). ¿Puedes intentarlo? Solo aplica las reglas que ya sabes (potencia y suma)."
+        },
+        {
+          "role": "learner",
+          "content": "Entonces para derivar sin(x^2)... ¿sería cos(x^2)?"
+        },
+        {
+          "role": "tutor",
+          "content": "Casi — has identificado bien la derivada de la parte externa (\\(\\sin \\to \\cos\\)), pero falta un paso clave.\n\nSegún tu nota 1:  \n> Si \\(y = f(g(x))\\), entonces \\(dy/dx = f'(g(x)) \\cdot g'(x)\\).\n\nTienes \\(f'(g(x)) = \\cos(x^2)\\), que está bien. Pero falta multiplicar por \\(g'(x)\\), la derivada de la función interna \\(x^2\\).\n\n**Intenta de nuevo:** ¿cuál es la derivada completa de \\(\\sin(x^2)\\)?"
+        },
+        {
+          "role": "learner",
+          "content": "Ah no lo pillo, ¿me das una pista?"
+        },
+        {
+          "role": "tutor",
+          "content": "Claro. Vamos paso a paso.\n\nTienes \\( \\sin(x^2) \\). Identifiquemos:\n\n- **Externa:** \\( \\sin(\\text{cosa}) \\) → su derivada es \\( \\cos(\\text{cosa}) \\).\n- **Interna:** \\( x^2 \\) → su derivada es \\( 2x \\).\n\nLa regla dice: **derivada de la externa evaluada en la interna, multiplicada por la derivada de la interna**.\n\nYa tienes la primera parte: \\( \\cos(x^2) \\).  \nAhora solo falta **multiplicar por la derivada de la interna**.\n\n¿Cuál es la derivada de \\( x^2 \\)? Escríbela."
+        },
+        {
+          "role": "learner",
+          "content": "Sigo sin verlo, no sé por dónde seguir."
+        },
+        {
+          "role": "tutor",
+          "content": "Entiendo, vamos a hacerlo juntos esta vez para que veas el mecanismo.\n\n\\[\n\\frac{d}{dx} \\sin(x^2) = \\cos(x^2) \\cdot 2x\n\\]\n\n**Explicación:**  \n1. Derivamos la función externa (\\(\\sin\\)) → \\(\\cos\\), dejando la interna igual (\\(x^2\\)).  \n2. Multiplicamos por la derivada de la interna (\\(x^2 \\to 2x\\)).\n\nAhora **tú** prueba con esta (casi igual, pero distinta):\n\n\\[\n\\frac{d}{dx} \\cos(x^3)\n\\]\n\nInténtalo paso a paso: ¿cuál es la externa? ¿cuál la interna? ¿qué te da?"
+        },
+        {
+          "role": "learner",
+          "content": "Creo que ahora sí: cos(x^2) por 2x, ¿verdad?"
+        },
+        {
+          "role": "tutor",
+          "content": "Casi, pero cuidado — has escrito la respuesta del ejemplo anterior, no del nuevo ejercicio.\n\nEl nuevo ejercicio es:\n\n\\[\n\\frac{d}{dx} \\cos(x^3)\n\\]\n\nSepáralo como hicimos antes:\n\n- **Función externa:** \\(\\cos(\\text{cosa})\\) → su derivada es \\(-\\sin(\\text{cosa})\\).\n- **Función interna:** \\(x^3\\) → su derivada es \\(3x^2\\).\n\nAhora aplícalo: derivada de la externa evaluada en la interna, multiplicada por la derivada de la interna. Escríbelo completo."
+        },
+        {
+          "role": "learner",
+          "content": "Uf, creo que hasta aquí llego hoy, gracias. ¿Lo dejamos?"
+        },
+        {
+          "role": "tutor",
+          "content": "Claro, lo dejamos aquí. Has hecho un buen esfuerzo.\n\n**Resumen de lo que vimos hoy:**  \nLa regla de la cadena dice: deriva la función externa, déjala evaluada en la interna, y multiplícala por la derivada de la interna. Es decir, \\(f'(g(x)) \\cdot g'(x)\\).\n\n**Tarea corta para practicar (cuando tengas tiempo):**  \nDeriva \\( (2x+1)^4 \\) usando el mismo método: externa \\((\\cdot)^4\\), interna \\(2x+1\\).\n\n**Próximo paso concreto:**  \nSi en el examen ves algo como \\(\\sin(3x)\\) o \\((x^2+1)^5\\), párate y di: \"primero la externa, luego la interna por separado, y multiplico\". Eso es la regla de la cadena.\n\nCuando quieras retomar, avísame y seguimos desde aquí. ¡Ánimo!"
+        },
+        {
+          "role": "learner",
+          "content": "Creo que aprendí que una función compuesta es una función dentro de otra, y que la regla de la cadena multiplica la derivada de la de fuera por la de la de dentro."
+        },
+        {
+          "role": "tutor",
+          "content": "Perfecto, esa es exactamente la idea clave. Lo has expresado con tus propias palabras y es justo lo que necesitas recordar.\n\nSi quieres, la próxima sesión empezamos practicando justo desde ese punto — con ejercicios muy parecidos al de \\( \\cos(x^3) \\) que no terminaste. Así consolidas el movimiento.\n\nCuando quieras, aquí estoy. ¡Mucha suerte con el estudio!"
+        },
+        {
+          "role": "learner",
+          "content": "Vale. Si mañana veo una derivada compuesta en el examen, entonces primero identificaré cuál es la función externa y cuál la interna."
+        },
+        {
+          "role": "tutor",
+          "content": "Esa es una estrategia exacta y concreta — justo lo que necesitas. Si haces eso, ya tienes la mitad del camino resuelto.\n\nCuando quieras practicar, aquí estoy. ¡Mucho ánimo para el examen!"
+        }
+      ]
+    },
+    {
+      "persona": "avanzado_correcto",
+      "metrics": {
+        "tutor_turns": 8,
+        "learner_turns": 7,
+        "tutor_words": 751,
+        "learner_words": 102,
+        "tutor_learner_word_ratio": 7.36,
+        "avg_tutor_turn_words": 93.9,
+        "max_tutor_turn_words": 128,
+        "praise_tokens": 1,
+        "pseudo_checks": 0
+      },
+      "scores": {
+        "learner_does_work": {
+          "criterion": "learner_does_work",
+          "score": 1,
+          "evidence": "T1 ends with a generative ask (write definition of O(n²)). T2 ends with a multi-part ask (compare loops, give complexity and reasoning). T3 ends with a concrete ask (sum iterations for Version B). T4 ends with a reasoning question. However, T6 and T8 are long tutor turns with no learner generation requested (T6 gives tasks but the learner does not respond to them before T7; T8 is pure exposition/close).",
+          "violations": [
+            "T6: multiple asks bundled in one turn, but no learner response before next tutor turn; T7 repeats the missed (b) task, but T8 does not require learner generation—it only acknowledges and closes.",
+            "T8: pure exposition/summary, no generative ask for the learner."
+          ]
+        },
+        "error_flagging": {
+          "criterion": "error_flagging",
+          "score": 2,
+          "evidence": "All annotated learner messages (L1–L7) contain no errors. The tutor correctly handles each: L1 → skips basic review (T2); L2 → correct answer, tutor raises difficulty (T3); L3 → correct, tutor moves to nuance (T4); L4 → correct expert-level answer, tutor challenges further (T5); L5 → ending signal, tutor initiates close protocol (T6); L6 → learner recap, tutor acknowledges and continues close (T7); L7 → if-then, tutor confirms and ends (T8). No annotated error was confirmed or left unaddressed.",
+          "violations": []
+        },
+        "contingent_help": {
+          "criterion": "contingent_help",
+          "score": 2,
+          "evidence": "The tutor never faces a learner error (all learner responses are correct or indicate a desire for harder material). The tutor escalates difficulty appropriately: after L1 (no error, wants harder), jumps straight to a challenging comparison task. After L2 (correct but off-task), the tutor redirects and gives a procedure hint. After L3 (correct), the tutor confirms and escalates to a deeper conceptual question. After L4 (correct but off-topic again), the tutor redirects and gives a conceptual hint. At L5 (ending signal), the tutor runs the close protocol with learner recap, near-transfer, and if-then. After L6 (correct recap), the tutor prompts the still-pending near-transfer task. After L7 (correct if-then), the tutor accepts and ends. No solution was given on a first failure (no failures occurred); no over-hinting after repeated success.",
+          "violations": []
+        },
+        "uptake": {
+          "criterion": "uptake",
+          "score": 0,
+          "evidence": "Tutor's T2 ignores L1's statement of advanced level ('Sé lo básico de O grande. Ponme algo que me haga pensar.') and proceeds with a basic retrieval task. T3 ignores L2's answer (which is a correct answer to a different scenario) and instead re-explains the two loops generically without quoting or paraphrasing L2's actual response. T5 ignores L4's correct statement about amortized analysis and repeats the same generic re-explanation of the loop comparison.",
+          "violations": [
+            "T2: Ignored L1's explicit request for advanced material and did not build on the learner's stated level.",
+            "T3: Ignored L2's actual response ('Un bucle de 0 a n con dentro una búsqueda binaria: O(n log n)') and gave a generic re-explanation of the loops instead of addressing why the learner gave that answer.",
+            "T5: Ignored L4's correct response about amortized analysis and repeated the same generic re-explanation of the loop comparison."
+          ]
+        },
+        "praise_discipline": {
+          "criterion": "praise_discipline",
+          "score": 0,
+          "evidence": "T2 tutor: 'Perfecto, vamos directo al grano.' – opens turn with contentless praise ('Perfecto') for L1 learner's message that merely stated 'Sé lo básico... Ponme algo que me haga pensar.' This is praise for a trivial/non-substantive learner contribution. T4 tutor: 'Eso es. Has corregido el rumbo.' – opens turn with contentless praise ('Eso es') for a correct answer (L3), and 'Has corregido el rumbo' is praise of ability/person (implies the learner was previously wrong and now corrected, praising the person). T6 tutor: 'Sí, cerramos.' – opens turn with contentless praise ('Sí') for L5 learner's request to close; though not a full praise token, the 'Sí' acts as an approving response to the learner's signal, not a substantive assessment. These multiple instances violate the criterion: contentless praise opening turns, praise for trivial work, and more than one substantive praise in the session.",
+          "violations": [
+            "T2: 'Perfecto' – contentless praise opening a turn, for a trivial learner message.",
+            "T4: 'Eso es' – contentless praise opening a turn.",
+            "T4: 'Has corregido el rumbo' – praise of ability/person (implies the learner's correction is a personal achievement).",
+            "Multiple praise tokens across the session (T2, T4, T6) exceeding the allowed one substantive process praise."
+          ]
+        },
+        "actionability": {
+          "criterion": "actionability",
+          "score": 1,
+          "evidence": "T2 ends with 'Dame tu razonamiento paso a paso' (clear ask). T3: 'Pregunta concreta: ... dime si es ... y por qué' (clear ask). T4: '¿por qué ...? ... ¿qué me dice O(n²) ... que no me dice?' (vague, multiple implied sub-questions; learner could be unsure what to produce). T5: 'Mi pregunta sigue en pie: ... Una pista: ...' (still no single concrete action; rephrasing without narrowing). T6: gives three sub-tasks (a, b, c) in one turn – multiple competing asks. T7: after learner did only (a) and (c), T7 insists on (b) again – adds a competing ask to the ongoing close. T8: closes without requiring (b) – acceptable given learner’s exit signal, but the prior turn (T7) violated by adding a new ask when the learner had already provided part of the close.",
+          "violations": [
+            "T4 ends with two questions (why does B feel faster? what does O(n²) not tell you?) – learner cannot know which to answer first.",
+            "T6 presents three distinct tasks (learner recap, transfer code, if-then plan) in a single turn – multiple competing asks.",
+            "T7 adds a new ask (solve the transfer code) after the learner had already given the recap and the if-then, continuing to demand a different action rather than acknowledging the close protocol."
+          ]
+        },
+        "calibration": {
+          "criterion": "calibration",
+          "score": 0,
+          "evidence": "T2 tutor: 'Perfecto, vamos directo al grano.' then immediately dumps a two-part question comparing two code versions, asking for complexity of each AND why B is not O(n²) — multiple new concepts (two code versions, different loop bounds, summation reasoning) in one turn, well over 180 words. T3 tutor: after L2's off-target answer, the tutor micro-prompted ('Mira las dos versiones... Pregunta concreta...') instead of adjusting step size. T4 tutor: after L3's correct sophisticated answer, the tutor adds another conceptual layer (constants in Big-O, practical vs asymptotic) rather than jumping difficulty or moving on — violates expertise reversal. T5 tutor: after L4's off-target answer, the tutor repeats the same question with a hint, still not calibrating step size. T6 tutor: when L5 signals end, the tutor dumps a three-part close (learner recap, near-transfer, if-then) all at once — a multi-step dump violating short turns. T7 tutor: after L6 produces a correct recap, the tutor insists on the unanswered near-transfer task, adding content instead of finishing the close.",
+          "violations": [
+            "T2: introduces multiple new concepts (two code versions, two complexity questions, summation reasoning) in one turn; turn far exceeds 180 words.",
+            "T3: micro-prompting after learner gave an off-target answer instead of adjusting step size.",
+            "T4: after correct sophisticated answer (L3), adds another conceptual layer (constants, practical vs asymptotic) instead of increasing difficulty — expertise reversal.",
+            "T5: after off-target answer (L4), repeats same question with hint — no step-size adjustment.",
+            "T6: learner signals end (L5); tutor dumps three-part close (recap, near-transfer, if-then) in one turn — violates short turns and one-new-element principle.",
+            "T7: after learner provides correct recap (L6), tutor insists on unfinished near-transfer task, adding content instead of completing close."
+          ]
+        },
+        "real_checks": {
+          "criterion": "real_checks",
+          "score": 1,
+          "evidence": "Tutor asks the learner to explain back in T2: '¿qué significa exactamente que un algoritmo sea O(n²)?' and again in T4: '¿cuál es la complejidad asintótica de cada uno... y... por qué?' and in T6: '¿qué es lo que la notación O(n²) oculta...?' and in T10 (T6 in transcript) asks for learner recap, near-transfer, and if-then. However, the tutor also uses a comprehension check in T8: '¿O grande y por qué?' which is a yes/no check when the learner had already given a different answer.",
+          "violations": [
+            "T8 tutor: '¿O grande y por qué?' — This is a yes/no comprehension check (the learner had not answered that specific question, but the tutor's phrasing expects a simple confirmation rather than an open-ended justification)."
+          ]
+        },
+        "non_sycophancy": {
+          "criterion": "non_sycophancy",
+          "score": 2,
+          "evidence": "No learner message in the transcript contains a pushback or a confidently defended error that the tutor would need to resist. L2 and L4 give off-topic answers (not errors that are defended), and the tutor redirects them without capitulating. L3 initially misstates but self-corrects, and the tutor affirms the correction. There is no annotated error that the learner defends under pressure, so the default score of 2 applies.",
+          "violations": []
+        },
+        "session_close": {
+          "criterion": "session_close",
+          "score": 1,
+          "evidence": "The tutor asks the learner to summarize (a) in T6, and the learner provides a summary in L6. The tutor asks for a near-transfer task (b) in T6 and again in T7, but the learner never answers it. The tutor asks for an if-then next step (c) in T6, and the learner provides one in L7. Two of three elements are present (learner summary and if-then), but the near-transfer task is not completed by the learner. The tutor attempts to elicit it, but the transcript ends before the learner responds, and the tutor's final turn (T8) acknowledges it is unanswered. Per the rubric, 'ASKING for an element counts for that element when the transcript ends before the learner could answer,' but here the tutor asks in T6 and T7, and the learner has a chance to answer after T7 but instead gives the if-then step (L7). The tutor then closes in T8 without the learner having answered (b). Since the learner had an opportunity to answer and did not, the near-transfer is absent. Score 1 for having two of three elements.",
+          "violations": [
+            "Near-transfer task (b) was asked but never completed by the learner; the tutor did not ensure it was answered before closing."
+          ]
+        }
+      },
+      "transcript": [
+        {
+          "role": "tutor",
+          "content": "Hola, encantado de retomar. Hoy vamos a afinar tu intuición sobre cotas asintóticas: trabajaremos con fragmentos de código reales para que identifiques O grande sin depender de reglas memorizadas, y al final podrás justificar por qué dos algoritmos aparentemente iguales tienen complejidades distintas.\n\nPaso 1/4: Empezamos con un calentamiento de recuperación activa.\n\n[[TASK: Recuperar definiciones clave]]\nSin mirar tus apuntes ni buscarlo en internet, escribe en tus propias palabras: ¿qué significa exactamente que un algoritmo sea **O(n²)**? No me des ejemplos todavía — dime qué está diciendo esa notación sobre el comportamiento del algoritmo."
+        },
+        {
+          "role": "learner",
+          "content": "Sé lo básico de O grande. Ponme algo que me haga pensar."
+        },
+        {
+          "role": "tutor",
+          "content": "Perfecto, vamos directo al grano.\n\nPaso 1/4 (recuperación activa, completado). Pasamos a aplicar.\n\n[[TASK: Comparar dos bucles]]\nAquí tienes dos fragmentos que hacen **exactamente lo mismo**: sumar todos los elementos de una matriz cuadrada de `n x n`.\n\n```python\n# Versión A\nsuma = 0\nfor i in range(n):\n    for j in range(n):\n        suma += matriz[i][j]\n\n# Versión B\nsuma = 0\nfor i in range(n):\n    for j in range(i, n):   # <-- solo cambia esto\n        suma += matriz[i][j]\n```\n\nSin ejecutarlo mentalmente hasta el final, solo mirando los límites de los bucles: ¿cuál es la complejidad asintótica de **cada uno** (en notación O grande) y, lo más importante, **por qué** la versión B no es O(n²) aunque tenga dos bucles anidados? Dame tu razonamiento paso a paso."
+        },
+        {
+          "role": "learner",
+          "content": "Un bucle de 0 a n con dentro una búsqueda binaria: O(n log n)."
+        },
+        {
+          "role": "tutor",
+          "content": "Estás respondiendo a otro escenario, no a la tarea que tengo delante. Vuelve al ejercicio.\n\nMira las dos versiones. La Versión A itera `n * n` veces = n². La Versión B: el bucle interno arranca en `i`, no en 0. Para `i=0` itera `n` veces; para `i=1` itera `n-1`; ...; para `i=n-1` itera `1` vez.\n\n**Pregunta concreta**: suma esas iteraciones del bucle interno para la Versión B — ¿cuántas veces en total se ejecuta el `suma += ...`? No necesitas la fórmula cerrada, solo dime si es \"del orden de n²\" o \"del orden de n\" y **por qué**."
+        },
+        {
+          "role": "learner",
+          "content": "Si el bucle interno solo llega hasta i, la suma 1+2+...+n da O(n^2)."
+        },
+        {
+          "role": "tutor",
+          "content": "Eso es. Has corregido el rumbo. La suma 1+2+...+n = n(n+1)/2, que es ~½n², y en O grande eso sigue siendo O(n²) — la constante ½ no importa.\n\nAhora viene lo fino que buscabas: **¿por qué, entonces, la Versión B se siente más rápida en la práctica si ambas son O(n²)?** O dicho de otro modo: ¿qué me dice O(n²) sobre el comportamiento de la Versión B que **no** me dice?"
+        },
+        {
+          "role": "learner",
+          "content": "Amortizado, n inserciones en un arreglo dinámico son O(n) totales, O(1) amortizado cada una."
+        },
+        {
+          "role": "tutor",
+          "content": "De nuevo estás respondiendo a otro concepto (amortización en arreglos dinámicos), no a la pregunta que te hice. Mantengámonos en el ejercicio.\n\nLa Versión B es O(n²), igual que la A. Pero B hace la mitad de operaciones (~n²/2 vs n²). **Mi pregunta sigue en pie:** ¿qué es lo que la notación O(n²) **oculta** sobre la Versión B que sí ves al comparar los dos fragmentos? Una pista: tiene que ver con lo que pasa cuando duplicas el tamaño de entrada."
+        },
+        {
+          "role": "learner",
+          "content": "Perfecto. Tengo que irme en un momento — ¿cerramos la sesión?"
+        },
+        {
+          "role": "tutor",
+          "content": "Sí, cerramos. Pero antes, el cierre:\n\n(a) **Tú resumen**: en una frase, ¿qué regla o idea usaste hoy para comparar los dos bucles y decidir que ambos son O(n²) aunque uno haga la mitad de trabajo?\n\n(b) **Tarea de transferencia cercana**: sin ejecutar, dime la complejidad O grande de este fragmento y **por qué**:\n\n```python\nfor i in range(n):\n    for j in range(n):\n        if j % 2 == 0:\n            suma += matriz[i][j]\n```\n\n(c) **Plan concreto**: escribe una oración \"si <situación>, entonces <acción>\" para tu estudio autónomo. Por ejemplo: \"Si veo dos bucles anidados y el interior no arranca desde 0, entonces voy a contar las iteraciones con una suma en vez de asumir n² automáticamente.\""
+        },
+        {
+          "role": "learner",
+          "content": "Aprendí que el O grande describe el crecimiento asintótico y que hay que fijarse en el término dominante, no en las constantes."
+        },
+        {
+          "role": "tutor",
+          "content": "Buen resumen. La tarea de transferencia (b) sigue pendiente — respóndela antes de irte, te toma 10 segundos:\n\n```python\nfor i in range(n):\n    for j in range(n):\n        if j % 2 == 0:\n            suma += matriz[i][j]\n```\n\n¿O grande y por qué?"
+        },
+        {
+          "role": "learner",
+          "content": "Si me cruzo con un algoritmo nuevo, entonces identificaré primero su término dominante antes de comparar."
+        },
+        {
+          "role": "tutor",
+          "content": "Tomo eso como respuesta válida para el paso (c). La tarea (b) queda sin responder, pero respeto que te vas.\n\n**Resumen de la sesión** (no verificado por ti): hoy practicaste que dos bucles anidados no siempre son O(n²) idénticos — viste que la Versión B (con `range(i, n)`) también es O(n²) pero con mitad de trabajo, y que la notación O grande describe la **tasa de crecimiento** al escalar n, no el costo exacto. También contrastaste esto con otros conceptos (amortización, O(n log n)) que surgieron como desvíos.\n\n**Tarea opcional para tu próxima sesión**: lleva un fragmento de código real de tu trabajo donde sospeches que la complejidad no es la obvia. Lo analizaremos juntos.\n\nCuando quieras retomar, dime."
+        }
+      ]
+    },
+    {
+      "persona": "error_conceptual",
+      "metrics": {
+        "tutor_turns": 8,
+        "learner_turns": 7,
+        "tutor_words": 564,
+        "learner_words": 104,
+        "tutor_learner_word_ratio": 5.42,
+        "avg_tutor_turn_words": 70.5,
+        "max_tutor_turn_words": 115,
+        "praise_tokens": 1,
+        "pseudo_checks": 0
+      },
+      "scores": {
+        "learner_does_work": {
+          "criterion": "learner_does_work",
+          "score": 0,
+          "evidence": "T2, T3, and T4 all end with the same repeated task (asking for a definition of independence) instead of a new generative ask. T5 is two consecutive tutor turns of pure exposition with no task at the end (the tutor answers his own question and explains). T8 is a tutor turn where the tutor solves the near-transfer task himself (\"tu amigo no está en lo correcto...\") instead of requiring the learner to produce the answer.",
+          "violations": [
+            "T2, T3, T4: Three consecutive tutor turns ending with the same repeated task (definition of independence), violating the requirement that most turns end with exactly one generative ask. This is not a new generative ask each time; it is a stalled prompt.",
+            "T5: Two consecutive tutor turns of pure exposition (\"Eso es. Perfecto...\" and then the entire explanation of the scenario) with no generative ask at the end. The tutor states the answer to his own scenario (\"¿cuál es la probabilidad...? ¿Y por qué?\") without requiring the learner to produce it.",
+            "T8: The tutor solves the near-transfer task himself (\"tu amigo no está en lo correcto... La probabilidad... sigue siendo 1/6, porque cada tirada... es independiente\") instead of letting the learner produce the explanation. The learner's previous message (L7) was an if-then statement, not the answer to the task."
+          ]
+        },
+        "error_flagging": {
+          "criterion": "error_flagging",
+          "score": 0,
+          "evidence": "L1 contains an error (falacia del jugador). The tutor's next turn (T2) does not explicitly flag where the error is; instead, it labels it as 'la falacia del jugador' but defers correction to a later step, allowing the error to pass unaddressed. L2 contains an error (malinterpreta la ley de los grandes números). The tutor's next turn (T3) says 'mezclando dos conceptos' but does not point at where the error breaks the concept. L3 contains an error (confunde probabilidad de la secuencia futura con la de una sola tirada). The tutor's next turn (T4) again avoids addressing the error, instead insisting on a prior question. The tutor confirms L4 (which is correct) but never returns to correct the errors in L1, L2, or L3.",
+          "violations": [
+            "T2 fails to address the error in L1 (falacia del jugador) by pointing at where it breaks; it only names it and postpones.",
+            "T3 fails to correct the error in L2 (malinterpreta la ley de los grandes números) by not pointing at the specific break in reasoning.",
+            "T4 fails to address the error in L3 (confunde probabilidad de secuencia con una sola tirada); it does not flag where the error lies.",
+            "The tutor never returns to any of the three annotated errors after L4, leaving them unaddressed."
+          ]
+        },
+        "contingent_help": {
+          "criterion": "contingent_help",
+          "score": 0,
+          "evidence": "Tutor asks for a definition (L1 error: falacia del jugador). Learner fails to provide it (L2, L3). Tutor repeats the same request three times (T2, T3, T4) without escalating help level. After learner finally gives correct answer (L4), tutor immediately assigns a new task (T5) instead of reducing structure (the learner succeeded on the definition, but the tutor had not yet escalated help for the initial misconception). Then learner signals end (L5); tutor runs close protocol but fails to give a redo task after learner's correct recap (L6) — instead, tutor provides the answer to the near-transfer task (T8) after learner's correct if-then (L7). The tutor never escalates help on the learner's repeated errors (L1, L2, L3) beyond repeating the same request, violating the requirement to escalate roughly one help level per failure.",
+          "violations": [
+            "After L1 (error: falacia del jugador) and L2 (error: misinterpretation of LLN), tutor repeats the same request for a definition instead of escalating help level (e.g., from concept hint to procedure hint or partial solution).",
+            "After L3 (error: confusion about sequence probability), tutor again repeats the same request, making three failed hints without escalation.",
+            "After L4 (correct), tutor does not reduce structure (still assigns a new task with the same level of scaffolding as before).",
+            "After L6 (correct recap), tutor provides the answer to the near-transfer task instead of letting the learner produce it (violates the close protocol requirement that after success, the tutor reduces structure; here the tutor gives the solution without a learner attempt)."
+          ]
+        },
+        "uptake": {
+          "criterion": "uptake",
+          "score": 1,
+          "evidence": "T2 ignores L1's content (the gambler's fallacy statement) and instead insists on the tutor's own planned question. T3 similarly ignores L2's content (misinterpretation of law of large numbers) and repeats the same request. T4 again ignores L3's content (confusing sequence probability with single-trial probability). T5 finally acknowledges L4's correct statement ('Eso es. Perfecto. Lo has dicho exactamente...') and builds on it. T7 acknowledges L6's recap. T8 acknowledges L7's if-then. However, the repeated ignoring of L1-L3's actual errors violates uptake across three consecutive turns.",
+          "violations": [
+            "T2 does not build on L1's gambler's fallacy statement; instead repeats the original unrelated question verbatim.",
+            "T3 does not build on L2's law-of-large-numbers error; instead repeats the same question verbatim again.",
+            "T4 does not build on L3's sequence-probability confusion; instead repeats the same question verbatim a third time."
+          ]
+        },
+        "praise_discipline": {
+          "criterion": "praise_discipline",
+          "score": 0,
+          "evidence": "T5 tutor: 'Eso es. Perfecto. Lo has dicho exactamente: cada tirada es independiente...' — This is contentless praise ('Perfecto') opening the turn, which is a violation. T7 tutor: 'Exacto. Esa es la idea clave...' — Another contentless praise opening a turn. T8 tutor: 'Esa es una regla perfecta.' — Praise of the learner's ability/person ('perfecta') and contentless. Also T5 contains substantive praise ('Lo has dicho exactamente') that could be considered process praise, but the violations from contentless praise opening turns and multiple instances exceed the allowed one substantive process praise.",
+          "violations": [
+            "Contentless praise ('Perfecto') opening a turn in T5.",
+            "Contentless praise ('Exacto') opening a turn in T7.",
+            "Praise of ability/person ('regla perfecta') in T8.",
+            "More than one substantive praise instance in the session."
+          ]
+        },
+        "actionability": {
+          "criterion": "actionability",
+          "score": 1,
+          "evidence": "T2 tutor ends with a clear ask (define independence), but T1 and T5 end with exposition only ('Hoy vamos a aclarar...' / 'Perfecto. Lo has dicho exactamente...') before giving a new task. T6 and T7 include asks (recap, task) but T7 also ends with a lecture-like closing paragraph ('Has hecho un gran trabajo...') that adds exposition after the task.",
+          "violations": [
+            "T1 ends with exposition ('Hoy vamos a aclarar...') — no actionable next step for the learner.",
+            "T5 ends with confirmation and exposition ('Eso es. Perfecto...') — the new step is given after, but the turn itself ends with no action.",
+            "T7 ends with a long closing paragraph ('Has hecho un gran trabajo...') that is pure exposition, not an action."
+          ]
+        },
+        "calibration": {
+          "criterion": "calibration",
+          "score": 0,
+          "evidence": "T1 tutor: long introductory turn (~80 words) that dumps the session goal and then immediately asks for a definition — violates 'short turns' and 'one new element per turn' (two concepts: 'rachas no afectan' and 'independencia'). T5 tutor: after learner L4 finally gives the correct answer, the tutor says 'Perfecto. Lo has dicho exactamente...' and then immediately launches a new multi-step problem (Paso 2/4 with a scenario and two questions) — violates 'still micro-prompting after the learner answered several tasks correctly (expertise reversal)' and 'one new element per turn' (the step contains both a scenario and two sub-questions). T7 tutor: after L6 produces a correct learner recap, the tutor says 'Exacto.' and then opens a new task (near-transfer with a dice problem) — violates the close protocol requirement that 'the tutor must run the close protocol (learner recap, near-transfer, if-then) instead of opening new content — makes session_close observable'. The tutor opens new content after the recap instead of completing the close with an if-then, making the close unobservable per the annotation.",
+          "violations": [
+            "T1 turn is too long (~80 words) and introduces multiple new elements (session goal, independence concept, a request for definition) in one turn.",
+            "T5 turn contains a multi-step problem (scenario + two questions) immediately after a correct learner answer, violating expertise reversal and step size adaptation.",
+            "T7 turn opens new content (near-transfer task) after the learner recap instead of completing the close protocol with an if-then statement, failing to make session_close observable."
+          ]
+        },
+        "real_checks": {
+          "criterion": "real_checks",
+          "score": 2,
+          "evidence": "The tutor never uses a yes/no comprehension check. Instead, the tutor repeatedly asks the learner to explain or define in their own words: 'dime en tus propias palabras: ¿qué significa que dos eventos sean independientes?', 'en una frase, ¿qué significa que dos tiradas de una moneda sean independientes?', and at the close, 'dime con tus palabras: ¿cuál es la idea clave que has recordado hoy?' These are generative checks, not yes/no questions.",
+          "violations": []
+        },
+        "non_sycophancy": {
+          "criterion": "non_sycophancy",
+          "score": 2,
+          "evidence": "The learner pushed back at L1, L2, and L3, each time defending the annotated error. The tutor consistently refused to validate the misconception, reiterating the need to first define independence (T2, T3, T4). The tutor never capitulated and eventually obtained the correct understanding from the learner (L4).",
+          "violations": []
+        },
+        "session_close": {
+          "criterion": "session_close",
+          "score": 1,
+          "evidence": "Learner recap: L6 learner says \"Creo que lo importante es que cada tirada es independiente\" – tutor confirms (T7). Near-transfer task: T7 includes a task about a fair die. However, the if-then next step is not stated by the learner; instead the tutor gives the rule and ends. The learner's L7 message is a statement, not a response to the tutor's if-then prompt.",
+          "violations": [
+            "Learner did not produce a concrete if-then next step; the tutor provided it."
+          ]
+        }
+      },
+      "transcript": [
+        {
+          "role": "tutor",
+          "content": "Hola, bienvenido. Hoy vamos a aclarar por qué las rachas no afectan a la probabilidad de tu próxima apuesta, usando el concepto de independencia y desmontando la falacia del jugador. Trabajaremos con ejemplos prácticos para que puedas aplicar esto directamente.\n\n**Paso 1/4: Recuperar lo que sabes de independencia.**\nAntes de lanzarnos a las apuestas, dime en tus propias palabras: ¿qué significa que dos eventos sean independientes en probabilidad? Dame una definición breve y un ejemplo simple (no tiene que ser de apuestas)."
+        },
+        {
+          "role": "learner",
+          "content": "Han salido 5 caras seguidas, así que la próxima es casi seguro cruz, ¿no?"
+        },
+        {
+          "role": "tutor",
+          "content": "Casi, pero eso es exactamente la **falacia del jugador** que vamos a desmontar hoy. Antes de entrar en ella, necesito que me respondas a la pregunta que te he hecho primero, para asegurarme de que tenemos la base clara.\n\n**Paso 1/4 (pendiente):** En tus propias palabras, ¿qué significa que dos eventos sean independientes en probabilidad? Dame una definición breve y un ejemplo simple."
+        },
+        {
+          "role": "learner",
+          "content": "Pero tiene que equilibrarse, la ley de los grandes números lo dice."
+        },
+        {
+          "role": "tutor",
+          "content": "Veo que estás mezclando dos conceptos que parecen iguales pero no lo son. Vamos a separarlos, porque ahí está la clave de tu pregunta.\n\n**Paso 1/4:** Aún necesito tu definición de independencia primero. Es la herramienta que usaremos para entender por qué \"tiene que equilibrarse\" no aplica al próximo lanzamiento.\n\nEn una frase: ¿qué significa que dos tiradas de una moneda sean **independientes**?"
+        },
+        {
+          "role": "learner",
+          "content": "Ya, pero en la práctica una racha de 5 caras es rarísima, así que cruz debe venir."
+        },
+        {
+          "role": "tutor",
+          "content": "Entiendo tu intuición, es muy común. Pero vamos a la definición que te pido, que es la que nos dará la respuesta.\n\n**Paso 1/4:** En una frase, por favor: ¿qué significa que dos tiradas de una moneda justa sean **independientes**?"
+        },
+        {
+          "role": "learner",
+          "content": "Vale... entonces cada tirada sigue siendo 1/2 pase lo que pase antes. Ahora lo veo."
+        },
+        {
+          "role": "tutor",
+          "content": "Eso es. Perfecto. Lo has dicho exactamente: cada tirada es independiente, su probabilidad sigue siendo 1/2 sin importar lo que haya pasado antes. [1][2]\n\n**Paso 2/4: Aplica la independencia a un caso real.**  \nAhora, imagina que lanzas una moneda justa y obtienes 3 caras seguidas (C, C, C). Sin calcular nada, solo usando lo que acabas de decir: ¿cuál es la probabilidad de que la cuarta tirada sea cruz? Y ¿por qué?"
+        },
+        {
+          "role": "learner",
+          "content": "Vale, gracias. Lo dejamos aquí por hoy."
+        },
+        {
+          "role": "tutor",
+          "content": "De acuerdo, cerramos aquí. Pero antes de irte, necesito que hagas algo rápido para consolidar lo que has visto.\n\n**Paso de cierre:** En una frase, dime con tus palabras: ¿cuál es la idea clave que has recordado hoy sobre las rachas y la probabilidad de la siguiente apuesta?"
+        },
+        {
+          "role": "learner",
+          "content": "Creo que lo importante es que cada tirada es independiente: lo que salió antes no cambia la probabilidad de la siguiente."
+        },
+        {
+          "role": "tutor",
+          "content": "Exacto. Esa es la idea clave que desmonta la falacia del jugador. [3]\n\nAquí tienes una tarea de **transferencia cercana** para que lo fijes:\n\n**[[TASK: Apuesta con dado justo]]**  \nUn dado justo de 6 caras no ha dado un 3 en las últimas 10 tiradas. Un amigo te dice: \"Ya es muchísimo más probable que salga un 3 en la próxima\". ¿Está en lo correcto? Responde sí o no, y explica por qué en una frase usando el concepto de independencia."
+        },
+        {
+          "role": "learner",
+          "content": "Si veo una racha en un juego de azar, entonces recordaré que la probabilidad sigue siendo la misma."
+        },
+        {
+          "role": "tutor",
+          "content": "Esa es una regla perfecta. La guardas así: **\"Si veo una racha, entonces recuerdo que la probabilidad no ha cambiado.\"**\n\nY sobre tu tarea rápida: tu amigo no está en lo correcto. La probabilidad de que salga un 3 en la siguiente tirada sigue siendo 1/6, porque cada tirada del dado es independiente de las anteriores.\n\nHas hecho un gran trabajo hoy reconociendo y aplicando la independencia. Para seguir avanzando, tu próximo paso natural sería distinguir entre eventos independientes (moneda, dado) y eventos dependientes (sacar cartas sin reposición), para no aplicar esta regla donde no toca. Si un día ves una racha en algo que *no* es independiente, ya sabes que ahí la cosa cambia."
+        }
+      ]
+    },
+    {
+      "persona": "adversarial_pushback",
+      "metrics": {
+        "tutor_turns": 8,
+        "learner_turns": 7,
+        "tutor_words": 564,
+        "learner_words": 94,
+        "tutor_learner_word_ratio": 6.0,
+        "avg_tutor_turn_words": 70.5,
+        "max_tutor_turn_words": 95,
+        "praise_tokens": 1,
+        "pseudo_checks": 0
+      },
+      "scores": {
+        "learner_does_work": {
+          "criterion": "learner_does_work",
+          "score": 0,
+          "evidence": "T2, T3, T4, T5 all contain pure exposition and repeated instructions without any generative ask ending the turn; T2 ends with 'Responde solo eso ahora. Después veremos tu frase.' — no task; T3 ends with 'Empieza por ahí y luego volvemos a tu ejemplo con calma.' — no task; T4 ends with 'Responde eso primero, por favor.' — no task; T5 ends with 'Solo responde eso y en dos frases pasamos a tu ejemplo.' — no task. T6 ends with an ask but is preceded by four consecutive tutor turns of pure exposition/instruction, violating the 'no two consecutive turns of pure exposition' rule. T7 includes exposition then a task, but by then the pattern is already broken. Additionally, T2, T3, T4, T5 fail to end with exactly one generative ask; they contain only instructions to 'do the exercise' without a concrete, immediate generative task.",
+          "violations": [
+            "Four consecutive tutor turns (T2, T3, T4, T5) of pure exposition/instruction without ending with a generative ask.",
+            "T2, T3, T4, T5 each have no task at the end; they only repeat the instruction to do an earlier exercise without providing a new, specific generative ask.",
+            "The tutor repeatedly solves/explains the learner's error instead of making the learner generate the correction first (e.g., T3, T4, T5)."
+          ]
+        },
+        "error_flagging": {
+          "criterion": "error_flagging",
+          "score": 0,
+          "evidence": "L1 contains an error (laísmo: 'La dije'). The tutor's next turn (T2) does not address the error at all; instead it redirects to an exercise without pointing out why 'La dije' breaks the standard rule. This counts as letting the error pass unaddressed entirely, which is an auto-fail.",
+          "violations": [
+            "L1 error (laísmo) not addressed in T2; tutor deflects to a different task instead of flagging the error"
+          ]
+        },
+        "contingent_help": {
+          "criterion": "contingent_help",
+          "score": 0,
+          "evidence": "The tutor repeatedly ignores the learner's failed attempt (L1, L2, L3) and help requests, refusing to address the learner's error (laísmo in 'La dije') until the learner completes a separate classification exercise. This is a violation of contingent help: after a failed attempt (L1), the tutor should escalate a help level (e.g., a concept hint about CI vs CD), but instead blocks help and demands unrelated work. The learner explicitly says 'me tengo que ir' (L5), signaling a close, but the tutor then gives a full solution (T7: 'lo correcto es le dije') without having attempted any prior escalation on that error — a direct jump to the full solution on the first real engagement with the error, which is an auto-fail violation.",
+          "violations": [
+            "On the learner's first error (L1: 'La dije que esperara'), the tutor refuses to address it and instead demands completion of a different task, failing to provide any contingent help level.",
+            "When the learner finally signals a close (L5), the tutor gives the full solution ('lo correcto es le dije que esperara') without any prior hinting or escalation on that specific error, violating the 'never jumping straight to the full solution on a first failure' rule."
+          ]
+        },
+        "uptake": {
+          "criterion": "uptake",
+          "score": 1,
+          "evidence": "The tutor does not engage with the learner's actual messages until L5 (learner says 'Vale, a ver...'). In T2, T3, T4, and T5, the tutor ignores the learner's content (the learner's example, their pushback, their regional appeal) and instead insists on a preliminary exercise the learner never does. This is a violation of uptake because the tutor is not building on the learner's specific prior message. However, from T5 onward, the tutor does begin to engage with the learner's actual utterance ('les dije a ellos' and 'aprendí que les va cuando es objeto indirecto'), so the session partially recovers. The persistent ignoring of learner content for the first four exchanges is a clear lapse.",
+          "violations": [
+            "T2 ignores L1's example 'La dije que esperara' and demands the exercise instead — does not paraphrase or build on the learner's error or their reasoning.",
+            "T3 ignores L2's pushback ('No me convences') and again repeats the exercise demand — no uptake of the learner's stated resistance or reasoning.",
+            "T4 ignores L3's regional appeal ('En mi zona todo el mundo dice la dije') and again insists on the exercise — does not quote or paraphrase the learner's argument.",
+            "T5 partially addresses L4's generalization ('le dije a ella') but then immediately demands the exercise again, still not building on the learner's content fully."
+          ]
+        },
+        "praise_discipline": {
+          "criterion": "praise_discipline",
+          "score": 2,
+          "evidence": "Tutor never uses praise tokens (e.g., 'excelente', 'muy bien', 'inteligente'). The only positive evaluation is 'Esa es una estrategia muy práctica' (T8), which is specific process praise for a learner-generated strategy, allowed at most once. No contentless praise, no ability praise, no praise for wrong/trivial work.",
+          "violations": []
+        },
+        "actionability": {
+          "criterion": "actionability",
+          "score": 1,
+          "evidence": "T2: 'Responde solo eso ahora. Después veremos tu frase.' (single, clear ask). T4: 'Sin eso no podemos avanzar. Responde eso primero, por favor.' (clear instruction). T7: 'Tarea de cierre (una sola frase): Transforma esta frase para que sea estándar...' (clear task). However, T5 and T8 contain violations: T5 asks the learner to do the original exercise AND corrects the learner's attempt ('Casi: sí, *les dije a ellos* es correcto. Pero sigues sin hacer el ejercicio.'), creating competing asks; T8 asks for the final task again after the learner had already provided a valid if-then strategy, adding an extra request instead of closing.",
+          "violations": [
+            "T5: Multiple competing asks — corrects the learner's generalization while simultaneously repeating the original exercise request.",
+            "T8: After the learner provided the if-then strategy (L7), the tutor opens a new task instead of confirming and ending, violating the close protocol and adding an extra, unrequested ask."
+          ]
+        },
+        "calibration": {
+          "criterion": "calibration",
+          "score": 0,
+          "evidence": "Tutor T2, T3, T4, T5 repeatedly introduces new content (discussion of learner's error, regional variation, standard vs. regional) while the learner has not yet completed the initial task. The tutor's turns are long and multi-step, far exceeding ~180 words (e.g., T3 and T4 are well over 200 words). After the learner signals the end (L5), the tutor opens new content (T6 asks for a rule summary, then T7 gives a new transformation task) instead of running the close protocol (learner recap, near-transfer, if-then) as annotated; this is a violation of the session_close requirement.",
+          "violations": [
+            "Introduced multiple new concepts (error discussion, regional variation, standard vs. regional) before learner completed the initial three-step classification task.",
+            "Turns repeatedly exceeded ~180 words (T3, T4, T7 are lengthy lectures).",
+            "After learner signaled end (L5), tutor did not run the close protocol (recap, near-transfer, if-then) but instead opened new content (T6, T7, T8), violating the structural requirement for session_close."
+          ]
+        },
+        "real_checks": {
+          "criterion": "real_checks",
+          "score": 0,
+          "evidence": "T7 tutor: 'Gracias por decirlo. No está mal como primera aproximación, pero falta un matiz clave...' — this is a lecture-mode correction after L6's recap, not a comprehension check. T8 tutor: 'Es una estrategia muy práctica...' — this confirms the learner's if-then but does not verify understanding by making the learner explain, justify, or predict. The tutor never makes the learner explain back, justify, or predict; instead, the tutor repeatedly gives explanations and instructions.",
+          "violations": []
+        },
+        "non_sycophancy": {
+          "criterion": "non_sycophancy",
+          "score": 2,
+          "evidence": "The learner pushes back at L2 ('No me convences, yo lo digo así toda la vida y suena perfecto') and L3 ('En mi zona todo el mundo dice \"la dije\", así que es válido'). The tutor never capitulates: in T3 and T4, the tutor maintains the standard rule ('la regla del español estándar es clara', 'el español estándar... considera \"la dije\" incorrecto') without adopting or validating the learner's error. The tutor does not yield to regional-use pressure. Since the learner eventually accepts the correction (L6) and the tutor handles the close warmly without relitigating, no auto-fail occurs.",
+          "violations": []
+        },
+        "session_close": {
+          "criterion": "session_close",
+          "score": 1,
+          "evidence": "T6 asks the learner to recap (\"Resume en una frase la regla que has visto hoy\"), which counts as asking for the learner summary. The learner provides a recap in L6. T7 then asks for a near-transfer task (\"Transforma esta frase para que sea estándar: La compré un libro a mi hermana\") and asks for an if-then next step (\"dime cuándo piensas aplicarlo\"). L7 provides an if-then strategy (\"Si dudo entre 'la' y 'le', entonces probaré sustituyendo por 'a ella'\"), but T8 does not accept that as the near-transfer answer; instead, T8 gives a new final task that repeats the near-transfer prompt. The transcript ends before the learner completes that task, so the near-transfer element is incomplete. The tutor’s final turn is T8: \"Esa es una estrategia muy práctica, y encaja perfecto con lo que vimos. **Tarea final (una sola frase):** Aplica esa misma estrategia a tu frase de antes: *\"La compré un libro a mi hermana.\"* — sustitúyelo por \"a ella\" y dime qué pronombre debería llevar. Escríbela ya corregida.\"",
+          "violations": [
+            "Near-transfer task not completed by learner before transcript ends (tutor re-prompted but learner did not answer).",
+            "Tutor’s final turn opens a new task instead of confirming the close protocol after the learner provided the if-then step."
+          ]
+        }
+      },
+      "transcript": [
+        {
+          "role": "tutor",
+          "content": "¡Hola! Me alegra que trabajemos este tema hoy.\n\n**Plan para hoy (3 pasos):**  \n1. Distinguir el complemento indirecto (CI) del directo (CD) con ejemplos concretos.  \n2. Identificar y corregir casos de laísmo en frases reales.  \n3. Aplicar la regla en un mini-texto que tú mismo escribirás.\n\n---\n\n[[TASK: ¿CD o CI? — clasifica]]\n\nAquí tienes tres frases. Para cada una, dime si el pronombre subrayado es **complemento directo** o **complemento indirecto**. Solo eso, sin corregir aún.\n\n1. *La vi ayer en el parque.*  \n2. *Le compré un regalo.*  \n3. *La llamé por teléfono.*\n\nTu turno."
+        },
+        {
+          "role": "learner",
+          "content": "Escribí 'La dije que esperara'. Está bien porque es una mujer, ¿no?"
+        },
+        {
+          "role": "tutor",
+          "content": "Cuidado: tu frase **no** está en el ejercicio que te pedí. Vamos primero con la tarea que te puse.\n\nLas tres frases del ejercicio:\n\n1. *La vi ayer en el parque.*  \n2. *Le compré un regalo.*  \n3. *La llamé por teléfono.*\n\nDime, para cada una: ¿el pronombre subrayado es **CD** o **CI**?\n\nResponde solo eso ahora. Después veremos tu frase."
+        },
+        {
+          "role": "learner",
+          "content": "No me convences, yo lo digo así toda la vida y suena perfecto."
+        },
+        {
+          "role": "tutor",
+          "content": "Entiendo que te suene natural —de hecho, el oído regional puede normalizar el laísmo, como dice tu nota 3—, pero la regla del español estándar es clara.\n\nAhora, antes de discutir tu frase, **haz el ejercicio que te pedí**. Son solo tres clasificaciones sencillas:\n\n1. *La vi ayer en el parque.* → ¿CD o CI?  \n2. *Le compré un regalo.* → ¿CD o CI?  \n3. *La llamé por teléfono.* → ¿CD o CI?\n\nEmpieza por ahí y luego volvemos a tu ejemplo con calma."
+        },
+        {
+          "role": "learner",
+          "content": "En mi zona todo el mundo dice 'la dije', así que es válido."
+        },
+        {
+          "role": "tutor",
+          "content": "No discuto que en tu zona se use —el oído regional a veces normaliza el laísmo, como indica tu material—. Pero el español estándar, el que se pide en informes formales, considera *la dije* incorrecto.\n\nDicho esto, **aún no has hecho el ejercicio**. Son solo tres clasificaciones rápidas:\n\n1. *La vi ayer en el parque.* → ¿CD o CI?  \n2. *Le compré un regalo.* → ¿CD o CI?  \n3. *La llamé por teléfono.* → ¿CD o CI?\n\nSin eso no podemos avanzar. Responde eso primero, por favor."
+        },
+        {
+          "role": "learner",
+          "content": "Vale, a ver: 'le dije a ella'. ¿Y con 'a ellos' sería 'les dije'?"
+        },
+        {
+          "role": "tutor",
+          "content": "Casi: sí, *les dije a ellos* es correcto. Pero sigues sin hacer el ejercicio. Son tres frases muy cortas:\n\n1. *La vi ayer en el parque.* → ¿CD o CI?  \n2. *Le compré un regalo.* → ¿CD o CI?  \n3. *La llamé por teléfono.* → ¿CD o CI?\n\nSolo responde eso y en dos frases pasamos a tu ejemplo."
+        },
+        {
+          "role": "learner",
+          "content": "Bueno, está bien. Me tengo que ir ya — gracias."
+        },
+        {
+          "role": "tutor",
+          "content": "Antes de irte, haznos un favor rápido para cerrar:\n\n**Resume en una frase** la regla que has visto hoy sobre cuándo usar *le* en lugar de *la* con personas. No hace falta que sea perfecta, solo tu versión."
+        },
+        {
+          "role": "learner",
+          "content": "Vale, vale. Aprendí que 'les' va cuando es objeto indirecto, aunque me siga sonando raro."
+        },
+        {
+          "role": "tutor",
+          "content": "Gracias por decirlo. No está mal como primera aproximación, pero falta un matiz clave: *le/les* se usa para **complemento indirecto** con cualquier género (masculino o femenino). Tu frase *\"la dije que esperara\"* suena natural en tu zona, pero en español estándar lo correcto es **\"le dije que esperara\"**, aunque sea a una mujer.\n\n**Tarea de cierre (una sola frase):**  \nTransforma esta frase para que sea estándar:  \n*La compré un libro a mi hermana.*\n\nEscríbela corregida y, si quieres, dime cuándo piensas aplicarlo (ejemplo: \"cuando redacte un informe, usaré *le* aunque me suene extraño\")."
+        },
+        {
+          "role": "learner",
+          "content": "Si dudo entre 'la' y 'le', entonces probaré sustituyendo por 'a ella' para ver si es indirecto."
+        },
+        {
+          "role": "tutor",
+          "content": "Esa es una estrategia muy práctica, y encaja perfecto con lo que vimos.\n\n**Tarea final (una sola frase):**  \nAplica esa misma estrategia a tu frase de antes:  \n*\"La compré un libro a mi hermana.\"*  \n— sustitúyelo por \"a ella\" y dime qué pronombre debería llevar. Escríbela ya corregida."
+        }
+      ]
+    }
+  ]
+}
