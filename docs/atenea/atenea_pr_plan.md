@@ -81,9 +81,12 @@ Captured so conversation/agent handoffs never lose them; each needs an architect
 - **Feature V — Voice:** speech input/output for sessions; provider via env through the same multi-model philosophy as text (no direct SDK calls in business logic).
 - **Feature W — LLM Output Verification Layer (registered 2026-07-18, developer decision):** verify-before-persist/send for LLM outputs across the system, targeting hallucination reduction at accepted extra cost. Architecture to be pinned by a SOTA research note (`docs/atenea/hallucination_verification_sota.md` — claim-checking à la CoVe, verifier cascades, interplay with context management) before contracting. Developer-specified pattern: verifier model stronger than the generator; on failed verification the verifier takes over generation for that turn and/or generation repeats before anything reaches the user or the store. PR-G2 ships the first fenced instance (consolidation verification); W generalizes it. **PR-W1 contract signed 2026-07-19 (playbook §1):** sync gate + escalation ladder (retry → stronger model → honest limits-admission), full verification trace persisted, `high`/`cheap` profiles, whole-source-lite via ON's `build_source_context` pattern + ON's citation-ID convention. Model selection (generator/verifier) = open developer decision pending cost/hallucination tradeoff analysis.
 
+### Feature BT — Betatester Access *(contract signed 2026-07-20, playbook §1; prioritized by the developer: web access for provisioned betatesters, path to public launch)*
+- Un-defers the multi-user slice deliberately and minimally: magic-link auth (BT1), tester provisioning + daily turn cap (BT2), private sources via tutor-side ownership — zero ON core changes (BT3), production deploy bundle with only the tutor publicly exposed (BT4). Sequenced after PR-W1's merge so testers get verification-gated tutoring from day one. Full password auth and ON-core source scoping remain deferred (the BT infrastructure is their paving, not their replacement).
+
 ## Explicitly Deferred (not in the backlog yet)
 
-- Full multi-user auth/permissions, multi-tenant onboarding.
+- Full multi-user auth/permissions beyond magic-link tokens (registration, passwords, resets), multi-tenant onboarding.
 - Deep visual frontend rework beyond Feature F.
 - Learned technique selection (LLM-judge harness + Gemma fine-tuning) — replaces the fixed mapping in a later version.
 - Curated default learning routes (open product decision: who curates them?).
@@ -94,6 +97,10 @@ Captured so conversation/agent handoffs never lose them; each needs an architect
 
 No single "done" — progress reads as merged, dogfooded PRs against this ordered backlog. The next step is always the first incomplete PR of the highest-priority feature.
 
-## Status (2026-07-19, end of night)
+## Status (2026-07-22)
+
+**main @ `d8e8457`, pushed — the beta chain is merged**: PR-W1 + eval addendum (per-turn verification; first eval-gated PR: N=2/config, no pedagogy regression, invented_citations=0, gate observed working live — escalations and honest limits-admissions in the traces), Feature BT complete (BT1 magic-link identity, BT2 provisioning + daily cap, BT3 private sources with zero ON core changes, BT4 prod deploy bundle, BT4b backups), PR-F4 beta-readiness UX, eval-harness robustness fix. 339 tests + 18-step smoke + ruff + mypy + CI green. **Atenea can now host provisioned betatesters**: `docs/atenea/deploy_guide.md` → `tutor.access create` → send magic links. Next: upstream sync (overdue) before any new feature; generator/verifier model selection (evidence: the four eval runs); developer dogfood + VPS deploy + betatesting across the week; then the visual rework. Parked: M3 (signed), M-tasks, T, V; K blocked by DOGFOOD item 2. New agent conversations start with the playbook's Handoff Protocol (§6).
+
+## Status (2026-07-19, end of night — superseded)
 
 **Everything delivered is merged to `main` and pushed**: V1 (PR-0 + A–F), DX1, E2, F2, R1, H1, upstream sync (@7dfe8aa), DX2, F3, Feature M through M2, **Feature G complete** (G1+G2+G3), **PR-DX3** (eval loop in CI), and **prompt v3** — 160 tutor tests + 15-step `make smoke` + ruff + mypy green; GitHub CI green. Agent-readable channels: CI failures on `ci-logs`, eval history on `eval-reports` (both plain `git fetch`). **The measured pedagogy loop is live**: baseline 0.55/2 → v3 sampled 0.9/0.65/0.8; judge stays DeepSeek (developer decision — hallucination-prone testbed); discipline: N≥2 runs per config (variance ±0.25). **Next: PR-W1 implementation** (per-turn verification — contract signed 2026-07-19, playbook §1; decisions resolved: sync gate + escalation ladder, no skip heuristic, whole-source-lite over ON's existing context machinery; open: which models fill generator/verifier roles). Parked for the dogfood era: PR-M3 (signed, playbook §1), M-tasks, T, V; K/tree + memory-informed M-tasks additionally blocked by the sequencing rule until DOGFOOD item 2 closes. V1-era review policy in effect (§1.8); dogfood deferred but absolute (`DOGFOOD.md`). Per-PR contracts live in the playbook. New agent conversations start with the playbook's Handoff Protocol (§6).

@@ -2,7 +2,14 @@
 
 > Operational plan for agents continuing development. Read *after* `atenea_context.md`, `atenea_pr_plan.md`, and `AGENTS.md`. This document contains: the current state, the next PR contracts, and the recurring checklists (review, CI, upstream sync). Architects update it when contracts change; implementers never edit contracts here.
 
-## 0. Current State (updated 2026-07-19, end of night — pruned; history lives in §1 contracts and git log)
+## 0. Current State (updated 2026-07-22 — pruned; history lives in §1 contracts and git log)
+
+- **main @ `d8e8457`, pushed**: everything through 2026-07-20's session is merged — **PR-W1 + W1-eval addendum** (per-turn verification, eval-gated: N=2/config, baselines 0.92/0.70 vs gated 0.84/1.06, invented_citations=0 across all runs, live `escalated`-then-pass and `limits-admitted` outcomes observed), **Feature BT complete** (BT1 magic-link identity + cross-user cache fix; BT2 provisioning CLI + daily cap; BT3 private sources tutor-side, zero ON core; BT4 prod deploy bundle — only the tutor publicly exposed; BT4b backups), **PR-F4 beta-readiness UX**, and the eval-harness robustness fix (judge instrument failures score None instead of killing runs; citation_check omission calibration). Gate: **339 tests + 18-step smoke + ruff + mypy green.**
+- **Beta posture (developer decisions 2026-07-20):** web access for provisioned betatesters (magic links, `python -m tutor.access create`), private sources, daily turn cap 50, betatesting spread across the week; developer dogfood in parallel. Deploy guide at `docs/atenea/deploy_guide.md`. OPEN RISK to verify on first real deploy: surrealdb image may lack `/bin/sh` (backup service; fallback documented). UI paving audit at `Proyecto-Atenea/ui_rework_paving.md` (note the streaming-vs-verify-gate tension).
+- **Process note (developer, 2026-07-20): architects MAY renegotiate signed contracts for technical improvements; implementers still may not.** Implementer subagents work (Agent tool); each starts cold — briefs carry pre-pinned facts.
+- **Next queue:** (1) **upstream sync (§4) before any new feature** — overdue, BT entered without one; (2) generator/verifier model selection (open developer decision; the four eval runs + verification traces are the evidence base — note both warnings fire today: judge==tutor==verifier==deepseek); (3) developer dogfood (DOGFOOD.md, now including beta-chain items) + VPS deploy; (4) the visual rework (F4 follow-ups F4.1/F4.2… or Feature F5 contract). Parked: M3 (signed), M-tasks, T, V; K still blocked by DOGFOOD item 2.
+
+## 0.1 Prior State (2026-07-19, superseded — kept one cycle for reference)
 
 - Fork of OpenNotebook at `open-notebook/`. **Everything delivered is merged to `main` AND pushed to origin** (one merge commit per PR): V1 (PR-0 + Features A–F, 2026-07-12), DX1, E2, F2, R1, H1, the §4 upstream sync (@7dfe8aa), DX2, F3, Feature M through M2 (source-anchored sessions, DB-side scoping via migration 23 — core divergences logged in `CORE_CHANGES.md`), **Feature G complete** (G1 review loop, G2 verified learner memory, G3 SM-2 retention/forgetting), PR-DX3 (eval loop in CI), and pedagogy prompt v3.
 - **Verification state:** 160 tutor tests + `make smoke` (15-step fake-LLM journey, zero keys) + ruff + mypy green; GitHub CI green. Agent-readable channels (plain `git fetch`): CI failures → `ci-logs` branch; eval history → `eval-reports` branch.
@@ -405,6 +412,60 @@ Generalizes G2's fenced verification to the live tutoring turn — the learner-f
 - **Workflow:** `tutor-eval.yml` gains dispatch inputs `verify_turns` (default `grounded`) and `verify_profile` (default `high`), passed as env with `TUTOR_VERIFIER_PROVIDER/MODEL` passthrough; change noted in `CORE_CHANGES.md` (file lives outside `tutor/`).
 - **Tests (offline, as always):** persona model defaults; registry `get_source` wiring; runner grounded engine construction; `invented_citations` unit table; `citation_check` render/parse; four legacy personas' runs byte-identical when sourceless (lock).
 - **Merge gate, operationalized:** dispatch on the branch ref, N≥2 per config — `verify_turns=off` (baseline) and `grounded`/`high`. Merge requires: 10-criteria means within same-config variance (±0.25) of baseline; grounded persona with gate on: `invented_citations` ~0 and no `citation_check` regression vs its own `off` runs; verification traces show the gate actually fired. These runs are also the first evidence for the open generator/verifier model-selection decision.
+
+### Feature BT — Betatester Access *(contract signed 2026-07-20; developer decisions: web access with per-tester provisioned accounts, magic-link auth, PRIVATE sources, daily turn cap, developer dogfood runs in parallel)*
+
+**Deployment posture (invariant across all BT slices, enforced by BT4):** ONLY the tutor service is publicly exposed; OpenNotebook's API and UI stay private behind the proxy. This is what makes tutor-side source ownership sound — ON itself remains single-tenant and unexposed. Sequencing: BT1 → BT2 → BT3 → BT4, all after PR-W1 merges (its eval gate is running). Betatesters get verification-gated tutoring from day one.
+
+#### PR-BT1 — Per-request identity (magic link)
+
+- **Schema (additive, idempotent):** table `access_token` — `user_id: string` (indexed), `token_hash: string` (unique index; SHA-256 of the raw token — the raw token is NEVER stored or logged), `label: string`, `created: datetime`, `revoked: bool` (default false).
+- **One seam — new module `tutor/auth.py`:** `resolve_user` FastAPI dependency. Resolution order: `Authorization: Bearer <token>` header → `t` query param (magic-link landing). Valid, unrevoked hash ⇒ that row's `user_id`. `TUTOR_AUTH_ENABLED` (env, default **false**): off ⇒ returns `default_user_id()` exactly as today — **byte-identical lock test, M1-style**; on ⇒ missing/invalid/revoked token = 401 JSON.
+- **Engine de-singleton:** engine methods that today read `self._user_id` (`open`, `open_review`, `message`, `close`, `due_reviews`, plus the list surfaces) gain an explicit `user_id` parameter threaded from `Depends(resolve_user)` in the routers; `self._user_id` becomes the default only for the auth-off path. Session operations verify ownership (`record.user_id == requester` ⇒ else 404 — indistinguishable from nonexistent).
+- **Cache privacy fix (audit finding 2026-07-20, mandatory):** `_profile_cache`/`_content_cache`/`_memory_cache`/`_grounded_cache` are engine-global today — under concurrent users, user B can be served user A's cached grounding. Re-key them per `session_id` (dict, evicted on close). Regression test: two users interleaving open/message must never cross content.
+- **UI:** on load read `?t=`, persist client-side (auth credential — R1's no-localStorage rule was about session state, not credentials), send `Authorization` on every fetch, strip `t` from the URL; 401 ⇒ friendly "pide tu enlace de acceso" state. Spanish-first.
+- Tests: hash round-trip; resolution order; 401 paths; ownership 404; cache re-keying; auth-off lock. No network/DB in tests.
+- **Usable when:** with auth on, opening the magic link lands you in your own Atenea (your profile, your sessions, nobody else's), and a wrong/revoked token gets a friendly lockout.
+
+#### PR-BT2 — Tester provisioning + daily cap
+
+- CLI `python -m tutor.access`: `create <user_id> [--label]` (generates a 32-byte urlsafe token, stores its hash, prints the magic link built from `TUTOR_PUBLIC_URL`), `list`, `revoke <user_id|label>`, `usage` (per-user turn counts).
+- Daily turn cap: table `usage_counter` — `user_id`, `day: string` (UTC date), `turns: int`. `engine.message` increments and enforces `TUTOR_DAILY_TURN_CAP` (env, default 50; 0 = unlimited); exceeded ⇒ 429 with a friendly Spanish message. Counting is also the per-tester cost instrumentation feeding the open generator/verifier model decision.
+- **Usable when:** you run one command, send the printed link, and the tester is in — and no tester can burn more than the daily cap of your key.
+
+#### PR-BT3 — Private sources (tutor-side ownership; ZERO OpenNotebook core changes)
+
+- **Decision (developer 2026-07-20): sources are private.** Ownership lives tutor-side (extension before modification): table `source_owner` — `source_id: string` (unique index), `user_id: string` (indexed), `public: bool` (default false), `created`. **Grandfather clause:** sources with NO row (the pre-BT corpus) are public — the existing curated library stays visible to everyone.
+- **Upload through the tutor (testers never touch ON):** `POST /sources/upload` (multipart file) and `POST /sources/create` (url or text JSON) proxy to ON's `POST /api/sources` (multipart, existing async path) / `POST /api/sources/json`; on success write the `source_owner` row (private, owner = requester). `OpenNotebookClient` gains the two create methods. Sharing (flipping `public`) is CLI-only this slice: `python -m tutor.access share <source_id>`.
+- **Filters (every read path):** `/sources` picker returns own + public only; `retrieve_grounding` refuses a source the requester cannot see (404, same-as-nonexistent); the ungrounded digest filters `content.search` rows by visible `parent_id`s (rows already carry `parent_id` — M1 fact) so private material never leaks into other users' ungrounded sessions.
+- **UI:** upload affordance in the source picker (file/url/text tabs, "privado" badge on own sources). Tests: ownership CRUD; grandfather clause; picker/grounding/digest filters; upload proxy with fake client; cross-user 404. **Usable when:** a tester uploads their own PDF, works with it, and no other account can see, pick, or retrieve it — while the curated library stays shared.
+
+#### PR-BT4 — Deploy bundle (config + docs, near-zero code)
+
+- `docker-compose.prod.yml` overlay: only a reverse proxy (Caddy, automatic TLS via `TUTOR_DOMAIN`) publishes ports; tutor internal; **ON API/UI ports NOT published** (the BT3 soundness invariant); SurrealDB internal. `.env.production.example` (names only). `docs/atenea/deploy_guide.md`: VPS from zero — DNS, `.env`, `docker compose -f ... up -d`, `tutor.access create`, send links, update path.
+- Test: parse the prod overlay and assert no ON/SurrealDB port is published. `CORE_CHANGES.md` entry (compose files live outside `tutor/`).
+- **Usable when:** a fresh VPS serves `https://<domain>` with only the tutor exposed, and the whole tester onboarding is: you run `create`, you send a link.
+
+### PR-F4 — Beta-readiness UX pass *(contract signed 2026-07-20; developer decision: no exclusion list — after this, what remains is the visual rework itself; F4 may grow toward it in follow-up slices F4.1/F4.2, each an independently dogfoodable PR — never an eternal branch)*
+
+Purpose: the first-contact experience of a provisioned tester (magic link → session) and the felt latency W1's gate added. Same single static vanilla file; no framework, no build step.
+
+- **Magic-link landing:** first visit with `?t=` (or with a fresh empty account) shows a brief Spanish welcome — what Atenea is, the 3 steps (perfil → material → sesión) — dismissible, shown once (client-side flag), reopenable via an "Ayuda" nav item. Copy may draw from `Proyecto-Atenea/atenea_onboarding.html` (outside the repo — read for tone, do not link it).
+- **Empty states:** fresh account — sessions list, source picker, Historial, Tu progreso — each gets a one-line guiding hint instead of a blank panel.
+- **Verification wait state:** during an in-flight turn in a grounded session with `verify_turns != "off"` (both known from `/config` + session state), the existing typing indicator (F2) gains a "Verificando con tu fuente…" phase so gated latency reads as care, not a hang.
+- **Outcome transparency:** `corrected`/`escalated` outcomes (already returned in `verification_outcome`) get a subtle, non-alarming chip alongside the existing flagged/limits notices — honest visibility of the gate working.
+- **Upload flow coherence (BT3 follow-through):** after a successful upload, poll the picker a few times while ON processes async (bounded retries, then a "sigue procesándose — recarga en un momento" state); clear failure states; the panel resets after success.
+- **429 cap state:** the daily-cap message renders as a distinct friendly state (not a generic error), inviting return tomorrow.
+- **Mobile pass:** verify/repair viewport meta, chat + setup + Historial + Tu progreso layouts, touch target sizes, and the upload tabs on a ~375px viewport. This is how testers will arrive.
+- Tests: markup markers + config-driven gating (test_ui.py pattern); page JS itself stays dogfood-validated (F1 criterion). Diff confined to `tutor/` + `tests_tutor/`.
+- **Usable when:** a cold tester journey on a phone — link → welcome → perfil → subir material → sesión grounded con verificación visible → cierre — has no dead ends, no mute screens, and no "¿se colgó?" moments.
+
+### PR-BT4b — Beta data backups *(contract signed 2026-07-20; small slice, blocking for real-tester hosting)*
+
+- `docker-compose.prod.yml` gains a `backup` service: uses the same SurrealDB image (has the `surreal` CLI), loops daily (`TUTOR_BACKUP_INTERVAL_HOURS`, default 24): `surreal export` of BOTH databases (OpenNotebook's and `atenea`) to a host-mounted `./backups/` dir with dated filenames, rotating to keep `TUTOR_BACKUP_KEEP` (default 14) most recent per database. Credentials from the same env the stack already uses. Names-only additions to `.env.production.example`.
+- `docs/atenea/deploy_guide.md` gains a **Backups & restore** section: where dumps land, how to verify one exists after first deploy, exact `surreal import` restore commands, and the "test a restore once before inviting testers" instruction.
+- Test: extend the prod-overlay YAML assertions (backup service present, backups volume mounted, no published ports). `CORE_CHANGES.md` note (files outside `tutor/`).
+- **Usable when:** a fresh deploy produces dated dumps for both databases within a day (or on demand via `docker compose ... exec backup /backup.sh`), old dumps rotate, and the guide's restore path actually restores.
 
 ## 1.5 First Live Dogfood — Findings (2026-07-12, session on "aprender a aprender")
 
