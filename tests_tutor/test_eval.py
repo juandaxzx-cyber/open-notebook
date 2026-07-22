@@ -369,3 +369,64 @@ def test_run_eval_all_five_personas_criteria_means_unaffected() -> None:
     for r in report["personas"]:
         if r["persona"] != "grounded_miscitas":
             assert r["citation_check"] is None
+
+
+class _MalformedJudge:
+    """Judge double returning unparseable output N times, then valid JSON."""
+
+    def __init__(self, bad_times: int) -> None:
+        self.bad_times = bad_times
+        self.calls = 0
+
+    async def complete(self, messages: Sequence[ChatMessage]) -> ChatResponse:
+        self.calls += 1
+        if self.calls <= self.bad_times:
+            return ChatResponse(content="{ truncated garbag", provider="x", model="y")
+        return ChatResponse(
+            content='{"score": 2, "evidence": "ok"}', provider="x", model="y"
+        )
+
+
+def test_judge_criterion_retries_once_on_malformed_output() -> None:
+    # Harness-robustness fix (2026-07-22): one malformed judge reply is
+    # retried; the retry's valid verdict is used.
+    from tutor.eval.judge import judge_criterion
+
+    judge = _MalformedJudge(bad_times=1)
+    score = asyncio.run(judge_criterion(judge, CRITERIA[0], "transcript", "notes"))
+    assert judge.calls == 2
+    assert score.score == 2
+
+
+def test_judge_criterion_double_failure_scores_none_not_crash() -> None:
+    # Twice-unparseable judge output => score None (instrument failure),
+    # never an exception (the 2026-07-21 CI run died this way) and never a 0.
+    from tutor.eval.judge import judge_criterion
+
+    judge = _MalformedJudge(bad_times=2)
+    score = asyncio.run(judge_criterion(judge, CRITERIA[0], "transcript", "notes"))
+    assert judge.calls == 2
+    assert score.score is None
+    assert "instrument failure" in score.evidence
+
+
+def test_criteria_means_skip_none_scores() -> None:
+    # A None score is excluded from the mean, not averaged as 0.
+    results: list[dict[str, dict[str, dict[str, int | None]]]] = [
+        {"scores": {cid: {"score": 2} for cid in criterion_ids()}},
+        {"scores": {cid: {"score": None} for cid in criterion_ids()}},
+    ]
+    means: dict[str, float] = {}
+    for criterion in CRITERIA:
+        values = [
+            s for r in results if (s := r["scores"][criterion.id]["score"]) is not None
+        ]
+        means[criterion.id] = round(sum(values) / len(values), 2) if values else 0.0
+    assert all(v == 2.0 for v in means.values())
+
+
+def test_citation_check_rubric_has_omission_calibration() -> None:
+    # Calibration line added 2026-07-22: judges scored omitted detail as
+    # mis-citation (false positive vs the programmatic invented_citations=0).
+    assert "OMITTING" in CITATION_CHECK.instructions
+    assert "NOT" in CITATION_CHECK.instructions
