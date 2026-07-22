@@ -71,3 +71,32 @@ Format:
   persona, the grounding/verification wiring in `tutor/eval/runner.py`) lives
   under `tutor/`; this is only the CI passthrough.
 - **Upstream-merge risk:** none — same as above, no upstream counterpart.
+
+## Production deploy bundle: compose overlay + Caddy reverse proxy (2026-07-20, feature/bt4/deploy / PR-BT4)
+
+- Files: `docker-compose.prod.yml` (new file, repo root), `Caddyfile` (new
+  file, repo root). `.env.production.example` and `docs/atenea/deploy_guide.md`
+  are also new but are Atenea-specific docs/env-template files (same status
+  as `.env.example`), not logged here.
+- Reason: one-command production startup requires an overlay wired against
+  the shared `docker-compose.yml` (upstream's file) and a proxy config file
+  that mounts into it — both are pure additions (no existing service
+  definition in `docker-compose.yml` is touched) but live outside `tutor/`,
+  so the review checklist requires logging them here, same precedent as
+  `Dockerfile.tutor` (PR-DX1).
+- Compose-merge mechanism used to clear published ports: `ports` is a
+  compose-spec "unique resource" sequence (merge key `{ip, target,
+  published, protocol}`) — override entries are *appended*, not used to
+  replace the base list, so a bare `ports: []` in the overlay would be a
+  no-op and silently leave `surrealdb`/`open_notebook`/`tutor`'s host ports
+  published. The overlay instead uses the custom `!reset` YAML tag
+  (compose-spec "Reset value", Compose CLI v2.24.4+), which clears an
+  inherited attribute to its type default regardless of merge rules:
+  `ports: !reset []` on all three internal services. Verified locally: a
+  plain `yaml.safe_load` on the overlay raises `ConstructorError` on the
+  `!reset` tag (asserted in `tests_tutor/test_compose_prod.py`), confirming
+  the tag is present and not silently ignored/downgraded to a normal list.
+- Upstream-merge risk: **low** — `docker-compose.prod.yml` and `Caddyfile`
+  are both new files with no upstream counterpart; `docker-compose.yml`
+  itself is untouched by this PR (the overlay only references its service
+  names, it does not edit them).

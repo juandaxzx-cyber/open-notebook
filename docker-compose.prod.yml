@@ -1,0 +1,64 @@
+# Atenea production deploy overlay (PR-BT4).
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Adds the Caddy reverse proxy as the ONLY service that publishes host
+# ports, and clears every host port the base compose file publishes for
+# surrealdb / open_notebook / tutor. This is the Feature BT deployment-
+# posture invariant: only the tutor is reachable from the internet, and
+# only through Caddy — OpenNotebook's API/UI and SurrealDB stay unpublished
+# (BT3's tutor-side source-ownership model is only sound if OpenNotebook
+# itself is never directly reachable).
+#
+# Compose-merge mechanism note (verified against the compose-spec, "Merge
+# and override" / "Reset value"): `ports` is a "unique resource" sequence
+# (merge key {ip, target, published, protocol}) — Compose APPENDS override
+# entries that don't collide with a base entry, it does not replace the
+# list. A bare `ports: []` override therefore publishes nothing new and
+# silently leaves every base port in place; it does NOT clear them. The
+# only mechanism that reliably clears an inherited list is the custom
+# `!reset` YAML tag (compose-spec "Reset value", Compose CLI v2.24.4+): a
+# value must still be present syntactically but is ignored, and the target
+# attribute resets to its type's default (`null`/`[]`). Hence
+# `ports: !reset []` below on every service whose host ports must disappear
+# — not a plain `ports: []`, which would be a no-op here.
+#
+# `docker compose -f docker-compose.yml -f docker-compose.prod.yml config`
+# renders the merged model and is the way to verify this locally without
+# actually deploying (see docs/atenea/deploy_guide.md).
+
+services:
+  surrealdb:
+    ports: !reset []
+
+  open_notebook:
+    ports: !reset []
+
+  tutor:
+    ports: !reset []
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    # TUTOR_DOMAIN arrives via .env, same zero-duplication pattern the
+    # tutor service already uses in docker-compose.yml (env_file, not a
+    # hardcoded `environment:` entry). Caddy's automatic-TLS site block
+    # (Caddyfile: {$TUTOR_DOMAIN}) reads it straight from the container
+    # environment.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - tutor
+    restart: always
+
+volumes:
+  caddy_data:
+  caddy_config:
