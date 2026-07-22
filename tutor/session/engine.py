@@ -29,6 +29,12 @@ from tutor.session.scheduling import DEFAULT_HORIZON_DAYS, parse_quality
 from tutor.session.store import SessionStore, UnknownSessionError
 from tutor.session.techniques import select_technique
 from tutor.tools.registry import ToolRegistry
+from tutor.usage import (
+    DailyCapExceededError,
+    UsageCounterStore,
+    UsageCounterStoreProtocol,
+    today_utc,
+)
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
@@ -117,6 +123,8 @@ class TutorEngine:
         verify_turns: str = "off",
         verify_profile: str = "high",
         grounding_budget_tokens: int = DEFAULT_BUDGET_TOKENS,
+        daily_turn_cap: int = 0,
+        usage_store: UsageCounterStoreProtocol | None = None,
     ) -> None:
         self._llm = llm
         self._registry = registry
@@ -138,6 +146,16 @@ class TutorEngine:
         self._verify_turns = verify_turns
         self._verify_profile = verify_profile
         self._grounding_budget_tokens = grounding_budget_tokens
+        # PR-BT2 daily turn cap: 0 (default, safe for direct/test
+        # construction — same "off ⇒ never touched" pattern as
+        # grounding_enabled/memory_enabled above) means the usage seam is
+        # skipped entirely in `message`, so `usage_store` is never called.
+        # `app.py` wires the real cap (TUTOR_DAILY_TURN_CAP, default 50) and
+        # a real UsageCounterStore for the live service.
+        self._daily_turn_cap = daily_turn_cap
+        self._usage_store: UsageCounterStoreProtocol = (
+            usage_store or UsageCounterStore()
+        )
         # PR-BT1 cache privacy fix (audit finding 2026-07-20): these were
         # engine-global scalars, so under concurrent users user B could be
         # served user A's cached profile/content/memory/grounding. Re-keyed
@@ -294,6 +312,16 @@ class TutorEngine:
         # 404, indistinguishable from a nonexistent one.
         if str(record.get("user_id")) != requester:
             raise UnknownSessionError(session_id)
+        # PR-BT2 daily turn cap: increments the requester's UTC-day counter
+        # and enforces it BEFORE any LLM work (contract). 0 = unlimited, the
+        # engine's default, skips this seam entirely. One increment per
+        # `message` call = one learner turn; `open`/`open_review`/`close`
+        # never count.
+        if self._daily_turn_cap:
+            day = today_utc()
+            turns = await self._usage_store.increment(requester, day)
+            if turns > self._daily_turn_cap:
+                raise DailyCapExceededError(requester, day, self._daily_turn_cap)
         state = self._state_from_record(record)
         state.help = policy.next_state(state.help, text)
         state.transcript.append(Turn(role="learner", content=text))

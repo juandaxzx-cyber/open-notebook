@@ -26,7 +26,11 @@ from fastapi.testclient import TestClient
 from tutor.app import create_app
 from tutor.clients.open_notebook import OpenNotebookClient
 from tutor.config import TutorSettings
-from tutor.eval.fakes import InMemoryProfileService, InMemorySessionStore
+from tutor.eval.fakes import (
+    InMemoryProfileService,
+    InMemorySessionStore,
+    InMemoryUsageStore,
+)
 from tutor.llm.fake import FakeProvider
 from tutor.profile.models import default_user_id
 from tutor.session.engine import TutorEngine
@@ -89,6 +93,7 @@ def build_in_process_client() -> TestClient:
     registry.register(profile_read_tool(profile_service))
     registry.register(profile_write_tool(profile_service))
 
+    settings = TutorSettings()
     engine = TutorEngine(
         llm=FakeProvider(),
         registry=registry,
@@ -104,9 +109,15 @@ def build_in_process_client() -> TestClient:
         # assertions are unaffected.
         verify_turns="grounded",
         verify_profile="high",
+        # PR-BT2: the real default cap (50), not disabled — the smoke's
+        # handful of turns pass it naturally, proving the increment/enforce
+        # path runs on every message without tripping it (contract: "do not
+        # disable the cap in smoke, let it pass naturally").
+        daily_turn_cap=settings.daily_turn_cap,
+        usage_store=InMemoryUsageStore(),
     )
     app = create_app(
-        settings=TutorSettings(),
+        settings=settings,
         client=canned,
         profile_service=profile_service,
         engine=engine,

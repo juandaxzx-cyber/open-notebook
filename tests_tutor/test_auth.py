@@ -10,6 +10,7 @@ import pytest
 from fastapi import HTTPException
 
 from tutor.auth import (
+    AccessTokenStore,
     build_resolve_user,
     default_resolve_user,
     generate_token,
@@ -25,6 +26,25 @@ class FakeAccessTokenStore:
 
     async def get_by_hash(self, token_hash: str) -> dict[str, Any] | None:
         return self._rows.get(token_hash)
+
+    # --- PR-BT2: list_all / revoke, same dict-backed shape as the store
+    # methods they mirror, for engine/CLI-adjacent tests that don't need a
+    # live SurrealDB. ---
+
+    async def list_all(self) -> list[dict[str, Any]]:
+        return list(self._rows.values())
+
+    async def revoke(self, user_id_or_label: str) -> int:
+        count = 0
+        for row in self._rows.values():
+            if row.get("revoked"):
+                continue
+            if row.get("user_id") == user_id_or_label or (
+                row.get("label") == user_id_or_label
+            ):
+                row["revoked"] = True
+                count += 1
+        return count
 
 
 # --- hash_token / generate_token ---
@@ -162,3 +182,59 @@ def test_default_resolve_user_returns_default_user_id(
     monkeypatch.setenv("TUTOR_USER_ID", "juanda")
     resolve = default_resolve_user()
     assert asyncio.run(resolve()) == "juanda"
+
+
+# --- PR-BT2: list_all / revoke (via the fake — no live SurrealDB in tests,
+# same as create/get_by_hash above; the real store's SQL is dogfood-verified,
+# same precedent as tutor/tools/__main__.py's untested-at-that-level CLI) ---
+
+
+def test_fake_access_token_store_list_all_and_revoke_lifecycle() -> None:
+    store = FakeAccessTokenStore(
+        {
+            hash_token("alice-token"): {
+                "user_id": "alice",
+                "label": "beta-1",
+                "revoked": False,
+            },
+            hash_token("bob-token"): {
+                "user_id": "bob",
+                "label": "beta-2",
+                "revoked": False,
+            },
+        }
+    )
+    rows = asyncio.run(store.list_all())
+    assert {r["user_id"] for r in rows} == {"alice", "bob"}
+
+    count = asyncio.run(store.revoke("alice"))
+    assert count == 1
+    revoked_row = asyncio.run(store.get_by_hash(hash_token("alice-token")))
+    assert revoked_row is not None and revoked_row["revoked"] is True
+
+    # Revoking an already-revoked token is a no-op, not an error (contract:
+    # the CLI reports 0 as "nothing to revoke").
+    assert asyncio.run(store.revoke("alice")) == 0
+
+
+def test_fake_access_token_store_revoke_matches_by_label_too() -> None:
+    store = FakeAccessTokenStore(
+        {hash_token("t"): {"user_id": "carol", "label": "cohort-2", "revoked": False}}
+    )
+    assert asyncio.run(store.revoke("cohort-2")) == 1
+
+
+def test_fake_access_token_store_revoke_unknown_key_is_zero() -> None:
+    store = FakeAccessTokenStore(
+        {hash_token("t"): {"user_id": "carol", "label": "", "revoked": False}}
+    )
+    assert asyncio.run(store.revoke("nobody-like-this")) == 0
+
+
+def test_access_token_store_exposes_list_all_and_revoke() -> None:
+    """Regression guard: the real store (PR-BT2 extension) must keep these
+    methods — the CLI constructs it directly (no DI, same as
+    tutor/tools/__main__.py), so a signature drift here would break it
+    silently until dogfood."""
+    assert hasattr(AccessTokenStore, "list_all")
+    assert hasattr(AccessTokenStore, "revoke")
