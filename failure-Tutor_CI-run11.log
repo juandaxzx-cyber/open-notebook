@@ -1,0 +1,255 @@
+workflow: Tutor CI  run: #11 (id 29884751838)
+commit: d8e845784d2a72fb6902f65b20f44fe4c120ee0e
+collected: 2026-07-22T02:03:17Z
+
+===== FAILED JOB: Tutor Checks (id 88812908288) — last 250 lines =====
+2026-07-22T02:03:08.4350560Z  + charset-normalizer==3.4.4
+2026-07-22T02:03:08.4350940Z  + click==8.3.1
+2026-07-22T02:03:08.4351360Z  + click-log==0.4.0
+2026-07-22T02:03:08.4351722Z  + content-core==2.0.4
+2026-07-22T02:03:08.4352452Z  + coverage==7.14.3
+2026-07-22T02:03:08.4352808Z  + crawl4ai==0.9.1
+2026-07-22T02:03:08.4353152Z  + cryptography==48.0.1
+2026-07-22T02:03:08.4353631Z  + cssselect==1.3.0
+2026-07-22T02:03:08.4353963Z  + cyclopts==4.5.0
+2026-07-22T02:03:08.4354303Z  + decorator==5.2.1
+2026-07-22T02:03:08.4354646Z  + defusedxml==0.7.1
+2026-07-22T02:03:08.4355002Z  + distlib==0.4.0
+2026-07-22T02:03:08.4355309Z  + distro==1.9.0
+2026-07-22T02:03:08.4355953Z  + dnspython==2.8.0
+2026-07-22T02:03:08.4356305Z  + docstring-parser==0.17.0
+2026-07-22T02:03:08.4356675Z  + docutils==0.22.4
+2026-07-22T02:03:08.4357010Z  + email-validator==2.3.0
+2026-07-22T02:03:08.4357470Z  + esperanto==2.22.0
+2026-07-22T02:03:08.4357865Z  + et-xmlfile==2.0.0
+2026-07-22T02:03:08.4358216Z  + exceptiongroup==1.3.1
+2026-07-22T02:03:08.4358586Z  + fake-useragent==2.2.0
+2026-07-22T02:03:08.4358966Z  + fast-ebook==0.2.0
+2026-07-22T02:03:08.4359383Z  + fastapi==0.136.3
+2026-07-22T02:03:08.4359863Z  + fastmcp==3.2.0
+2026-07-22T02:03:08.4360188Z  + fastuuid==0.14.0
+2026-07-22T02:03:08.4360609Z  + filelock==3.20.3
+2026-07-22T02:03:08.4360944Z  + filetype==1.2.0
+2026-07-22T02:03:08.4361353Z  + firecrawl-py==4.13.1
+2026-07-22T02:03:08.4361721Z  + frozenlist==1.8.0
+2026-07-22T02:03:08.4362176Z  + fsspec==2026.1.0
+2026-07-22T02:03:08.4362642Z  + google-auth==2.47.0
+2026-07-22T02:03:08.4362990Z  + google-genai==1.60.0
+2026-07-22T02:03:08.4363540Z  + greenlet==3.5.3
+2026-07-22T02:03:08.4364080Z  + groq==0.37.1
+2026-07-22T02:03:08.4364469Z  + h11==0.16.0
+2026-07-22T02:03:08.4364895Z  + h2==4.3.0
+2026-07-22T02:03:08.4365350Z  + hf-xet==1.2.0
+2026-07-22T02:03:08.4365761Z  + hpack==4.2.0
+2026-07-22T02:03:08.4366202Z  + httpcore==1.0.9
+2026-07-22T02:03:08.4366715Z  + httpx==0.28.1
+2026-07-22T02:03:08.4367069Z  + httpx-sse==0.4.3
+2026-07-22T02:03:08.4367545Z  + huggingface-hub==1.3.2
+2026-07-22T02:03:08.4367952Z  + humanize==4.15.0
+2026-07-22T02:03:08.4368427Z  + hyperframe==6.1.0
+2026-07-22T02:03:08.4368782Z  + identify==2.6.16
+2026-07-22T02:03:08.4369428Z  + idna==3.15
+2026-07-22T02:03:08.4369747Z  + imageio==2.37.2
+2026-07-22T02:03:08.4370102Z  + imageio-ffmpeg==0.6.0
+2026-07-22T02:03:08.4370484Z  + importlib-metadata==8.7.1
+2026-07-22T02:03:08.4370858Z  + iniconfig==2.3.0
+2026-07-22T02:03:08.4371287Z  + jaraco-classes==3.4.0
+2026-07-22T02:03:08.4371717Z  + jaraco-context==6.1.0
+2026-07-22T02:03:08.4372147Z  + jaraco-functools==4.4.0
+2026-07-22T02:03:08.4372636Z  + jeepney==0.9.0
+2026-07-22T02:03:08.4372943Z  + jinja2==3.1.6
+2026-07-22T02:03:08.4373460Z  + jiter==0.12.0
+2026-07-22T02:03:08.4373834Z  + joblib==1.5.3
+2026-07-22T02:03:08.4374161Z  + jsonpatch==1.33
+2026-07-22T02:03:08.4374573Z  + jsonpointer==3.0.0
+2026-07-22T02:03:08.4375012Z  + jsonref==1.1.0
+2026-07-22T02:03:08.4375391Z  + jsonschema==4.26.0
+2026-07-22T02:03:08.4375811Z  + jsonschema-path==0.3.4
+2026-07-22T02:03:08.4376235Z  + jsonschema-specifications==2025.9.1
+2026-07-22T02:03:08.4376678Z  + keyring==25.7.0
+2026-07-22T02:03:08.4377014Z  + langchain==1.3.9
+2026-07-22T02:03:08.4377520Z  + langchain-anthropic==1.4.6
+2026-07-22T02:03:08.4377938Z  + langchain-core==1.4.7
+2026-07-22T02:03:08.4378327Z  + langchain-google-genai==4.2.0
+2026-07-22T02:03:08.4378724Z  + langchain-groq==1.1.1
+2026-07-22T02:03:08.4379096Z  + langchain-mistralai==1.1.1
+2026-07-22T02:03:08.4379480Z  + langchain-ollama==1.0.1
+2026-07-22T02:03:08.4379862Z  + langchain-openai==1.1.14
+2026-07-22T02:03:08.4380417Z  + langchain-protocol==0.0.15
+2026-07-22T02:03:08.4380899Z  + langchain-text-splitters==1.1.2
+2026-07-22T02:03:08.4381345Z  + langdetect==1.0.9
+2026-07-22T02:03:08.4381710Z  + langgraph==1.2.5
+2026-07-22T02:03:08.4382081Z  + langgraph-checkpoint==4.1.1
+2026-07-22T02:03:08.4382535Z  + langgraph-checkpoint-sqlite==3.0.3
+2026-07-22T02:03:08.4383007Z  + langgraph-prebuilt==1.1.0
+2026-07-22T02:03:08.4383557Z  + langgraph-sdk==0.4.2
+2026-07-22T02:03:08.4383911Z  + langsmith==0.9.0
+2026-07-22T02:03:08.4384258Z  + lark==1.3.1
+2026-07-22T02:03:08.4384575Z  + librt==0.7.8
+2026-07-22T02:03:08.4384895Z  + loguru==0.7.3
+2026-07-22T02:03:08.4385463Z  + lxml==6.1.0
+2026-07-22T02:03:08.4385796Z  + lxml-html-clean==0.4.4
+2026-07-22T02:03:08.4386191Z  + markdown-it-py==4.0.0
+2026-07-22T02:03:08.4386567Z  + markdownify==1.2.2
+2026-07-22T02:03:08.4386933Z  + markupsafe==3.0.3
+2026-07-22T02:03:08.4387256Z  + mcp==1.25.0
+2026-07-22T02:03:08.4387566Z  + mdurl==0.1.2
+2026-07-22T02:03:08.4387986Z  + more-itertools==10.8.0
+2026-07-22T02:03:08.4388348Z  + moviepy==2.2.1
+2026-07-22T02:03:08.4388699Z  + multidict==6.7.0
+2026-07-22T02:03:08.4389013Z  + mypy==1.19.1
+2026-07-22T02:03:08.4389408Z  + mypy-extensions==1.1.0
+2026-07-22T02:03:08.4389794Z  + nest-asyncio==1.6.0
+2026-07-22T02:03:08.4390165Z  + networkx==3.6.1
+2026-07-22T02:03:08.4390600Z  + nltk==3.10.0
+2026-07-22T02:03:08.4391062Z  + nodeenv==1.10.0
+2026-07-22T02:03:08.4391399Z  + nodejs-wheel-binaries==24.13.0
+2026-07-22T02:03:08.4391792Z  + numpy==2.4.1
+2026-07-22T02:03:08.4392160Z  + ollama==0.6.1
+2026-07-22T02:03:08.4393065Z  + open-notebook==1.12.0 (from file:///home/runner/work/open-notebook/open-notebook)
+2026-07-22T02:03:08.4393901Z  + openai==2.32.0
+2026-07-22T02:03:08.4394260Z  + openapi-pydantic==0.5.1
+2026-07-22T02:03:08.4394656Z  + openpyxl==3.1.5
+2026-07-22T02:03:08.4395020Z  + opentelemetry-api==1.39.1
+2026-07-22T02:03:08.4395419Z  + orjson==3.11.6
+2026-07-22T02:03:08.4395744Z  + ormsgpack==1.12.2
+2026-07-22T02:03:08.4396089Z  + packaging==25.0
+2026-07-22T02:03:08.4396429Z  + pandas==3.0.0
+2026-07-22T02:03:08.4396776Z  + patchright==1.61.2
+2026-07-22T02:03:08.4397135Z  + pathable==0.4.4
+2026-07-22T02:03:08.4397473Z  + pathspec==1.0.3
+2026-07-22T02:03:08.4397800Z  + pdfminer-six==20260107
+2026-07-22T02:03:08.4398180Z  + pdfplumber==0.11.10
+2026-07-22T02:03:08.4398536Z  + pillow==12.3.0
+2026-07-22T02:03:08.4398866Z  + pip==26.1.2
+2026-07-22T02:03:08.4399197Z  + platformdirs==4.5.1
+2026-07-22T02:03:08.4399604Z  + playwright==1.61.0
+2026-07-22T02:03:08.4399970Z  + playwright-stealth==2.0.3
+2026-07-22T02:03:08.4400345Z  + pluggy==1.6.0
+2026-07-22T02:03:08.4400694Z  + podcast-creator==0.12.0
+2026-07-22T02:03:08.4401318Z  + pre-commit==4.5.1
+2026-07-22T02:03:08.4401661Z  + proglog==0.1.12
+2026-07-22T02:03:08.4401991Z  + propcache==0.4.1
+2026-07-22T02:03:08.4402343Z  + psutil==7.2.1
+2026-07-22T02:03:08.4402686Z  + py-key-value-aio==0.4.4
+2026-07-22T02:03:08.4403058Z  + pyasn1==0.6.3
+2026-07-22T02:03:08.4403525Z  + pyasn1-modules==0.4.2
+2026-07-22T02:03:08.4403902Z  + pycountry==26.2.16
+2026-07-22T02:03:08.4404253Z  + pycparser==3.0
+2026-07-22T02:03:08.4404591Z  + pydantic==2.12.5
+2026-07-22T02:03:08.4404940Z  + pydantic-core==2.41.5
+2026-07-22T02:03:08.4405385Z  + pydantic-settings==2.14.2
+2026-07-22T02:03:08.4405776Z  + pydub==0.25.1
+2026-07-22T02:03:08.4406093Z  + pyee==13.0.1
+2026-07-22T02:03:08.4406389Z  + pygments==2.20.0
+2026-07-22T02:03:08.4406797Z  + pyjwt==2.13.0
+2026-07-22T02:03:08.4407176Z  + pyopenssl==26.2.0
+2026-07-22T02:03:08.4407569Z  + pypdfium2==5.11.0
+2026-07-22T02:03:08.4408027Z  + pyperclip==1.11.0
+2026-07-22T02:03:08.4408358Z  + pytest==9.0.3
+2026-07-22T02:03:08.4408816Z  + pytest-asyncio==1.3.0
+2026-07-22T02:03:08.4409195Z  + pytest-cov==7.1.0
+2026-07-22T02:03:08.4409678Z  + python-dateutil==2.9.0.post0
+2026-07-22T02:03:08.4410077Z  + python-docx==1.2.0
+2026-07-22T02:03:08.4410419Z  + python-dotenv==1.2.2
+2026-07-22T02:03:08.4410780Z  + python-multipart==0.0.31
+2026-07-22T02:03:08.4411163Z  + python-pptx==1.0.2
+2026-07-22T02:03:08.4411505Z  + pytubefix==10.3.6
+2026-07-22T02:03:08.4411938Z  + pyyaml==6.0.3
+2026-07-22T02:03:08.4412291Z  + rank-bm25==0.2.2
+2026-07-22T02:03:08.4412811Z  + readability-lxml==0.8.4.1
+2026-07-22T02:03:08.4413202Z  + referencing==0.36.2
+2026-07-22T02:03:08.4413762Z  + regex==2026.1.15
+2026-07-22T02:03:08.4414085Z  + requests==2.33.0
+2026-07-22T02:03:08.4414432Z  + requests-toolbelt==1.0.0
+2026-07-22T02:03:08.4414898Z  + rich==14.2.0
+2026-07-22T02:03:08.4415208Z  + rich-rst==1.3.2
+2026-07-22T02:03:08.4415581Z  + rpds-py==0.30.0
+2026-07-22T02:03:08.4415951Z  + rsa==4.9.1
+2026-07-22T02:03:08.4416413Z  + rtree==1.4.1
+2026-07-22T02:03:08.4416759Z  + ruff==0.14.13
+2026-07-22T02:03:08.4417278Z  + scipy==1.18.0
+2026-07-22T02:03:08.4417722Z  + secretstorage==3.5.0
+2026-07-22T02:03:08.4418085Z  + shapely==2.1.2
+2026-07-22T02:03:08.4418429Z  + shellingham==1.5.4
+2026-07-22T02:03:08.4419233Z  + six==1.17.0
+2026-07-22T02:03:08.4419527Z  + sniffio==1.3.1
+2026-07-22T02:03:08.4419946Z  + snowballstemmer==2.2.0
+2026-07-22T02:03:08.4420306Z  + socksio==1.0.0
+2026-07-22T02:03:08.4420629Z  + soupsieve==2.8.4
+2026-07-22T02:03:08.4420948Z  + sqlite-vec==0.1.6
+2026-07-22T02:03:08.4421313Z  + sse-starlette==3.2.0
+2026-07-22T02:03:08.4421661Z  + starlette==1.3.1
+2026-07-22T02:03:08.4421998Z  + surreal-commands==1.3.1
+2026-07-22T02:03:08.4422366Z  + surrealdb==1.0.8
+2026-07-22T02:03:08.4422677Z  + tenacity==9.1.2
+2026-07-22T02:03:08.4422995Z  + tiktoken==0.12.0
+2026-07-22T02:03:08.4423472Z  + tokenizers==0.22.2
+2026-07-22T02:03:08.4423806Z  + tomli==2.4.0
+2026-07-22T02:03:08.4424144Z  + tqdm==4.67.1
+2026-07-22T02:03:08.4424795Z  + trimesh==4.12.2
+2026-07-22T02:03:08.4425327Z  + typer==0.21.1
+2026-07-22T02:03:08.4426028Z  + typer-slim==0.21.1
+2026-07-22T02:03:08.4426801Z  + types-requests==2.32.4.20260107
+2026-07-22T02:03:08.4427343Z  + typing-extensions==4.15.0
+2026-07-22T02:03:08.4427978Z  + typing-inspection==0.4.2
+2026-07-22T02:03:08.4428636Z  + uncalled-for==0.2.0
+2026-07-22T02:03:08.4429149Z  + unclecode-litellm==1.81.13
+2026-07-22T02:03:08.4429549Z  + urllib3==2.7.0
+2026-07-22T02:03:08.4429951Z  + uuid-utils==0.14.0
+2026-07-22T02:03:08.4430424Z  + uvicorn==0.40.0
+2026-07-22T02:03:08.4430741Z  + validators==0.35.0
+2026-07-22T02:03:08.4459628Z  + virtualenv==20.36.1
+2026-07-22T02:03:08.4460063Z  + watchfiles==1.1.1
+2026-07-22T02:03:08.4460413Z  + websockets==15.0.1
+2026-07-22T02:03:08.4460752Z  + xlsxwriter==3.2.9
+2026-07-22T02:03:08.4461087Z  + xxhash==3.6.0
+2026-07-22T02:03:08.4461389Z  + yarl==1.22.0
+2026-07-22T02:03:08.4461727Z  + youtube-transcript-api==1.2.3
+2026-07-22T02:03:08.4462121Z  + zipp==3.23.0
+2026-07-22T02:03:08.4462423Z  + zstandard==0.25.0
+2026-07-22T02:03:08.4619023Z ##[group]Run make check-tutor
+2026-07-22T02:03:08.4619321Z [36;1mmake check-tutor[0m
+2026-07-22T02:03:08.4684550Z shell: /usr/bin/bash -e {0}
+2026-07-22T02:03:08.4684827Z env:
+2026-07-22T02:03:08.4685122Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-07-22T02:03:08.4685545Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-07-22T02:03:08.4685851Z ##[endgroup]
+2026-07-22T02:03:08.4812990Z uv run ruff format --check tutor tests_tutor
+2026-07-22T02:03:08.5817723Z Would reformat: tests_tutor/test_session.py
+2026-07-22T02:03:08.5818175Z 1 file would be reformatted, 72 files already formatted
+2026-07-22T02:03:08.5845328Z make: *** [Makefile:237: check-tutor] Error 1
+2026-07-22T02:03:08.5861003Z ##[error]Process completed with exit code 2.
+2026-07-22T02:03:08.6003009Z Post job cleanup.
+2026-07-22T02:03:08.6881085Z [command]/usr/bin/git version
+2026-07-22T02:03:08.6925903Z git version 2.54.0
+2026-07-22T02:03:08.6970037Z Temporarily overriding HOME='/home/runner/work/_temp/251fb6a1-c16d-4be3-944f-6f1c2246da2a' before making global git config changes
+2026-07-22T02:03:08.6970848Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-22T02:03:08.6975776Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/open-notebook/open-notebook
+2026-07-22T02:03:08.7014235Z Removing SSH command configuration
+2026-07-22T02:03:08.7015681Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-22T02:03:08.7052513Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-22T02:03:08.7308606Z Removing HTTP extra header
+2026-07-22T02:03:08.7315710Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-22T02:03:08.7352875Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-22T02:03:08.7631166Z Removing includeIf entries pointing to credentials config files
+2026-07-22T02:03:08.7633801Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-22T02:03:08.7731620Z includeif.gitdir:/home/runner/work/open-notebook/open-notebook/.git.path
+2026-07-22T02:03:08.7732594Z includeif.gitdir:/home/runner/work/open-notebook/open-notebook/.git/worktrees/*.path
+2026-07-22T02:03:08.7733680Z includeif.gitdir:/github/workspace/.git.path
+2026-07-22T02:03:08.7734283Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-07-22T02:03:08.7735870Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/open-notebook/open-notebook/.git.path
+2026-07-22T02:03:08.7789381Z /home/runner/work/_temp/git-credentials-ccec54c8-eb3e-42a2-979c-273eca9e0082.config
+2026-07-22T02:03:08.7791628Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/open-notebook/open-notebook/.git.path /home/runner/work/_temp/git-credentials-ccec54c8-eb3e-42a2-979c-273eca9e0082.config
+2026-07-22T02:03:08.8158672Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/open-notebook/open-notebook/.git/worktrees/*.path
+2026-07-22T02:03:08.8194450Z /home/runner/work/_temp/git-credentials-ccec54c8-eb3e-42a2-979c-273eca9e0082.config
+2026-07-22T02:03:08.8205502Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/open-notebook/open-notebook/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-ccec54c8-eb3e-42a2-979c-273eca9e0082.config
+2026-07-22T02:03:08.8265618Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-07-22T02:03:08.8292111Z /github/runner_temp/git-credentials-ccec54c8-eb3e-42a2-979c-273eca9e0082.config
+2026-07-22T02:03:08.8309350Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-ccec54c8-eb3e-42a2-979c-273eca9e0082.config
+2026-07-22T02:03:08.8568265Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-07-22T02:03:08.8601446Z /github/runner_temp/git-credentials-ccec54c8-eb3e-42a2-979c-273eca9e0082.config
+2026-07-22T02:03:08.8617307Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-ccec54c8-eb3e-42a2-979c-273eca9e0082.config
+2026-07-22T02:03:08.8668211Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-22T02:03:08.9041408Z Removing credentials config '/home/runner/work/_temp/git-credentials-ccec54c8-eb3e-42a2-979c-273eca9e0082.config'
+2026-07-22T02:03:08.9220852Z Cleaning up orphan processes
