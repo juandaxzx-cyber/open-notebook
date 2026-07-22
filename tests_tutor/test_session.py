@@ -67,7 +67,7 @@ class FakeStore(SessionStore):
             "technique": state.technique.model_dump(),
             "help": state.help.model_dump(),
             "task": state.task.model_dump(),
-            "transcript": [t.model_dump() for t in state.transcript],
+            "transcript": [t.model_dump(exclude_none=True) for t in state.transcript],
             "reviewed_ids": list(state.reviewed_ids),
             "review_count": 0,
             "updated_at": self._tick(),
@@ -84,7 +84,9 @@ class FakeStore(SessionStore):
         record = self.records[state.session_id]
         record["help"] = state.help.model_dump()
         record["task"] = state.task.model_dump()
-        record["transcript"] = [t.model_dump() for t in state.transcript]
+        record["transcript"] = [
+            t.model_dump(exclude_none=True) for t in state.transcript
+        ]
         record["updated_at"] = self._tick()
 
     async def close(
@@ -327,6 +329,7 @@ def test_session_endpoints_full_cycle() -> None:
         "help_level": 0,
         "task_index": 0,
         "task_label": "",
+        "verification_outcome": None,  # PR-W1: TUTOR_VERIFY_TURNS defaults off here
     }
 
     closed = client.post(f"/session/{session_id}/close")

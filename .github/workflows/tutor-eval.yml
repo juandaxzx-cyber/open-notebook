@@ -21,6 +21,18 @@ on:
       judge_model:
         description: "Judge model"
         default: "deepseek-chat"
+      verify_turns:
+        description: "PR-W1 verification scope (off|grounded|all) — the eval's before/after lever"
+        default: "grounded"
+      verify_profile:
+        description: "PR-W1 verification profile (high|cheap)"
+        default: "high"
+      verifier_provider:
+        description: "Escalation-ladder verifier provider (empty = fall back to the tutor's own provider)"
+        default: ""
+      verifier_model:
+        description: "Escalation-ladder verifier model (empty = fall back to the tutor's own model)"
+        default: ""
   push:
     branches: [main]
     paths:
@@ -56,6 +68,15 @@ jobs:
           TUTOR_LLM_MODEL: ${{ inputs.model || 'deepseek-chat' }}
           TUTOR_JUDGE_PROVIDER: ${{ inputs.judge_provider || 'deepseek' }}
           TUTOR_JUDGE_MODEL: ${{ inputs.judge_model || 'deepseek-chat' }}
+          # W1-eval addendum: the merge-gate lever (off = baseline, grounded
+          # = gated) plus the escalation-ladder verifier passthrough. The
+          # verifier vars are left UNSET (not empty-string) when the input is
+          # blank, so TutorSettings.from_env's `if value:` falls back to the
+          # tutor's own provider/model exactly like the live service.
+          TUTOR_VERIFY_TURNS: ${{ inputs.verify_turns || 'grounded' }}
+          TUTOR_VERIFY_PROFILE: ${{ inputs.verify_profile || 'high' }}
+          TUTOR_VERIFIER_PROVIDER: ${{ inputs.verifier_provider }}
+          TUTOR_VERIFIER_MODEL: ${{ inputs.verifier_model }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

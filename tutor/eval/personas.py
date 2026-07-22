@@ -23,6 +23,13 @@ class Persona(BaseModel):
     profile: dict[str, str]  # canned learner profile fed to the engine
     content: list[str]  # canned "retrieved material" snippets
     turns: list[PersonaTurn] = Field(min_length=1)
+    # W1-eval addendum: additive, optional. Set together, they make the
+    # persona a GROUNDED session — the runner opens with `source_id` and the
+    # fake registry serves `source_text` verbatim via `content.get_source`
+    # (whole-source-lite path). Absent (the four legacy personas) => the
+    # persona runs exactly as before (lock test).
+    source_id: str | None = None
+    source_text: str = ""
 
 
 def load_personas(directory: Path | None = None) -> list[Persona]:

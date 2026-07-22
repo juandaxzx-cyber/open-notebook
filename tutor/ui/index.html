@@ -82,6 +82,13 @@
   }
   .llm-chip.warn { color: var(--danger); border-color: var(--danger); cursor: pointer; }
 
+  /* ---- verification notice / cheap-profile caveat (PR-W1) --------- */
+  .verify-notice {
+    max-width: 88%; margin: -6px 0 0; padding: 8px 14px; font-size: 13px;
+    color: var(--danger); border: 1px dashed var(--danger); border-radius: var(--radius-sm);
+    background: var(--bg1); align-self: flex-start;
+  }
+
   main { flex: 1; max-width: var(--content-width); width: 100%; margin: 0 auto; padding: 24px 20px 0; }
   .hidden { display: none !important; }
 
@@ -272,6 +279,7 @@
   <div class="badges" id="badges"></div>
   <nav>
     <span id="llm-chip" class="llm-chip hidden"></span>
+    <span id="verify-chip" class="llm-chip warn hidden" title="Perfil de verificación económico: más barato, más errores">Perfil económico: más errores</span>
     <a id="profile-link" class="navlink" href="#">Perfil</a>
     <a id="history-link" class="navlink" href="#">Historial</a>
     <a id="progress-link" class="navlink" href="#">Tu progreso</a>
@@ -414,6 +422,22 @@ function addMsg(role, text) {
   return div;
 }
 
+/* ---- verification notice (PR-W1): flagged/limits-admitted turns get a
+   visible uncertainty notice right under the tutor bubble. ---- */
+const VERIFY_NOTICE = {
+  flagged: "⚠ Esta respuesta no pasó la verificación automática — revísala con cuidado (perfil económico).",
+  "limits-admitted": "⚠ El material no permite confirmar todo esto con certeza; el tutor lo reconoce arriba.",
+};
+
+function addVerificationNotice(outcome) {
+  const text = VERIFY_NOTICE[outcome];
+  if (!text) return;
+  const p = document.createElement("p");
+  p.className = "verify-notice";
+  p.textContent = text;
+  $("messages").appendChild(p);
+}
+
 function addStatus(text) {
   const p = document.createElement("p");
   p.className = "status";
@@ -507,6 +531,7 @@ async function startSession() {
     show($("chat"));
     show($("composer"));
     addMsg("tutor", data.opening_message);
+    addVerificationNotice(data.verification_outcome);
     if (data.task_index > 0) addStatus(taskStatus(data.task_index, data.task_label, 0, 0));
     setSessionHash(sessionId);
     $("input").focus();
@@ -539,6 +564,7 @@ async function startReview() {
     show($("chat"));
     show($("composer"));
     addMsg("tutor", data.opening_message);
+    addVerificationNotice(data.verification_outcome);
     if (data.task_index > 0) addStatus(taskStatus(data.task_index, data.task_label, 0, 0));
     setSessionHash(sessionId);
     $("input").focus();
@@ -577,6 +603,7 @@ async function sendMessage() {
     });
     typing.remove();
     addMsg("tutor", data.reply);
+    addVerificationNotice(data.verification_outcome);
     if (data.task_index > 0 || data.help_level > 0 || data.attempts > 0) {
       addStatus(taskStatus(data.task_index, data.task_label, data.attempts, data.help_level));
     }
@@ -905,6 +932,9 @@ function renderTranscript(record) {
   $("messages").innerHTML = "";
   for (const turn of record.transcript || []) {
     addMsg(turn.role === "learner" ? "learner" : "tutor", turn.content);
+    // PR-W1: a resumed/replayed session shows the same notice a flagged or
+    // limits-admitted turn got live — the trace is inspectable, not just live.
+    if (turn.verification) addVerificationNotice(turn.verification.outcome);
   }
   if (record.traits && record.technique) {
     $("badges").innerHTML = "";
@@ -981,6 +1011,10 @@ async function loadUiConfig() {
     }
   } catch (e) { /* nav link is optional — never block the session flow */ }
   renderLlmChip(cfg);
+  // PR-W1: standing "cheaper ⇒ more errors" caveat — visible whenever
+  // verification is on AND running the cheap profile (never for "off" or
+  // the default "high" profile, which doesn't carry that tradeoff).
+  show($("verify-chip"), Boolean(cfg && cfg.verify_turns !== "off" && cfg.verify_profile === "cheap"));
   // Material grounding (PR-M1/F3): the picker only makes sense when the
   // service has grounding on; otherwise it stays hidden entirely.
   if (cfg && cfg.grounding_enabled) {

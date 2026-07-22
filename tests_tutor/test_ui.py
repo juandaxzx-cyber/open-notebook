@@ -43,6 +43,8 @@ def test_config_returns_default_notebook_ui_url() -> None:
         "grounding_enabled": False,
         "llm_provider": None,
         "llm_model": None,
+        "verify_turns": "grounded",  # PR-W1 default
+        "verify_profile": "high",
     }
 
 

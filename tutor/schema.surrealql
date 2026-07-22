@@ -26,6 +26,11 @@ DEFINE FIELD IF NOT EXISTS topic ON session TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS traits ON session FLEXIBLE TYPE option<object>;
 DEFINE FIELD IF NOT EXISTS technique ON session FLEXIBLE TYPE option<object>;
 DEFINE FIELD IF NOT EXISTS help ON session FLEXIBLE TYPE option<object>;
+-- PR-W1: each transcript entry additively gains an optional `verification`
+-- object (verdicts, violations per attempt, escalations, outcome) for
+-- tutor turns that were gated. No new DEFINE needed — `transcript` is
+-- already FLEXIBLE (schemaless per array item), so the extra key is
+-- accepted as-is; entries that were never gated omit it entirely.
 DEFINE FIELD IF NOT EXISTS transcript ON session FLEXIBLE TYPE option<array>;
 DEFINE FIELD IF NOT EXISTS reviewed_ids ON session FLEXIBLE TYPE option<array>;
 DEFINE FIELD IF NOT EXISTS review_count ON session TYPE int DEFAULT 0;

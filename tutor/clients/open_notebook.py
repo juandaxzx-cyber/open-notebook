@@ -106,3 +106,22 @@ class OpenNotebookClient:
             for item in sources
             if isinstance(item, dict)
         ]
+
+    async def get_source(self, source_id: str) -> dict[str, Any]:
+        """Fetch one source's full record, including ``full_text`` (PR-W1
+        whole-source-lite; the ``get_source`` capability was pulled forward
+        from the parked M3 slice per the W1 contract).
+
+        Uses GET /api/sources/{id} (api/routers/sources.py::get_source),
+        which returns full_text on ``SourceResponse``.
+        """
+        async with httpx.AsyncClient(
+            timeout=self._timeout, transport=self._transport
+        ) as client:
+            response = await client.get(
+                f"{self._base_url}/api/sources/{source_id}",
+                headers=self._headers(),
+            )
+            response.raise_for_status()
+            result: dict[str, Any] = response.json()
+            return result

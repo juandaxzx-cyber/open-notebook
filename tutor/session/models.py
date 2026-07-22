@@ -1,7 +1,7 @@
 """Session models (PR-E1 contract)."""
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -44,6 +44,13 @@ class HelpState(BaseModel):
 class Turn(BaseModel):
     role: Literal["learner", "tutor"]
     content: str
+    # PR-W1: additive, optional per-turn verification trace (verdicts,
+    # violations per attempt, escalations, outcome) — None for learner turns
+    # and for tutor turns that were out of verification scope (off, or
+    # ungrounded under the default "grounded" scope). Dumped with
+    # `exclude_none=True` at every persistence site so pre-W1/unverified
+    # transcripts stay byte-identical (no stray `"verification": null`).
+    verification: dict[str, Any] | None = None
 
 
 class SessionState(BaseModel):
@@ -57,6 +64,12 @@ class SessionState(BaseModel):
     transcript: list[Turn] = Field(default_factory=list)
     reviewed_ids: list[str] = Field(default_factory=list)  # review sessions (PR-G1)
     source_id: str | None = None  # chosen material anchor (PR-M1)
+    # PR-W1: transient — the last-produced turn's verification outcome, set
+    # by the engine after `_complete_verified` and read by the router to
+    # populate the response. NOT persisted directly (store.py only dumps the
+    # explicit fields it lists); the durable record lives in
+    # `transcript[].verification`.
+    last_verification_outcome: str | None = None
 
 
 # --- API models ---
@@ -77,6 +90,10 @@ class SessionOpenResponse(BaseModel):
     task_index: int
     task_label: str
     source_id: str | None = None
+    # PR-W1: this turn's verification outcome (clean|corrected|escalated|
+    # limits-admitted|flagged), None when out of scope (verification off, or
+    # this turn was never gated).
+    verification_outcome: str | None = None
 
 
 class MessageRequest(BaseModel):
@@ -92,6 +109,8 @@ class MessageResponse(BaseModel):
     help_level: int
     task_index: int
     task_label: str
+    # PR-W1: this turn's verification outcome, None when out of scope.
+    verification_outcome: str | None = None
 
 
 class SessionSummary(BaseModel):

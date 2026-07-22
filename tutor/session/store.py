@@ -83,7 +83,14 @@ class SessionStore:
                         "technique": state.technique.model_dump(),
                         "help": state.help.model_dump(),
                         "task": state.task.model_dump(),
-                        "transcript": [t.model_dump() for t in state.transcript],
+                        # exclude_none=True (PR-W1): the new optional
+                        # Turn.verification field stays entirely absent from
+                        # the stored dict when a turn was never gated, so
+                        # off-scope transcripts stay byte-identical to pre-W1
+                        # records (no stray `"verification": null`).
+                        "transcript": [
+                            t.model_dump(exclude_none=True) for t in state.transcript
+                        ],
                         "reviewed_ids": list(state.reviewed_ids),
                     },
                 )
@@ -122,7 +129,9 @@ class SessionStore:
                         "id": state.session_id,
                         "help": state.help.model_dump(),
                         "task": state.task.model_dump(),
-                        "transcript": [t.model_dump() for t in state.transcript],
+                        "transcript": [
+                            t.model_dump(exclude_none=True) for t in state.transcript
+                        ],
                     },
                 )
             )

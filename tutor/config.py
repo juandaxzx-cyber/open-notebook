@@ -5,6 +5,7 @@ No value is ever hardcoded outside the defaults below.
 """
 
 import os
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -26,6 +27,15 @@ class TutorSettings(BaseModel):
     verifier_provider: str | None = None
     verifier_model: str | None = None
     review_horizon_days: float = 60.0
+    # Per-turn verification (PR-W1). Scope default "grounded": every reply in
+    # a source-grounded turn is verified; "off"/"all" are the other two
+    # readings. Profile default "high" (escalation ladder); "cheap" is
+    # verify+1-retry-then-flag. Budget is the whole-source-lite switch inside
+    # `tutor.session.grounding.retrieve_grounding` (tutor-side token
+    # estimate, ON's own convention is per-token too).
+    verify_turns: Literal["off", "grounded", "all"] = "grounded"
+    verify_profile: Literal["high", "cheap"] = "high"
+    grounding_budget_tokens: int = 16000
 
     @classmethod
     def from_env(cls) -> "TutorSettings":
@@ -49,6 +59,12 @@ class TutorSettings(BaseModel):
         judge in PR-E2). TUTOR_REVIEW_HORIZON_DAYS (PR-G3, default 60) is
         the SM-2 forgetting horizon: a reviewed item leaves the review
         working-set once its next interval exceeds this many days.
+        TUTOR_VERIFY_TURNS (PR-W1, off|grounded|all, default grounded) gates
+        the per-turn verification of tutor replies; TUTOR_VERIFY_PROFILE
+        (high|cheap, default high) picks the escalation ladder depth.
+        TUTOR_GROUNDING_BUDGET_TOKENS (default 16000) is the whole-source-lite
+        switch: a grounded source under this many (tutor-estimated) tokens is
+        injected in full instead of scoped passages.
         """
         values: dict[str, str] = {}
         env_map = {
@@ -66,6 +82,9 @@ class TutorSettings(BaseModel):
             "verifier_provider": "TUTOR_VERIFIER_PROVIDER",
             "verifier_model": "TUTOR_VERIFIER_MODEL",
             "review_horizon_days": "TUTOR_REVIEW_HORIZON_DAYS",
+            "verify_turns": "TUTOR_VERIFY_TURNS",
+            "verify_profile": "TUTOR_VERIFY_PROFILE",
+            "grounding_budget_tokens": "TUTOR_GROUNDING_BUDGET_TOKENS",
         }
         for field, var in env_map.items():
             value = os.environ.get(var)

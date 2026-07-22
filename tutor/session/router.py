@@ -163,6 +163,7 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
             technique=state.technique,
             task_index=state.task.index,
             task_label=state.task.label,
+            verification_outcome=state.last_verification_outcome,
         )
 
     @router.post("/session", response_model=SessionOpenResponse)
@@ -183,6 +184,7 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
             task_index=state.task.index,
             task_label=state.task.label,
             source_id=state.source_id,
+            verification_outcome=state.last_verification_outcome,
         )
 
     @router.post("/session/{session_id}/message", response_model=MessageResponse)
@@ -201,6 +203,7 @@ def build_session_router(engine: TutorEngine | None) -> APIRouter:
             help_level=state.help.help_level,
             task_index=state.task.index,
             task_label=state.task.label,
+            verification_outcome=state.last_verification_outcome,
         )
 
     @router.post("/session/{session_id}/close")
