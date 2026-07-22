@@ -1,5 +1,6 @@
 """Material grounding (PR-M1, server-side scoping since PR-M2, whole-source-lite
-since PR-W1): anchor a session's retrieval to a chosen source.
+since PR-W1, ownership-filtered since PR-BT3): anchor a session's retrieval to
+a chosen source.
 
 Tutor-side seam — calls OpenNotebook's vector search over REST via the
 `content.search` tool, passing `source_id` through. Since PR-M2 the core
@@ -17,6 +18,19 @@ chunks). Any failure fetching the whole source (tool unavailable, 404,
 network, empty/oversized text) falls back to today's scoped retrieval —
 grounding must always degrade safely, never error a session.
 
+PR-BT3 ownership: the optional keyword-only ``can_view`` callable checks
+whether the requester may see a given source id (tutor-side ownership,
+`tutor.ownership.SourceOwnerStore`). ``None`` (default) skips the check
+entirely — byte-identical to pre-BT3 behavior for every call site that
+doesn't pass it. When set, it gates BOTH paths: a chosen source the
+requester cannot see is treated as nonexistent (same message a genuinely
+unknown source_id already produces, without ever calling OpenNotebook with
+that id — unlike an actually-nonexistent id, the real search API WOULD
+return real matches for an existing-but-private source, since OpenNotebook
+itself has no per-user scoping); the ungrounded digest drops rows whose
+parent source is not visible to the requester, so private material never
+leaks into another user's topic digest.
+
 `retrieve_grounding` is the single seam the engine calls (once in `open`, once in
 `message`). When ungrounded it reproduces the legacy digest byte-for-byte, so
 sessions without a chosen source behave exactly as before.
@@ -24,6 +38,7 @@ sessions without a chosen source behave exactly as before.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -43,6 +58,11 @@ _DIGEST_SNIPPET = 300
 # engine.py threads the configured value through, this is only the fallback
 # for direct callers/tests that don't pass one.
 DEFAULT_BUDGET_TOKENS = 16000
+
+# PR-BT3: the requester-scoped visibility checker `retrieve_grounding`
+# optionally takes. Bound to one user by the caller (`TutorEngine`) — see
+# `tutor.ownership.SourceOwnerStoreProtocol.is_visible`.
+CanViewSource = Callable[[str], Awaitable[bool]]
 
 
 @dataclass
@@ -142,6 +162,21 @@ async def _try_whole_source(
     return _format_whole_source(text, title, source_id)
 
 
+async def _filter_visible_rows(
+    rows: list[dict[str, Any]], can_view: CanViewSource
+) -> list[dict[str, Any]]:
+    """PR-BT3: drop rows whose parent is a private source the requester
+    cannot see, before they ever reach the ungrounded digest. A row whose
+    `parent_id` is not a `source:` record (e.g. a note) passes through
+    untouched — BT3 ownership only applies to sources."""
+    visible: list[dict[str, Any]] = []
+    for row in rows:
+        parent = str(row.get("parent_id") or "")
+        if not parent.startswith("source:") or await can_view(parent):
+            visible.append(row)
+    return visible
+
+
 async def retrieve_grounding(
     registry: ToolRegistry,
     *,
@@ -149,22 +184,38 @@ async def retrieve_grounding(
     source_id: str | None,
     enabled: bool,
     budget_tokens: int = DEFAULT_BUDGET_TOKENS,
+    can_view: CanViewSource | None = None,
 ) -> GroundingResult:
     """Single grounding seam for both paths.
 
     Ungrounded (no source, or feature off): `content.search` is called with only
     ``{query, limit}`` and rendered as the legacy digest — nothing downstream
-    changes. Grounded: PR-W1 first tries whole-source-lite (`content.get_source`
+    changes (except the PR-BT3 visibility filter below, when ``can_view`` is
+    given). Grounded: PR-W1 first tries whole-source-lite (`content.get_source`
     under `budget_tokens`); if that doesn't apply, falls back to a vector
     search scoped to ``source_id`` (matched DB-side inside `fn::vector_search`
     since PR-M2; the `content.search` tool also filters rows by ``parent_id``
     client-side as defense-in-depth) and renders cited passages.
 
-    ``budget_tokens`` is an additive keyword-only parameter (default matches
-    the W1 contract's 16000) — the four original parameters are unchanged, so
-    every pre-W1 call site keeps working untouched.
+    ``budget_tokens`` and ``can_view`` are additive keyword-only parameters —
+    the four original parameters are unchanged, so every pre-W1/pre-BT3 call
+    site keeps working untouched. ``can_view`` unset skips the PR-BT3
+    visibility gate entirely (no ownership store is ever touched).
     """
     if enabled and source_id:
+        if can_view is not None and not await can_view(source_id):
+            # PR-BT3: treat an invisible source exactly like an unknown one —
+            # the SAME "no passages matched" message a genuinely nonexistent
+            # source_id already produces (see module docstring). No
+            # OpenNotebook call is made with this source_id: unlike a truly
+            # nonexistent id, the real search API WOULD return this
+            # requester's private matches, since OpenNotebook itself has no
+            # per-user scoping.
+            return GroundingResult(
+                content=_format_grounded([], source_id),
+                source_id=source_id,
+                grounded=True,
+            )
         whole = await _try_whole_source(registry, source_id, budget_tokens)
         if whole is not None:
             return GroundingResult(
@@ -188,4 +239,7 @@ async def retrieve_grounding(
     search = await registry.call(
         "content.search", {"query": topic, "limit": _DIGEST_ITEMS}
     )
+    if can_view is not None:
+        results = await _filter_visible_rows(search.get("results") or [], can_view)
+        search = {**search, "results": results}
     return GroundingResult(content=_digest(search), source_id=None, grounded=False)

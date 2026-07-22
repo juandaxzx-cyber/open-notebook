@@ -125,3 +125,57 @@ class OpenNotebookClient:
             response.raise_for_status()
             result: dict[str, Any] = response.json()
             return result
+
+    async def create_source_from_file(
+        self,
+        filename: str,
+        content: bytes,
+        content_type: str | None = None,
+        *,
+        title: str | None = None,
+    ) -> dict[str, Any]:
+        """Upload a file as a new source via POST /api/sources (multipart;
+        PR-BT3: testers upload material through the tutor, never touching
+        OpenNotebook directly).
+
+        Uses the existing async processing path (``async_processing=true``,
+        api/routers/sources.py::create_source /
+        ``parse_source_form_data``) so the request returns as soon as
+        OpenNotebook has queued the job, instead of blocking on extraction —
+        the same tradeoff the multipart endpoint already offers today.
+        """
+        data: dict[str, str] = {"type": "upload", "async_processing": "true"}
+        if title:
+            data["title"] = title
+        files = {
+            "file": (filename, content, content_type or "application/octet-stream")
+        }
+        async with httpx.AsyncClient(
+            timeout=self._timeout, transport=self._transport
+        ) as client:
+            response = await client.post(
+                f"{self._base_url}/api/sources",
+                data=data,
+                files=files,
+                headers=self._headers(),
+            )
+            response.raise_for_status()
+            result: dict[str, Any] = response.json()
+            return result
+
+    async def create_source_json(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create a source from a JSON payload (url or text content) via
+        POST /api/sources/json (PR-BT3: testers create link/text sources
+        through the tutor). ``payload`` is forwarded as-is — the caller
+        (``tutor/app.py``) builds the ``SourceCreate``-shaped body."""
+        async with httpx.AsyncClient(
+            timeout=self._timeout, transport=self._transport
+        ) as client:
+            response = await client.post(
+                f"{self._base_url}/api/sources/json",
+                json=payload,
+                headers=self._headers(),
+            )
+            response.raise_for_status()
+            result: dict[str, Any] = response.json()
+            return result

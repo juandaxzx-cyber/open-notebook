@@ -1,5 +1,6 @@
 import asyncio
 import json
+from typing import Any
 
 import httpx
 
@@ -84,3 +85,66 @@ def test_search_omits_source_id_from_payload_when_none() -> None:
 
     body = json.loads(seen["body"])
     assert "source_id" not in body
+
+
+# --- create_source_from_file / create_source_json (PR-BT3) ---
+
+
+def test_create_source_from_file_posts_multipart_with_async_processing() -> None:
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["path"] = request.url.path
+        seen["content_type"] = request.headers.get("content-type", "")
+        seen["body"] = request.content
+        return httpx.Response(200, json={"id": "source:new1", "title": "notes.pdf"})
+
+    client = OpenNotebookClient(
+        base_url="http://on:5055", transport=httpx.MockTransport(handler)
+    )
+    result = asyncio.run(
+        client.create_source_from_file(
+            "notes.pdf", b"%PDF-1.4 fake", "application/pdf", title="My notes"
+        )
+    )
+
+    assert seen["path"] == "/api/sources"
+    assert seen["content_type"].startswith("multipart/form-data")
+    assert b'name="type"' in seen["body"] and b"upload" in seen["body"]
+    assert b'name="async_processing"' in seen["body"] and b"true" in seen["body"]
+    assert b'name="title"' in seen["body"] and b"My notes" in seen["body"]
+    assert b'filename="notes.pdf"' in seen["body"]
+    assert result == {"id": "source:new1", "title": "notes.pdf"}
+
+
+def test_create_source_from_file_omits_title_when_not_given() -> None:
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = request.content
+        return httpx.Response(200, json={"id": "source:new2"})
+
+    client = OpenNotebookClient(
+        base_url="http://on:5055", transport=httpx.MockTransport(handler)
+    )
+    asyncio.run(client.create_source_from_file("a.txt", b"hi"))
+    assert b'name="title"' not in seen["body"]
+
+
+def test_create_source_json_posts_payload_as_is() -> None:
+    seen: dict[str, bytes] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["path"] = request.url.path.encode()
+        seen["body"] = request.content
+        return httpx.Response(200, json={"id": "source:new3"})
+
+    client = OpenNotebookClient(
+        base_url="http://on:5055", transport=httpx.MockTransport(handler)
+    )
+    payload = {"type": "link", "url": "https://example.com", "async_processing": True}
+    result = asyncio.run(client.create_source_json(payload))
+
+    assert seen["path"] == b"/api/sources/json"
+    assert json.loads(seen["body"]) == payload
+    assert result == {"id": "source:new3"}

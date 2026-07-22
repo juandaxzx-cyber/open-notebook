@@ -82,3 +82,17 @@ DEFINE FIELD IF NOT EXISTS day ON usage_counter TYPE string;
 DEFINE FIELD IF NOT EXISTS turns ON usage_counter TYPE int DEFAULT 0;
 DEFINE INDEX IF NOT EXISTS usage_counter_user ON usage_counter FIELDS user_id;
 DEFINE INDEX IF NOT EXISTS usage_counter_user_day ON usage_counter FIELDS user_id, day UNIQUE;
+
+-- Private sources (PR-BT3): tutor-side ownership, ZERO OpenNotebook core
+-- changes. A source_id with NO row here is PUBLIC (grandfather clause --
+-- the pre-BT curated corpus stays visible to everyone). Only sources
+-- created THROUGH the tutor (POST /sources/upload, POST /sources/create)
+-- ever get a row, written private (public=false) with the requester as
+-- owner; `python -m tutor.access share <source_id>` flips `public` to true.
+DEFINE TABLE IF NOT EXISTS source_owner SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS source_id ON source_owner TYPE string;
+DEFINE FIELD IF NOT EXISTS user_id ON source_owner TYPE string;
+DEFINE FIELD IF NOT EXISTS public ON source_owner TYPE bool DEFAULT false;
+DEFINE FIELD IF NOT EXISTS created ON source_owner TYPE datetime DEFAULT time::now();
+DEFINE INDEX IF NOT EXISTS source_owner_user ON source_owner FIELDS user_id;
+DEFINE INDEX IF NOT EXISTS source_owner_source ON source_owner FIELDS source_id UNIQUE;

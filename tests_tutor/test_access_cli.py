@@ -123,3 +123,11 @@ def test_parser_requires_a_subcommand() -> None:
     parser = build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args([])
+
+
+def test_build_parser_share_takes_source_id() -> None:
+    # PR-BT3: `share <source_id>` flips a private source to public.
+    parser = build_parser()
+    args = parser.parse_args(["share", "source:abc123"])
+    assert args.command == "share"
+    assert args.source_id == "source:abc123"

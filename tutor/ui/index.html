@@ -121,6 +121,26 @@
   .history-meta { color: var(--faint); font-size: 13px; flex-shrink: 0; }
   .review-btn { margin-top: 12px; width: 100%; padding: 10px 12px; background: var(--gold, #d3b673); color: #1a1a1a; border: none; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; }
   .review-btn:hover { filter: brightness(1.06); }
+  .upload-toggle {
+    background: none; border: none; color: var(--gold); cursor: pointer;
+    font-size: 0.85rem; padding: 4px 0; text-align: left;
+  }
+  .upload-toggle:hover { color: var(--gold-soft); }
+  #upload-panel {
+    background: var(--bg1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; display: flex;
+    flex-direction: column; gap: 8px;
+  }
+  #upload-panel input, #upload-panel textarea {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); padding: 8px; font: inherit;
+  }
+  .upload-tabs { display: flex; gap: 6px; }
+  .utab {
+    background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.85rem;
+  }
+  .utab.active { border-color: var(--gold); color: var(--gold); }
   .source-select {
     width: 100%; margin-top: 10px; padding: 10px 12px;
     background: var(--panel, #1a1f2b); color: var(--text, #e8eaed);
@@ -298,6 +318,23 @@
     <select id="source" class="source-select hidden" aria-label="Fuente (opcional)">
       <option value="">Sin fuente — buscar en todo el material</option>
     </select>
+    <!-- PR-BT3: upload affordance — testers add material through the tutor -->
+    <button id="upload-toggle" class="upload-toggle hidden" type="button">+ Subir material</button>
+    <div id="upload-panel" class="hidden">
+      <div class="upload-tabs" role="tablist">
+        <button type="button" class="utab active" data-utab="file">Archivo</button>
+        <button type="button" class="utab" data-utab="url">Enlace</button>
+        <button type="button" class="utab" data-utab="text">Texto</button>
+      </div>
+      <input id="upload-title" placeholder="Título (opcional)">
+      <input id="upload-file" type="file" data-upane="file">
+      <input id="upload-url" class="hidden" data-upane="url" placeholder="https://…">
+      <textarea id="upload-text" class="hidden" data-upane="text" rows="4" placeholder="Pega aquí el texto…"></textarea>
+      <div class="row">
+        <button id="upload-send" type="button">Subir</button>
+      </div>
+      <p id="upload-status" class="hint hidden"></p>
+    </div>
     <div id="resume" class="hidden">
       <div id="resume-card"></div>
       <ul id="sessions-list"></ul>
@@ -1052,9 +1089,11 @@ async function loadUiConfig() {
   // service has grounding on; otherwise it stays hidden entirely.
   if (cfg && cfg.grounding_enabled) {
     show($("source"), true);
+    show($("upload-toggle"), true);
     loadSources();
   } else {
     show($("source"), false);
+    show($("upload-toggle"), false);
   }
 }
 loadUiConfig();
@@ -1063,16 +1102,64 @@ loadUiConfig();
 async function loadSources() {
   try {
     const sources = await (await fetch("/sources", { headers: authHeaders() })).json();
-    if (!Array.isArray(sources) || !sources.length) return;
+    if (!Array.isArray(sources)) return;
     const sel = $("source");
+    while (sel.options.length > 1) sel.remove(1);  // refresh-safe (PR-BT3)
     for (const s of sources) {
       const opt = document.createElement("option");
       opt.value = s.id;
-      opt.textContent = s.title || s.id;
+      // PR-BT3: "privado" badge on the requester's own private uploads.
+      opt.textContent = (s.title || s.id) + (s.private ? " · privado" : "");
       sel.appendChild(opt);
     }
   } catch (e) { /* the picker is optional — a source is never required */ }
 }
+
+/* ---- upload affordance (PR-BT3): add material through the tutor ---- */
+(function initUpload() {
+  const toggle = $("upload-toggle"), panel = $("upload-panel");
+  toggle.addEventListener("click", () => show(panel, panel.classList.contains("hidden")));
+  let mode = "file";
+  for (const tab of document.querySelectorAll(".utab")) {
+    tab.addEventListener("click", () => {
+      mode = tab.dataset.utab;
+      for (const t of document.querySelectorAll(".utab")) t.classList.toggle("active", t === tab);
+      for (const pane of document.querySelectorAll("[data-upane]")) show(pane, pane.dataset.upane === mode);
+    });
+  }
+  $("upload-send").addEventListener("click", async () => {
+    const status = $("upload-status");
+    const say = (msg) => { status.textContent = msg; show(status, true); };
+    try {
+      const title = $("upload-title").value.trim() || null;
+      if (mode === "file") {
+        const file = $("upload-file").files[0];
+        if (!file) { say("Elige un archivo primero."); return; }
+        const body = new FormData();
+        body.append("file", file);
+        if (title) body.append("title", title);
+        const r = await fetch("/sources/upload", { method: "POST", headers: authHeaders(), body });
+        if (!r.ok) throw new Error((FRIENDLY[r.status]) || "No se pudo subir el archivo.");
+      } else {
+        const payload = { title };
+        if (mode === "url") {
+          payload.url = $("upload-url").value.trim();
+          if (!payload.url) { say("Pega un enlace primero."); return; }
+        } else {
+          payload.text = $("upload-text").value.trim();
+          if (!payload.text) { say("Pega algún texto primero."); return; }
+        }
+        await api("/sources/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+      say("Material enviado — se está procesando y aparecerá en la lista en un momento (solo tú puedes verlo).");
+      setTimeout(loadSources, 3000);
+    } catch (e) { say(e.message || "No se pudo subir el material."); }
+  });
+})();
 
 /* ---- boot: resume from the URL hash, otherwise offer recent sessions */
 (function initResume() {

@@ -1,23 +1,27 @@
-"""Tester provisioning CLI: `python -m tutor.access` (PR-BT2 contract).
+"""Tester provisioning CLI: `python -m tutor.access` (PR-BT2 contract;
+`share` added PR-BT3).
 
 Direct SurrealDB access via `tutor.auth.AccessTokenStore` /
-`tutor.usage.UsageCounterStore` — no HTTP. This CLI runs on the server host
-(the developer's machine or the deploy box), not through the public API;
-there are no admin endpoints in this slice (playbook BT2 pre-pinned facts).
-Same "direct store access" pattern as `tutor/tools/__main__.py`, unlike the
-HTTP-wizard pattern of `tutor/profile/__main__.py`.
+`tutor.usage.UsageCounterStore` / `tutor.ownership.SourceOwnerStore` — no
+HTTP. This CLI runs on the server host (the developer's machine or the
+deploy box), not through the public API; there are no admin endpoints in
+this slice (playbook BT2 pre-pinned facts). Same "direct store access"
+pattern as `tutor/tools/__main__.py`, unlike the HTTP-wizard pattern of
+`tutor/profile/__main__.py`.
 
     python -m tutor.access create <user_id> [--label LABEL]
     python -m tutor.access list
     python -m tutor.access revoke <user_id_or_label>
     python -m tutor.access usage
+    python -m tutor.access share <source_id>
 
 The pure formatting/aggregation helpers below (`build_magic_link`,
 `aggregate_usage`, `format_token_row`) are unit-tested directly; the I/O
 wrappers that touch the real stores are dogfood-verified (same split as
 `tutor/tools/__main__.py` — the store CRUD itself needs a live SurrealDB, so
 only the store methods have DB-shaped contracts, tested via fakes, per
-`tests_tutor/test_auth.py` and `tests_tutor/test_usage.py`).
+`tests_tutor/test_auth.py`, `tests_tutor/test_usage.py` and
+`tests_tutor/test_ownership.py`).
 """
 
 from __future__ import annotations
@@ -30,6 +34,7 @@ from dotenv import load_dotenv
 
 from tutor.auth import AccessTokenStore
 from tutor.config import TutorSettings
+from tutor.ownership import SourceOwnerStore
 from tutor.usage import UsageCounterStore, today_utc
 
 
@@ -106,6 +111,21 @@ async def _usage() -> None:
         print(f"{user_id}\ttotal={entry['total']}\ttoday={entry['today']}")
 
 
+async def _share(source_id: str) -> None:
+    """`tutor.access share <source_id>` (PR-BT3): flip a private source's
+    `public` flag to true. A source with no ownership row is already public
+    (grandfather clause) — reported as a no-op, not an error."""
+    store = SourceOwnerStore()
+    changed = await store.share(source_id)
+    if changed:
+        print(f"Source '{source_id}' is now public.")
+    else:
+        print(
+            f"Source '{source_id}' is already public "
+            "(no private ownership row, or already shared)."
+        )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m tutor.access", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -120,6 +140,9 @@ def build_parser() -> argparse.ArgumentParser:
     revoke_p.add_argument("user_id_or_label")
 
     sub.add_parser("usage", help="Per-user turn counts")
+
+    share_p = sub.add_parser("share", help="Make a private source public")
+    share_p.add_argument("source_id")
     return parser
 
 
@@ -136,6 +159,8 @@ def main() -> None:
         asyncio.run(_revoke(args.user_id_or_label))
     elif args.command == "usage":
         asyncio.run(_usage())
+    elif args.command == "share":
+        asyncio.run(_share(args.source_id))
 
 
 if __name__ == "__main__":
