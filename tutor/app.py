@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from tutor import __version__
+from tutor.auth import AccessTokenStoreProtocol, build_resolve_user
 from tutor.clients.open_notebook import OpenNotebookClient
 from tutor.config import TutorSettings
 from tutor.llm.esperanto import EsperantoProvider
@@ -111,8 +112,14 @@ def create_app(
     client: OpenNotebookClient | None = None,
     profile_service: ProfileService | None = None,
     engine: TutorEngine | None = None,
+    auth_store: AccessTokenStoreProtocol | None = None,
 ) -> FastAPI:
-    """Build the app. All dependencies are injectable for tests."""
+    """Build the app. All dependencies are injectable for tests.
+
+    `auth_store` (PR-BT1) lets tests exercise the real `Depends(resolve_user)`
+    wiring over HTTP with a fake token store instead of a live SurrealDB —
+    unused (never constructed) while `TUTOR_AUTH_ENABLED` is false.
+    """
     resolved = settings or TutorSettings.from_env()
     on_client = client or OpenNotebookClient(
         base_url=resolved.open_notebook_api_url,
@@ -120,8 +127,14 @@ def create_app(
     )
 
     app = FastAPI(title="Atenea Tutoring Service", version=__version__)
-    app.include_router(build_profile_router(profile_service))
-    app.include_router(build_session_router(engine or _build_engine(resolved)))
+    # PR-BT1: one resolver per app instance, shared by both routers, so a
+    # single Authorization header / `?t=` resolves to the same user_id
+    # everywhere ("your own Atenea" — profile and sessions alike).
+    resolve_user = build_resolve_user(resolved, auth_store)
+    app.include_router(build_profile_router(profile_service, resolve_user))
+    app.include_router(
+        build_session_router(engine or _build_engine(resolved), resolve_user)
+    )
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     async def ui() -> HTMLResponse:

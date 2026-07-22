@@ -58,3 +58,16 @@ DEFINE FIELD IF NOT EXISTS created ON learner_memory TYPE datetime DEFAULT time:
 DEFINE FIELD IF NOT EXISTS updated ON learner_memory TYPE datetime DEFAULT time::now();
 DEFINE INDEX IF NOT EXISTS learner_memory_user ON learner_memory FIELDS user_id;
 DEFINE INDEX IF NOT EXISTS learner_memory_user_topic ON learner_memory FIELDS user_id, topic_key UNIQUE;
+
+-- Per-request identity (PR-BT1): magic-link bearer tokens. The raw token is
+-- NEVER stored or logged — only its SHA-256 hash, looked up by
+-- tutor/auth.py::resolve_user. Provisioning (create/list/revoke CLI) is
+-- PR-BT2; this table is defined here because BT1 is what reads it.
+DEFINE TABLE IF NOT EXISTS access_token SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS user_id ON access_token TYPE string;
+DEFINE FIELD IF NOT EXISTS token_hash ON access_token TYPE string;
+DEFINE FIELD IF NOT EXISTS label ON access_token TYPE string;
+DEFINE FIELD IF NOT EXISTS created ON access_token TYPE datetime DEFAULT time::now();
+DEFINE FIELD IF NOT EXISTS revoked ON access_token TYPE bool DEFAULT false;
+DEFINE INDEX IF NOT EXISTS access_token_user ON access_token FIELDS user_id;
+DEFINE INDEX IF NOT EXISTS access_token_hash ON access_token FIELDS token_hash UNIQUE;

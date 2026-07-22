@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
 from tutor.app import create_app
+from tutor.auth import hash_token
 from tutor.config import TutorSettings
 from tutor.llm.interface import ChatMessage, ChatResponse
 from tutor.session import policy
@@ -208,6 +209,48 @@ CLOSE = (
 def _engine(llm: FakeLLM, store: FakeStore | None = None) -> TutorEngine:
     return TutorEngine(
         llm=llm, registry=_fake_registry(), store=store or FakeStore(), user_id="juanda"
+    )
+
+
+# --- PR-BT1: a registry whose profile.read actually respects the per-call
+# user_id (unlike `_fake_registry` above, which returns one canned profile
+# regardless of args — fine for every pre-BT1 test, but useless for proving
+# per-request identity actually reaches the profile lookup).
+
+
+class ProfileReadArgs(BaseModel):
+    user_id: str | None = None
+
+
+def _fake_registry_multi_user() -> ToolRegistry:
+    async def read_profile(args: ProfileReadArgs) -> dict[str, Any]:
+        return {
+            "user_id": args.user_id,
+            "learning_goal": f"goal-of-{args.user_id}",
+            "self_assessed_level": "beginner",
+        }
+
+    async def search(args: SearchArgs) -> dict[str, Any]:
+        return {"results": [{"title": "Vectors", "content": "A vector is..."}]}
+
+    registry = ToolRegistry()
+    registry.register(
+        ToolSpec(
+            "profile.read", "read", input_model=ProfileReadArgs, handler=read_profile
+        )
+    )
+    registry.register(
+        ToolSpec("content.search", "search", input_model=SearchArgs, handler=search)
+    )
+    return registry
+
+
+def _engine_multi_user(llm: FakeLLM, store: FakeStore | None = None) -> TutorEngine:
+    return TutorEngine(
+        llm=llm,
+        registry=_fake_registry_multi_user(),
+        store=store or FakeStore(),
+        user_id="juanda",
     )
 
 
@@ -750,3 +793,317 @@ def test_review_prompt_is_retrieval_first_and_interleaves() -> None:
     low = prompt.lower()
     assert "retrieval" in low
     assert "interleave" in low
+
+
+# --- per-request identity: engine-level (PR-BT1) ---
+
+
+def test_open_threads_explicit_user_id_into_the_session_record() -> None:
+    store = FakeStore()
+    llm = FakeLLM([CLASSIFY, "hola alice"])
+    engine = _engine_multi_user(llm, store)
+    state, _ = asyncio.run(engine.open("vectores", user_id="alice"))
+    assert state.user_id == "alice"
+    assert store.records[state.session_id]["user_id"] == "alice"
+
+
+def test_open_falls_back_to_engine_user_id_when_none_given() -> None:
+    # Auth-off lock (PR-BT1): identical to pre-BT1 behavior when the caller
+    # (the router, with TUTOR_AUTH_ENABLED=false) never threads a user_id.
+    store = FakeStore()
+    llm = FakeLLM([CLASSIFY, "hola"])
+    engine = _engine_multi_user(llm, store)
+    state, _ = asyncio.run(engine.open("vectores"))
+    assert state.user_id == "juanda"
+
+
+def test_message_from_a_different_user_is_treated_as_unknown_session() -> None:
+    store = FakeStore()
+    llm = FakeLLM([CLASSIFY, "hola alice"])
+    engine = _engine_multi_user(llm, store)
+    state, _ = asyncio.run(engine.open("vectores", user_id="alice"))
+    with pytest.raises(UnknownSessionError):
+        asyncio.run(engine.message(state.session_id, "hola", user_id="bob"))
+
+
+def test_close_from_a_different_user_is_treated_as_unknown_session() -> None:
+    store = FakeStore()
+    llm = FakeLLM([CLASSIFY, "hola alice"])
+    engine = _engine_multi_user(llm, store)
+    state, _ = asyncio.run(engine.open("vectores", user_id="alice"))
+    with pytest.raises(UnknownSessionError):
+        asyncio.run(engine.close(state.session_id, user_id="bob"))
+
+
+def test_get_from_a_different_user_is_treated_as_unknown_session() -> None:
+    store = FakeStore()
+    llm = FakeLLM([CLASSIFY, "hola alice"])
+    engine = _engine_multi_user(llm, store)
+    state, _ = asyncio.run(engine.open("vectores", user_id="alice"))
+    with pytest.raises(UnknownSessionError):
+        asyncio.run(engine.get(state.session_id, user_id="bob"))
+    # the owner can still read it
+    record = asyncio.run(engine.get(state.session_id, user_id="alice"))
+    assert record["user_id"] == "alice"
+
+
+def test_due_reviews_list_sessions_and_list_memories_are_user_scoped() -> None:
+    store = FakeStore()
+    store.records["session:a"] = _summary_record(
+        "session:a", "alice", "topic a", closed=False, updated_at="t1"
+    )
+    store.records["session:b"] = _summary_record(
+        "session:b", "bob", "topic b", closed=False, updated_at="t2"
+    )
+    engine = _engine_multi_user(FakeLLM([]), store)
+    alice_rows = asyncio.run(engine.list_sessions(user_id="alice"))
+    assert [r["id"] for r in alice_rows] == ["session:a"]
+    bob_rows = asyncio.run(engine.list_sessions(user_id="bob"))
+    assert [r["id"] for r in bob_rows] == ["session:b"]
+
+
+def test_cache_privacy_two_interleaved_users_never_cross_content() -> None:
+    # Audit finding (2026-07-20): _profile_cache/_content_cache/etc. were
+    # engine-global scalars, so under concurrent users the SECOND open()
+    # would silently clobber what the FIRST session's later message() reads
+    # from — a cross-user content leak. Re-keyed per session_id (PR-BT1);
+    # this proves it holds even with both sessions open on the SAME engine.
+    store = FakeStore()
+    llm = FakeLLM([CLASSIFY, "hola alice", CLASSIFY, "hola bob", "sigo con alice"])
+    engine = _engine_multi_user(llm, store)
+
+    state_alice, _ = asyncio.run(engine.open("vectores", user_id="alice"))
+    state_bob, _ = asyncio.run(engine.open("matrices", user_id="bob"))
+    assert state_alice.session_id != state_bob.session_id
+
+    asyncio.run(engine.message(state_alice.session_id, "sigo", user_id="alice"))
+    # The system prompt for alice's second turn must carry ALICE's cached
+    # profile, never bob's — even though bob's open() ran in between.
+    system_prompt = llm.seen[-1][0].content
+    assert "goal-of-alice" in system_prompt
+    assert "goal-of-bob" not in system_prompt
+
+
+def test_close_evicts_this_sessions_caches() -> None:
+    store = FakeStore()
+    llm = FakeLLM([CLASSIFY, "hola", CLOSE])
+    engine = _engine_multi_user(llm, store)
+    state, _ = asyncio.run(engine.open("vectores", user_id="alice"))
+    assert state.session_id in engine._profile_cache
+    assert state.session_id in engine._content_cache
+    asyncio.run(engine.close(state.session_id, user_id="alice"))
+    assert state.session_id not in engine._profile_cache
+    assert state.session_id not in engine._content_cache
+    assert state.session_id not in engine._memory_cache
+    assert state.session_id not in engine._grounded_cache
+
+
+# --- per-request identity: router / HTTP level (PR-BT1) ---
+
+
+class FakeAccessTokenStore:
+    def __init__(self, rows: dict[str, dict[str, Any]] | None = None) -> None:
+        self._rows = rows or {}
+
+    async def get_by_hash(self, token_hash: str) -> dict[str, Any] | None:
+        return self._rows.get(token_hash)
+
+
+def test_auth_off_lock_ignores_bearer_and_query_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # M1-style byte-identical lock: with TUTOR_AUTH_ENABLED unset (default
+    # false), a garbage/well-formed token in either channel never changes the
+    # resolved identity — same scoping as every pre-BT1 test in this file,
+    # whether or not a token is sent at all.
+    monkeypatch.setenv("TUTOR_USER_ID", "juanda")
+    session_store = FakeStore()
+    session_store.records["session:a"] = _summary_record(
+        "session:a", "juanda", "topic a", closed=False, updated_at="t1"
+    )
+    app = create_app(
+        settings=TutorSettings(),
+        engine=_engine_multi_user(FakeLLM([]), session_store),
+        auth_store=FakeAccessTokenStore(),
+    )
+    client = TestClient(app)
+
+    no_token = client.get("/sessions").json()
+    with_bearer = client.get(
+        "/sessions", headers={"Authorization": "Bearer whatever-not-registered"}
+    ).json()
+    with_query = client.get("/sessions", params={"t": "also-not-registered"}).json()
+
+    assert no_token == with_bearer == with_query
+    assert [r["session_id"] for r in no_token] == ["session:a"]
+
+
+def test_auth_on_missing_token_is_401() -> None:
+    app = create_app(
+        settings=TutorSettings(auth_enabled=True),
+        engine=_engine(FakeLLM([])),
+        auth_store=FakeAccessTokenStore(),
+    )
+    response = TestClient(app).get("/sessions")
+    assert response.status_code == 401
+
+
+def test_auth_on_invalid_token_is_401() -> None:
+    app = create_app(
+        settings=TutorSettings(auth_enabled=True),
+        engine=_engine(FakeLLM([])),
+        auth_store=FakeAccessTokenStore(),
+    )
+    response = TestClient(app).get(
+        "/sessions", headers={"Authorization": "Bearer nope"}
+    )
+    assert response.status_code == 401
+
+
+def test_auth_on_revoked_token_is_401() -> None:
+
+    store = FakeAccessTokenStore(
+        {hash_token("revoked"): {"user_id": "alice", "revoked": True}}
+    )
+    app = create_app(
+        settings=TutorSettings(auth_enabled=True),
+        engine=_engine(FakeLLM([])),
+        auth_store=store,
+    )
+    response = TestClient(app).get(
+        "/sessions", headers={"Authorization": "Bearer revoked"}
+    )
+    assert response.status_code == 401
+
+
+def test_auth_on_valid_token_scopes_sessions_to_its_user() -> None:
+
+    token_store = FakeAccessTokenStore(
+        {
+            hash_token("alice-token"): {"user_id": "alice", "revoked": False},
+            hash_token("bob-token"): {"user_id": "bob", "revoked": False},
+        }
+    )
+    session_store = FakeStore()
+    session_store.records["session:a"] = _summary_record(
+        "session:a", "alice", "topic a", closed=False, updated_at="t1"
+    )
+    session_store.records["session:b"] = _summary_record(
+        "session:b", "bob", "topic b", closed=False, updated_at="t2"
+    )
+    app = create_app(
+        settings=TutorSettings(auth_enabled=True),
+        engine=_engine_multi_user(FakeLLM([]), session_store),
+        auth_store=token_store,
+    )
+    client = TestClient(app)
+
+    alice_rows = client.get(
+        "/sessions", headers={"Authorization": "Bearer alice-token"}
+    ).json()
+    assert [r["session_id"] for r in alice_rows] == ["session:a"]
+
+    bob_rows = client.get(
+        "/sessions", headers={"Authorization": "Bearer bob-token"}
+    ).json()
+    assert [r["session_id"] for r in bob_rows] == ["session:b"]
+
+
+def test_auth_on_magic_link_query_param_also_resolves() -> None:
+
+    token_store = FakeAccessTokenStore(
+        {hash_token("magic"): {"user_id": "alice", "revoked": False}}
+    )
+    session_store = FakeStore()
+    session_store.records["session:a"] = _summary_record(
+        "session:a", "alice", "topic a", closed=False, updated_at="t1"
+    )
+    app = create_app(
+        settings=TutorSettings(auth_enabled=True),
+        engine=_engine_multi_user(FakeLLM([]), session_store),
+        auth_store=token_store,
+    )
+    rows = TestClient(app).get("/sessions", params={"t": "magic"}).json()
+    assert [r["session_id"] for r in rows] == ["session:a"]
+
+
+def test_auth_on_ownership_404_across_users_is_indistinguishable_from_missing() -> None:
+    token_store = FakeAccessTokenStore(
+        {
+            hash_token("alice-token"): {"user_id": "alice", "revoked": False},
+            hash_token("bob-token"): {"user_id": "bob", "revoked": False},
+        }
+    )
+    session_store = FakeStore()
+    app = create_app(
+        settings=TutorSettings(auth_enabled=True),
+        engine=_engine_multi_user(FakeLLM([CLASSIFY, "hola alice"]), session_store),
+        auth_store=token_store,
+    )
+    client = TestClient(app)
+
+    opened = client.post(
+        "/session",
+        json={"topic": "vectores"},
+        headers={"Authorization": "Bearer alice-token"},
+    )
+    assert opened.status_code == 200
+    session_id = opened.json()["session_id"]
+
+    # bob asking for alice's session gets the SAME 404 shape as a nonexistent
+    # id — never a distinguishing "forbidden" response.
+    forbidden = client.get(
+        f"/session/{session_id}", headers={"Authorization": "Bearer bob-token"}
+    )
+    missing = client.get(
+        "/session/session:doesnotexist",
+        headers={"Authorization": "Bearer bob-token"},
+    )
+    assert forbidden.status_code == missing.status_code == 404
+    assert forbidden.json() == missing.json()
+
+    # alice herself can still read it.
+    own = client.get(
+        f"/session/{session_id}", headers={"Authorization": "Bearer alice-token"}
+    )
+    assert own.status_code == 200
+
+
+def test_profile_router_scopes_by_resolved_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tutor.eval.fakes import InMemoryProfileService
+
+    token_store = FakeAccessTokenStore(
+        {
+            hash_token("alice-token"): {"user_id": "alice", "revoked": False},
+            hash_token("bob-token"): {"user_id": "bob", "revoked": False},
+        }
+    )
+    service = InMemoryProfileService()
+    app = create_app(
+        settings=TutorSettings(auth_enabled=True),
+        profile_service=service,
+        engine=_engine_multi_user(FakeLLM([]), FakeStore()),
+        auth_store=token_store,
+    )
+    client = TestClient(app)
+
+    payload = {
+        "learning_goal": "alice's goal",
+        "self_assessed_level": "beginner",
+        "weekly_availability_hours": 3,
+        "format_preferences": [],
+    }
+    put = client.put(
+        "/profile", json=payload, headers={"Authorization": "Bearer alice-token"}
+    )
+    assert put.status_code == 200
+    assert put.json()["user_id"] == "alice"
+
+    bob_get = client.get("/profile", headers={"Authorization": "Bearer bob-token"})
+    assert bob_get.status_code == 404  # bob has no profile of his own yet
+
+    alice_get = client.get("/profile", headers={"Authorization": "Bearer alice-token"})
+    assert alice_get.status_code == 200
+    assert alice_get.json()["learning_goal"] == "alice's goal"

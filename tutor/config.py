@@ -36,6 +36,11 @@ class TutorSettings(BaseModel):
     verify_turns: Literal["off", "grounded", "all"] = "grounded"
     verify_profile: Literal["high", "cheap"] = "high"
     grounding_budget_tokens: int = 16000
+    # Per-request identity (PR-BT1). Default false: `tutor.auth.resolve_user`
+    # returns `default_user_id()` exactly as before (byte-identical lock
+    # test) and never touches the access_token table. true: Bearer header /
+    # `t` query param resolution, 401 on missing/invalid/revoked.
+    auth_enabled: bool = False
 
     @classmethod
     def from_env(cls) -> "TutorSettings":
@@ -64,7 +69,9 @@ class TutorSettings(BaseModel):
         (high|cheap, default high) picks the escalation ladder depth.
         TUTOR_GROUNDING_BUDGET_TOKENS (default 16000) is the whole-source-lite
         switch: a grounded source under this many (tutor-estimated) tokens is
-        injected in full instead of scoped passages.
+        injected in full instead of scoped passages. TUTOR_AUTH_ENABLED
+        (PR-BT1, default false) gates per-request identity: off keeps today's
+        single-tenant behavior; on requires a valid magic-link token.
         """
         values: dict[str, str] = {}
         env_map = {
@@ -85,6 +92,7 @@ class TutorSettings(BaseModel):
             "verify_turns": "TUTOR_VERIFY_TURNS",
             "verify_profile": "TUTOR_VERIFY_PROFILE",
             "grounding_budget_tokens": "TUTOR_GROUNDING_BUDGET_TOKENS",
+            "auth_enabled": "TUTOR_AUTH_ENABLED",
         }
         for field, var in env_map.items():
             value = os.environ.get(var)
