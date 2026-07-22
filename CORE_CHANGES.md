@@ -100,3 +100,36 @@ Format:
   are both new files with no upstream counterpart; `docker-compose.yml`
   itself is untouched by this PR (the overlay only references its service
   names, it does not edit them).
+## Beta data backups: `backup` service + script (2026-07-20, feature/bt4b/backups / PR-BT4b)
+
+- Files: `docker-compose.prod.yml` (edited — new `backup` service appended
+  to the PR-BT4 overlay), `deploy/backup.sh` (new file, repo root's new
+  `deploy/` directory). `.env.production.example` and
+  `docs/atenea/deploy_guide.md` are also touched but are Atenea-specific
+  docs/env-template files (same status as `.env.example`), not logged here.
+- Reason: same rationale as PR-BT4's entry above — the backup service has
+  to be wired into the shared production overlay (`docker-compose.prod.yml`,
+  itself outside `tutor/`) to run alongside `surrealdb`/`open_notebook`/
+  `tutor`/`caddy`, and `deploy/backup.sh` is a new file living outside
+  `tutor/` (a pure addition, no existing file touched), so both are logged
+  here per the review checklist, same precedent as `Dockerfile.tutor`
+  (PR-DX1) and `Caddyfile`/`docker-compose.prod.yml` itself (PR-BT4).
+- Design note (smallest-reading decision, flagged for the developer): the
+  `backup` service reuses the base `surrealdb` service's own image tag
+  (`surrealdb/surrealdb:v2`) and overrides its entrypoint to
+  `/bin/sh /backup.sh --loop`, per the contract's literal text ("uses the
+  same SurrealDB image ... simple shell loop", "`docker compose ... exec
+  backup sh /backup.sh`"). Web research during implementation turned up
+  credible (but not locally verifiable — no Docker daemon in this sandbox)
+  evidence that the official `surrealdb/surrealdb` image may be a minimal
+  CLI+server image without a shell (a GitHub issue requesting bash be added
+  to it, workaround = copying busybox in). Rather than unilaterally
+  introducing a new multi-stage `Dockerfile.backup` (outside this PR's
+  scope guard), the implementation follows the signed contract as written
+  and documents both a first-deploy verification step and a host-crontab
+  fallback that does not depend on a shell existing inside the image
+  (`docs/atenea/deploy_guide.md` §7) — the failure mode if the assumption
+  is wrong is loud (`backup` container stuck `Restarting`), not silent.
+- Upstream-merge risk: **low** — `docker-compose.prod.yml`'s edit is a pure
+  append (new service block, existing services untouched) and
+  `deploy/backup.sh` is a new file with no upstream counterpart.

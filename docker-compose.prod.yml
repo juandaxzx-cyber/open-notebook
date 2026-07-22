@@ -1,4 +1,4 @@
-# Atenea production deploy overlay (PR-BT4).
+# Atenea production deploy overlay (PR-BT4, backups added in PR-BT4b).
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
@@ -27,6 +27,15 @@
 # `docker compose -f docker-compose.yml -f docker-compose.prod.yml config`
 # renders the merged model and is the way to verify this locally without
 # actually deploying (see docs/atenea/deploy_guide.md).
+#
+# PR-BT4b adds the `backup` service below: it reuses the same
+# `surrealdb/surrealdb:v2` image as the base `surrealdb` service (it ships
+# the `surreal` CLI at /surreal) to periodically `surreal export` BOTH
+# databases the stack uses into the host-mounted `./backups/` directory.
+# It publishes no ports (nothing to clear/reset — it never appears in the
+# base compose file), so the BT4 deployment-posture invariant above is
+# untouched. See deploy/backup.sh (mounted in) and docs/atenea/
+# deploy_guide.md "Backups & restore" for the on-demand/restore commands.
 
 services:
   surrealdb:
@@ -57,6 +66,41 @@ services:
       - caddy_config:/config
     depends_on:
       - tutor
+    restart: always
+
+  backup:
+    image: surrealdb/surrealdb:v2
+    # Overrides the base image's default entrypoint (which execs `/surreal`
+    # directly) to instead interpret deploy/backup.sh. `entrypoint:` with no
+    # `command:` fully replaces the image's ENTRYPOINT+CMD (same Docker
+    # semantics as `docker run --entrypoint`), so this is the container's
+    # entire long-running process: one pass, sleep
+    # TUTOR_BACKUP_INTERVAL_HOURS, repeat. The on-demand path
+    # (docs/atenea/deploy_guide.md) runs the SAME script without --loop via
+    # `docker compose ... exec backup /backup.sh`, which bypasses this
+    # entrypoint entirely (docker exec always runs the given command
+    # directly, ignoring image/compose ENTRYPOINT).
+    entrypoint: ["/bin/sh", "/backup.sh", "--loop"]
+    # Namespace/credentials pinned explicitly (same belt-and-suspenders
+    # pattern as the tutor service in docker-compose.yml) so the backup
+    # loop never silently runs with the wrong database identity even if
+    # .env is incomplete. TUTOR_SURREAL_DATABASE, TUTOR_BACKUP_INTERVAL_HOURS
+    # and TUTOR_BACKUP_KEEP arrive via env_file below (zero-duplication
+    # pattern, same as the tutor service's TUTOR_* settings) — their
+    # defaults live in deploy/backup.sh, not here.
+    environment:
+      - SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-open_notebook}
+      - SURREAL_DATABASE=${SURREAL_DATABASE:-open_notebook}
+      - SURREAL_USER=${SURREAL_USER:-root}
+      - SURREAL_PASSWORD=${SURREAL_PASSWORD:-root}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./deploy/backup.sh:/backup.sh:ro
+      - ./backups:/backups
+    depends_on:
+      - surrealdb
     restart: always
 
 volumes:
